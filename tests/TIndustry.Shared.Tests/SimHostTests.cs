@@ -223,9 +223,9 @@ public sealed class SimHostTests
     public void PlacementOnOccupiedTileIsRejected()
     {
         var factory = NewSandbox(LoadContent());
-        // A junction: a belt over a plain belt would turn it in place (BeltOverBeltTests).
+        // A bridge: a belt over another 1×1 logistics block would turn or replace it (BeltOverBeltTests, LogisticsReplaceTests).
         Assert.True(factory.PlaceInstant(
-            new BuildSpec("junction", BuildingKind.Junction, new GridPosition(10, 10), Direction.East), charge: false));
+            new BuildSpec("conveyor-bridge", BuildingKind.Bridge, new GridPosition(10, 10), Direction.East), charge: false));
 
         var (reason, before, atRejection, applied) = RunOne(
             factory, new PlaceBelt(1, new GridPosition(10, 10), Direction.North, "conveyor-basic"));

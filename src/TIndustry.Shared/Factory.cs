@@ -267,27 +267,30 @@ public sealed class Factory : IGameView
     }
 
     /// <summary>
-    /// Mindustry's belt over belt: <see cref="BeltOverBelt.None"/> unless <paramref name="cell"/> holds a plain belt
-    /// that no plan, mark for removal or site touches and <paramref name="conveyorId"/> is a plain belt (or both are the
-    /// same stack conveyor, which only turns); then
-    /// <see cref="BeltOverBelt.Same"/> (same id and direction) or <see cref="BeltOverBelt.Rotate"/> (same id).
+    /// Mindustry's replace for the 1×1 logistics blocks (<see cref="IsReplaceableLogistics"/>: belts of every tier, the
+    /// armored and the stack conveyor too, junction, router, both sorters and both gates; never a bridge):
+    /// <see cref="BeltOverBelt.None"/> unless <paramref name="cell"/> holds one that no plan, mark for removal or site
+    /// touches and <paramref name="conveyorId"/> (a structure id) is one too; then <see cref="BeltOverBelt.Replace"/>
+    /// (another id), <see cref="BeltOverBelt.Rotate"/> (the same belt or stack conveyor facing another way) or
+    /// <see cref="BeltOverBelt.Same"/> (the same id otherwise: a router, a sorter, a gate or a junction has no direction).
     /// </summary>
     public BeltOverBelt BeltOverBeltAt(GridPosition cell, Direction direction, string conveyorId) =>
         BeltOverBeltAt(cell, direction, conveyorId, ignoring: null);
 
+    /// <summary>True for the logistics kinds that replace one another by placing over: every 1×1 one, not the bridge.</summary>
+    public static bool IsReplaceableLogistics(LogisticsKind kind) => kind is not LogisticsKind.Bridge;
+
     /// <summary>True while the build plan's cell still answers <see cref="BeltOverBelt.Replace"/>, the plan itself aside.</summary>
     internal bool IsReplacePlan(BuildPlan plan) =>
         !plan.Breaking
-        && plan.Spec.Kind is null
         && BeltOverBeltAt(plan.Spec.Origin, plan.Spec.Direction, plan.Spec.StructureId, plan) == BeltOverBelt.Replace;
 
-    private BeltOverBelt BeltOverBeltAt(GridPosition cell, Direction direction, string conveyorId, BuildPlan? ignoring)
+    private BeltOverBelt BeltOverBeltAt(GridPosition cell, Direction direction, string structureId, BuildPlan? ignoring)
     {
-        // A stack conveyor over a stack conveyor of its id turns like a belt (never a tier change, with a belt or another).
-        if (!Belts.TryGet(cell, out var belt)
-            || !(belt.Kind == LogisticsKind.Belt
-                || (belt.Kind == LogisticsKind.Stack && string.Equals(belt.Definition.Id, conveyorId, StringComparison.Ordinal)))
-            || Content.FindConveyor(conveyorId)?.Kind != belt.Kind
+        if (!Belts.TryGet(cell, out var old)
+            || !IsReplaceableLogistics(old.Kind)
+            || Content.FindConveyor(structureId) is not { } conveyor
+            || !IsReplaceableLogistics(conveyor.Kind)
             || State.Builders.Any(b => b.Plans.Any(p =>
                 !ReferenceEquals(p, ignoring) && !p.Breaking && Footprint(p.Spec).Contains(cell)))
             || TryGetSiteAt(cell, out _)
@@ -296,80 +299,298 @@ public sealed class Factory : IGameView
             return BeltOverBelt.None;
         }
 
-        return !string.Equals(belt.Definition.Id, conveyorId, StringComparison.Ordinal) ? BeltOverBelt.Replace
-            : belt.Direction == direction ? BeltOverBelt.Same
-            : BeltOverBelt.Rotate;
+        return !string.Equals(old.Definition.Id, structureId, StringComparison.Ordinal) ? BeltOverBelt.Replace
+            : old.HasDirection && old.Direction != direction ? BeltOverBelt.Rotate
+            : BeltOverBelt.Same;
     }
 
     /// <summary>
-    /// Takes the plain belt on <paramref name="cell"/> away without refund for a replacement, returning its spec and
-    /// items (front first, positions kept). False, changing nothing, when no plain belt is there.
+    /// The specs of the blocks <paramref name="spec"/> would replace (<see cref="BeltOverBelt.Replace"/>): the logistics
+    /// cell under its origin. Empty when there is none.
     /// </summary>
-    internal bool TryTakeBeltForReplacement(GridPosition cell, out ReplacedBelt old)
+    private IReadOnlyList<BuildSpec> ReplacedSpecsUnder(BuildSpec spec) =>
+        Belts.TryGet(spec.Origin, out var cell) && IsReplaceableLogistics(cell.Kind)
+        && TryGetSpecAt(spec.Origin, out var old, out _)
+            ? [old]
+            : [];
+
+    /// <summary>
+    /// Takes away without refund the blocks <paramref name="spec"/> replaces (<see cref="ReplacedSpecsUnder"/>), returning
+    /// each with its spec, its items (front first, positions, junction queues and packs kept) and its state. False,
+    /// changing nothing, when there is none.
+    /// </summary>
+    internal bool TryTakeForReplacement(BuildSpec spec, out IReadOnlyList<ReplacedBlock> taken)
     {
-        old = null!;
-        if (!Belts.TryGet(cell, out var belt) || belt.Kind != LogisticsKind.Belt)
+        taken = [];
+        if (ReplacedSpecsUnder(spec) is not [var oldSpec] || !Belts.TryGet(oldSpec.Origin, out var cell))
         {
             return false;
         }
 
-        old = new ReplacedBelt(
-            new BuildSpec(belt.Definition.Id, null, cell, belt.Direction),
-            belt.Items.Select(i => new TransportedItem(i.Id, i.ItemId, i.Progress, i.Travel)).ToList());
-        return RemoveInstant(cell, refund: false);
+        var block = new ReplacedBlock(oldSpec, cell.Items.Select(CopyItem).ToList(), LogisticsStateOf(cell));
+        if (!RemoveInstant(oldSpec.Origin, refund: false))
+        {
+            return false;
+        }
+
+        taken = [block];
+        return true;
+    }
+
+    /// <summary>A copy of <paramref name="item"/> that keeps what a save keeps (not the carry of the tick).</summary>
+    private static TransportedItem CopyItem(TransportedItem item) =>
+        new(item.Id, item.ItemId, item.Progress, item.Travel) { Count = item.Count, JunctionTicks = item.JunctionTicks };
+
+    /// <summary>The state of a logistics cell beyond its spec and items; null when it is all at rest (0).</summary>
+    private static ReplacedLogisticsState? LogisticsStateOf(BeltGridCell cell)
+    {
+        var state = cell.Kind switch
+        {
+            LogisticsKind.Router => new ReplacedLogisticsState(
+                RouterTurn: cell.RouterTurn, RouterWaitTicks: cell.RouterWaitTicks, RouterFrom: cell.RouterFrom),
+            LogisticsKind.Sorter or LogisticsKind.Gate => new ReplacedLogisticsState(SorterTurns: cell.SorterTurns),
+            LogisticsKind.Stack => new ReplacedLogisticsState(StackWaitTicks: cell.StackWaitTicks),
+            _ => null
+        };
+        return state == new ReplacedLogisticsState() ? null : state;
     }
 
     /// <summary>
-    /// Ends a replacement on the new belt of <paramref name="spec"/>: it takes the first <c>Capacity</c> items of
-    /// <paramref name="old"/> with their positions, and the old cost beyond the credit comes back at the old belt's
-    /// refund share (<see cref="RefundBasisPointsFor"/>, rounded up once per line).
+    /// Ends a replacement on the new block of <paramref name="spec"/>: it keeps the items of <paramref name="taken"/> it
+    /// can hold through its normal acceptance (<see cref="KeepItems"/>) and the others go to the Core; the old cost beyond
+    /// the credit comes back at each old block's refund share (<see cref="RefundBasisPointsFor"/>, rounded up once per line).
     /// </summary>
-    internal void SettleReplacement(BuildSpec spec, ReplacedBelt old)
+    internal void SettleReplacement(BuildSpec spec, IReadOnlyList<ReplacedBlock> taken)
     {
-        var cell = Belts.Cells[spec.Origin];
-        cell.RestoreState(old.Items.Take(cell.Definition.Capacity));
-        var oldCost = CostOf(old.Spec);
-        var credit = Construction.Credit(oldCost, CostOf(spec));
-        var basisPoints = RefundBasisPointsFor(old.Spec);
-        for (var i = 0; i < oldCost.Count; i++)
-        {
-            var back = Construction.RefundShare(oldCost[i].Amount - credit[i], basisPoints);
-            if (back <= 0)
-            {
-                continue;
-            }
+        ItemsToCore(Belts.TryGet(spec.Origin, out var cell)
+            ? KeepItems(cell, taken)
+            : taken.SelectMany(b => b.Items).ToList());
+        RefundExcess(spec, taken);
+    }
 
-            if (oldCost[i].ItemId is { } itemId)
+    /// <summary>
+    /// Puts into the new <paramref name="cell"/> the items of <paramref name="taken"/> it holds by its normal acceptance,
+    /// in order, and returns the others. A belt: single pieces, front first, each kept where it was but never past the
+    /// cell nor closer than the spacing to the one ahead, up to its capacity (a pack is no belt item). A junction: each
+    /// single piece in the queue of its way (a belt's or stack's direction, the way it crossed a junction, away from the
+    /// side it came into a router), up to <see cref="BeltGridCell.JunctionQueueLength"/> per queue. A router: the first
+    /// single piece, which it never hands back to the side it came from. A stack conveyor's loading cell: the single
+    /// pieces that join the pack its first one starts (<see cref="BeltGridCell.CanLoad"/>); any other stack cell, a sorter
+    /// and a gate hold nothing.
+    /// </summary>
+    private static List<TransportedItem> KeepItems(BeltGridCell cell, IReadOnlyList<ReplacedBlock> taken)
+    {
+        var rest = new List<TransportedItem>();
+        var kept = new List<TransportedItem>();
+        foreach (var old in taken)
+        {
+            foreach (var item in old.Items)
             {
-                State.Storage.AddClamped(itemId, back);
+                if (item.Count == 1 && TryKeep(item, old))
+                {
+                    continue;
+                }
+
+                rest.Add(item);
+            }
+        }
+
+        switch (cell.Kind)
+        {
+            case LogisticsKind.Belt or LogisticsKind.Junction:
+                cell.RestoreState(kept);
+                break;
+            case LogisticsKind.Router when kept is [var held]:
+                cell.RestoreState(kept);
+                cell.RestoreRouter(0, 0, held.Travel is { } way ? DirectionMath.Opposite(way) : null);
+                held.Travel = null;
+                break;
+        }
+
+        return rest;
+
+        bool TryKeep(TransportedItem item, ReplacedBlock old)
+        {
+            var def = cell.Definition;
+            switch (cell.Kind)
+            {
+                case LogisticsKind.Belt:
+                {
+                    var limit = kept.Count == 0 ? 1f : kept[^1].Progress - def.ItemSpacing;
+                    if (kept.Count >= def.Capacity || limit < 0f)
+                    {
+                        return false;
+                    }
+
+                    item.Progress = Math.Clamp(item.Progress, 0f, limit);
+                    item.Travel = null;
+                    item.JunctionTicks = null;
+                    kept.Add(item);
+                    return true;
+                }
+                case LogisticsKind.Junction:
+                {
+                    if (WayOf(item, old) is not { } way
+                        || kept.Count(k => k.Travel == way) >= BeltGridCell.JunctionQueueLength)
+                    {
+                        return false;
+                    }
+
+                    // Its crossing so far is what its progress says (BeltCell.RestoreItems).
+                    item.Travel = way;
+                    item.JunctionTicks = null;
+                    kept.Add(item);
+                    return true;
+                }
+                case LogisticsKind.Router:
+                {
+                    if (kept.Count > 0)
+                    {
+                        return false;
+                    }
+
+                    // Travel holds the way it was going until the router state is set (above).
+                    item.Travel = WayOf(item, old);
+                    item.JunctionTicks = null;
+                    item.Progress = 0f;
+                    kept.Add(item);
+                    return true;
+                }
+                case LogisticsKind.Stack:
+                    // TryLoad starts the pack with the first piece and counts the next ones into it.
+                    return cell.IsStackLoader && cell.TryLoad(item);
+                default:
+                    return false;
+            }
+        }
+    }
+
+    /// <summary>
+    /// The way <paramref name="item"/> was travelling in the replaced <paramref name="old"/> block: a belt's or a stack
+    /// conveyor's direction, its junction queue, away from the side it came into a router; null when unknown.
+    /// </summary>
+    private static Direction? WayOf(TransportedItem item, ReplacedBlock old) =>
+        old.Spec.Kind switch
+        {
+            null => old.Spec.Direction, // a belt or a stack conveyor
+            BuildingKind.Junction => item.Travel,
+            BuildingKind.Router => old.State is ReplacedLogisticsState { RouterFrom: { } from }
+                ? DirectionMath.Opposite(from)
+                : null,
+            _ => null
+        };
+
+    /// <summary>
+    /// Gives back the old cost of <paramref name="taken"/> beyond the credit of <paramref name="spec"/>: the credit
+    /// (<see cref="Construction.Credit"/> against all the old blocks together) is used block by block in order, and what
+    /// each block has left comes back at its own refund share, rounded up once per line.
+    /// </summary>
+    private void RefundExcess(BuildSpec spec, IReadOnlyList<ReplacedBlock> taken)
+    {
+        var newCost = CostOf(spec);
+        var left = Construction.Credit(newCost, Construction.CostOfAll(Content, taken.Select(b => b.Spec)));
+        foreach (var old in taken)
+        {
+            var basisPoints = RefundBasisPointsFor(old.Spec);
+            foreach (var line in CostOf(old.Spec))
+            {
+                var used = 0;
+                for (var i = 0; i < newCost.Count; i++)
+                {
+                    if (string.Equals(newCost[i].ItemId, line.ItemId, StringComparison.Ordinal))
+                    {
+                        used = Math.Min(line.Amount, left[i]);
+                        left[i] -= used;
+                    }
+                }
+
+                var back = Construction.RefundShare(line.Amount - used, basisPoints);
+                if (back <= 0)
+                {
+                    continue;
+                }
+
+                if (line.ItemId is { } itemId)
+                {
+                    State.Storage.AddClamped(itemId, back);
+                }
+                else
+                {
+                    Wallet.AddMoney(back);
+                }
+            }
+        }
+    }
+
+    /// <summary>
+    /// Puts the blocks of a cancelled replacement back, free, with all their items and their state. The site kept the
+    /// cells and a loaded <see cref="ConstructSite.Replaced"/> is checked (<see cref="IsReplaceable"/>), so this always
+    /// succeeds; should it not, the items go to the Core rather than vanish.
+    /// </summary>
+    internal void RestoreReplaced(IReadOnlyList<ReplacedBlock> taken)
+    {
+        foreach (var old in taken)
+        {
+            if (PlaceInstant(old.Spec, charge: false) && Belts.TryGet(old.Spec.Origin, out var cell))
+            {
+                cell.RestoreState(old.Items, filter: old.Spec.FilterItemId);
+                if (old.State is ReplacedLogisticsState state)
+                {
+                    cell.RestoreRouter(state.RouterTurn, state.RouterWaitTicks, state.RouterFrom);
+                    cell.RestoreSorter(state.SorterTurns);
+                    cell.RestoreStackWait(state.StackWaitTicks);
+                }
             }
             else
             {
-                Wallet.AddMoney(back);
+                ItemsToCore(old.Items);
             }
         }
     }
 
     /// <summary>
-    /// Puts the belt of a cancelled replacement back, free, with all its items. The site kept the cell and a loaded
-    /// <see cref="ReplacedBelt.Spec"/> is checked (<see cref="IsReplaceableBelt"/>), so this always succeeds; should it
-    /// not, the items go to the Core rather than vanish.
+    /// Whether a loaded site of <paramref name="site"/> can put <paramref name="taken"/> back: both are 1×1 logistics
+    /// blocks of different ids (<see cref="IsReplaceableLogistics"/>), the old one alone, on the site's cell, a valid spec
+    /// of its kind (the kind its id names), with items and state of that kind. Content may have dropped or changed a block.
     /// </summary>
-    internal void RestoreReplacedBelt(ReplacedBelt old)
+    private bool IsReplaceable(BuildSpec site, IReadOnlyList<ReplacedBlock> taken)
     {
-        if (PlaceInstant(old.Spec, charge: false))
+        if (taken is not [var old]
+            || Content.FindConveyor(site.StructureId) is not { } newDef
+            || !IsReplaceableLogistics(newDef.Kind)
+            || Content.FindConveyor(old.Spec.StructureId) is not { } def
+            || !IsReplaceableLogistics(def.Kind)
+            || string.Equals(def.Id, newDef.Id, StringComparison.Ordinal)
+            || old.Spec.Origin != site.Origin
+            || old.Spec.Kind != BuildSpec.KindFor(old.Spec.StructureId)
+            || !IsValidSpec(old.Spec))
         {
-            Belts.Cells[old.Spec.Origin].RestoreState(old.Items);
+            return false;
         }
-        else
-        {
-            ItemsToCore(old.Items);
-        }
-    }
 
-    /// <summary>A replaced belt's spec a site on <paramref name="origin"/> can put back: a known plain belt on that cell.</summary>
-    private bool IsReplaceableBelt(BuildSpec old, GridPosition origin) =>
-        old.Kind is null && old.Origin == origin && Content.FindConveyor(old.StructureId)?.Kind == LogisticsKind.Belt;
+        // A pack only on a stack conveyor; a router holds one piece; a sorter or a gate nothing.
+        var packSize = def.Kind == LogisticsKind.Stack ? BeltGrid.StackPackSize : 1;
+        var most = def.Kind switch
+        {
+            LogisticsKind.Router => 1,
+            LogisticsKind.Sorter or LogisticsKind.Gate => 0,
+            LogisticsKind.Junction => BeltGridCell.JunctionQueueLength * DirectionMath.All.Length,
+            _ => def.Capacity
+        };
+        if (old.Items.Count > most || old.Items.Any(i => i.Count < 1 || i.Count > packSize))
+        {
+            return false;
+        }
+
+        return old.State is not ReplacedLogisticsState state
+            || (state.SorterTurns is >= 0 and <= 0b1111
+                && (state.SorterTurns == 0 || def.Kind is LogisticsKind.Sorter or LogisticsKind.Gate)
+                && state.RouterTurn >= 0 && state.RouterTurn < DirectionMath.All.Length
+                && state.RouterWaitTicks is >= 0 and <= BeltGridCell.RouterTicks
+                && (def.Kind == LogisticsKind.Router || (state.RouterTurn == 0 && state.RouterWaitTicks == 0 && state.RouterFrom is null))
+                && state.StackWaitTicks >= 0 && state.StackWaitTicks < BeltGrid.StackWaitTicks
+                && (state.StackWaitTicks == 0 || def.Kind == LogisticsKind.Stack));
+    }
 
     /// <summary>Puts each item back in the Core's stock, even over its maximum (no sale, not counted as delivered).</summary>
     private void ItemsToCore(IEnumerable<TransportedItem> items)
@@ -381,19 +602,20 @@ public sealed class Factory : IGameView
     }
 
     /// <summary>
-    /// Instant replacement of the plain belt under <paramref name="spec"/>, all or nothing: pays the new cost less the
-    /// credit (else <see cref="RefusalCode.InsufficientResources"/> with only that difference missing, nothing changed),
-    /// gives the rest of the old cost back as <see cref="SettleReplacement"/> does, and keeps the items.
+    /// Instant replacement of the blocks under <paramref name="spec"/> (<see cref="BeltOverBelt.Replace"/>), all or
+    /// nothing: pays the new cost less the credit (else <see cref="RefusalCode.InsufficientResources"/> with only that
+    /// difference missing, nothing changed), then settles as a finished site does (<see cref="SettleReplacement"/>).
     /// </summary>
-    internal Refusal? TryReplaceBeltInstant(BuildSpec spec)
+    internal Refusal? TryReplaceInstant(BuildSpec spec)
     {
-        if (!TryGetSpecAt(spec.Origin, out var oldSpec, out _) || oldSpec.Kind is not null)
+        var oldSpecs = ReplacedSpecsUnder(spec);
+        if (oldSpecs.Count == 0)
         {
             return RefusalCode.Occupied;
         }
 
         var cost = CostOf(spec);
-        var credit = Construction.Credit(cost, CostOf(oldSpec));
+        var credit = Construction.Credit(cost, Construction.CostOfAll(Content, oldSpecs));
         var money = 0;
         var materials = new List<ResourceAmount>();
         for (var i = 0; i < cost.Count; i++)
@@ -423,7 +645,7 @@ public sealed class Factory : IGameView
             return new Refusal(RefusalCode.InsufficientResources, spec.StructureId);
         }
 
-        if (!TryTakeBeltForReplacement(spec.Origin, out var old))
+        if (!TryTakeForReplacement(spec, out var taken))
         {
             Refund(money, materials, putBack: true);
             return RefusalCode.Occupied;
@@ -431,13 +653,13 @@ public sealed class Factory : IGameView
 
         if (!PlaceInstant(spec, charge: false))
         {
-            // Cannot happen: the cell was just freed. Put the old belt back and the payment too.
-            RestoreReplacedBelt(old);
+            // Cannot happen: the cell was just freed. Put the old blocks back and the payment too.
+            RestoreReplaced(taken);
             Refund(money, materials, putBack: true);
             return RefusalCode.Occupied;
         }
 
-        SettleReplacement(spec, old);
+        SettleReplacement(spec, taken);
         return null;
     }
 
@@ -1062,9 +1284,7 @@ public sealed class Factory : IGameView
                 Deconstructing = site.Deconstructing,
                 RefundBasisPoints = site.RefundBasisPoints,
                 Owner = site.OwnerPlayerId,
-                Replaced = site.Replaced is { } old
-                    ? new ReplacedSaveDto { Spec = CaptureSpec(old.Spec), Items = old.Items.Select(CaptureItem).ToList() }
-                    : null
+                Replaced = site.Replaced?.Select(CaptureReplaced).ToList()
             }).ToList(),
             // BeltGrid.Cells already enumerates in canonical (Y, X) order.
             Belts = Belts.Cells.Values.Select(c => new BeltSaveDto
@@ -1086,6 +1306,36 @@ public sealed class Factory : IGameView
                 Items = c.Items.Select(CaptureItem).ToList()
             }).ToList()
         };
+    }
+
+    private static ReplacedSaveDto CaptureReplaced(ReplacedBlock old)
+    {
+        var state = old.State as ReplacedLogisticsState;
+        return new ReplacedSaveDto
+        {
+            Spec = CaptureSpec(old.Spec),
+            Items = old.Items.Select(CaptureItem).ToList(),
+            // Only what differs from a block at rest: an old belt's replacement keeps its bytes.
+            SorterTurns = state is { SorterTurns: not 0 } ? state.SorterTurns : null,
+            RouterTurn = state is { RouterTurn: not 0 } ? state.RouterTurn : null,
+            RouterWaitTicks = state is { RouterWaitTicks: not 0 } ? state.RouterWaitTicks : null,
+            RouterFrom = state?.RouterFrom?.ToString(),
+            StackWaitTicks = state is { StackWaitTicks: not 0 } ? state.StackWaitTicks : null
+        };
+    }
+
+    private static ReplacedBlock RestoreReplaced(ReplacedSaveDto dto)
+    {
+        var state = new ReplacedLogisticsState(
+            dto.SorterTurns ?? 0,
+            dto.RouterTurn ?? 0,
+            dto.RouterWaitTicks ?? 0,
+            ParseRouterFrom(dto.RouterFrom),
+            dto.StackWaitTicks ?? 0);
+        return new ReplacedBlock(
+            RestoreSpec(dto.Spec),
+            dto.Items.Select(RestoreItem).ToList(),
+            state == new ReplacedLogisticsState() ? null : state);
     }
 
     private static ItemSaveDto CaptureItem(TransportedItem it) => new()
@@ -1757,22 +2007,20 @@ public sealed class Factory : IGameView
             && !d.Deconstructing
             && BuildSpec.IsMiner(spec.Kind)
             && MinerTooWeak(spec.Origin, spec.StructureId);
-        // A replacement site must be able to put its belt back (content may have dropped or changed that conveyor).
-        var replaced = d.Replaced is { } r
-            ? new ReplacedBelt(RestoreSpec(r.Spec), r.Items.Select(RestoreItem).ToList())
-            : null;
-        if (replaced is not null && replaced.Items.Any(i => i.Count != 1))
+        // A replacement site must be able to put its blocks back (content may have dropped or changed one).
+        var replaced = d.Replaced is { Count: > 0 } saved ? saved.Select(RestoreReplaced).ToList() : null;
+        if (replaced is not null && replaced.SelectMany(b => b.Items).Any(i => i.Count < 1 || i.Count > BeltGrid.StackPackSize))
         {
-            throw new InvalidDataException("Pacco su un nastro sostituito."); // only plain belts are replaced
+            throw new InvalidDataException("Pacco non valido in un blocco sostituito.");
         }
 
-        var badReplaced = replaced is not null && !IsReplaceableBelt(replaced.Spec, spec.Origin);
+        var badReplaced = replaced is not null && !IsReplaceable(spec, replaced);
         if (tiles is null || tiles.Any(TerrainBlocks) || tooWeak || badReplaced)
         {
-            // The belt a dropped replacement site held is gone: its items go to the Core.
+            // The blocks a dropped replacement site held are gone: their items go to the Core.
             if (replaced is not null)
             {
-                ItemsToCore(replaced.Items);
+                ItemsToCore(replaced.SelectMany(b => b.Items));
             }
 
             foreach (var (itemId, amount) in spent)

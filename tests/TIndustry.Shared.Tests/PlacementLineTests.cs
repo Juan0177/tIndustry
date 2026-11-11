@@ -205,8 +205,9 @@ public sealed class PlacementLineTests
     [Fact]
     public void NoCrossingBesideARefusedCell()
     {
-        // A router on (41,33) right after the column: that cell is refused, so (40,33) would leave a junction in a
-        // broken line. It is a plain belt over the column instead (it turns it, a merge).
+        // Another player's plan on (41,33) right after the column: that cell is refused, so (40,33) would leave a junction
+        // in a broken line. It is a plain belt over the column instead (it turns it, a merge). (A router there would now
+        // be replaced, not refused.)
         var factory = NewFactory();
         factory.Research.ForceUnlock("junction");
         for (var y = 30; y <= 36; y++)
@@ -214,7 +215,9 @@ public sealed class PlacementLineTests
             PlaceBelt(factory, 40, y, Direction.South);
         }
 
-        Assert.True(factory.PlaceInstant(new BuildSpec("router", BuildingKind.Router, new GridPosition(41, 33), Direction.East), charge: false));
+        factory.AddBuilder(1);
+        factory.BuilderOf(1)!.PlanQueue.Add(
+            new BuildPlan(new BuildSpec("router", BuildingKind.Router, new GridPosition(41, 33), Direction.East), Breaking: false));
 
         var line = Plan(factory, (37, 33), (44, 33), Direction.East);
 

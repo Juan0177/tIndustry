@@ -133,16 +133,18 @@ public sealed class SaveVersionTests
     }
 
     [Fact]
-    public void SaveWritesVersion22()
+    public void SaveWritesVersion23()
     {
-        Assert.Equal(22, FactorySaveData.CurrentVersion);
-        Assert.Equal(22, FactorySaveData.MinReadableVersion);
+        Assert.Equal(23, FactorySaveData.CurrentVersion);
+        Assert.Equal(23, FactorySaveData.MinReadableVersion);
         var host = new SimHost(NewGame.Sandbox(LoadContent(), new GridPosition(60, 60), mapWidth: 120, mapHeight: 120, seed: 3));
-        FactorySaveStore.Save("v22-versione", host);
+        FactorySaveStore.Save("v23-versione", host);
 
-        Assert.Contains("\"version\": 22", File.ReadAllText(FactorySaveStore.SlotPath("v22-versione")));
+        Assert.Contains("\"version\": 23", File.ReadAllText(FactorySaveStore.SlotPath("v23-versione")));
         var snapshot = System.Text.Encoding.UTF8.GetString(host.CreateSnapshot());
-        Assert.Contains("\"version\":22", snapshot);
+        Assert.Contains("\"version\":23", snapshot);
+        // No replacement site, no replaced blocks (v23 makes them a list with their state).
+        Assert.DoesNotContain("\"replaced\"", snapshot, StringComparison.Ordinal);
         // No pack on a stack conveyor, no pack keys (v22 adds them): a game without them keeps its snapshot.
         Assert.DoesNotContain("\"count\"", snapshot, StringComparison.Ordinal);
         Assert.DoesNotContain("stackWaitTicks", snapshot, StringComparison.Ordinal);

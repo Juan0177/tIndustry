@@ -228,7 +228,7 @@ public sealed class BeltReplaceTests
         Assert.Single(factory.PlansOf(Player));
         RunUntil(host, () => factory.Sites.Count == 1);
         var site = factory.Sites[0];
-        Assert.Equal(Basic, site.Replaced!.Spec.StructureId);
+        Assert.Equal(Basic, Assert.Single(site.Replaced!).Spec.StructureId);
         Assert.False(factory.Belts.Cells.ContainsKey(Cell));
         RunUntil(host, () => Idle(factory));
         Assert.Equal(Fast, factory.Belts.Cells[Cell].Definition.Id);

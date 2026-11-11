@@ -5,7 +5,8 @@ namespace TIndustry.Shared.Tests;
 
 /// <summary>
 /// A belt placed over a belt of the same tier, as in Mindustry: another direction turns it in place (at once, free,
-/// items kept); the same direction does nothing, silently. Busy cells (marked, planned, specials) stay refused.
+/// items kept); the same direction does nothing, silently. Busy cells (marked, planned, bridges) stay refused; the other
+/// 1×1 logistics blocks are replaced (<see cref="LogisticsReplaceTests"/>).
 /// </summary>
 public sealed class BeltOverBeltTests
 {
@@ -101,7 +102,7 @@ public sealed class BeltOverBeltTests
     public static TheoryData<bool, string, string> BusyCells()
     {
         var data = new TheoryData<bool, string, string>();
-        foreach (var busy in new[] { "marked", "site", "otherPlayersPlan", "junction", "router", "sorter", "bridge" })
+        foreach (var busy in new[] { "marked", "site", "otherPlayersPlan", "bridge" })
         {
             foreach (var conveyorId in new[] { Basic, "conveyor-fast" })
             {
@@ -134,15 +135,6 @@ public sealed class BeltOverBeltTests
                 Belt(factory, Cell, Direction.East);
                 factory.AddBuilder(1);
                 factory.BuilderOf(1)!.PlanQueue.Add(new BuildPlan(belt with { Direction = Direction.South }, Breaking: false));
-                break;
-            case "junction":
-                Assert.True(factory.PlaceInstant(new BuildSpec("junction", BuildingKind.Junction, Cell, Direction.East), charge: false));
-                break;
-            case "router":
-                Assert.True(factory.PlaceInstant(new BuildSpec("router", BuildingKind.Router, Cell, Direction.East), charge: false));
-                break;
-            case "sorter":
-                Assert.True(factory.PlaceInstant(new BuildSpec("sorter", BuildingKind.Sorter, Cell, Direction.East), charge: false));
                 break;
             case "bridge":
                 Assert.True(factory.PlaceInstant(new BuildSpec("conveyor-bridge", BuildingKind.Bridge, Cell, Direction.East), charge: false));

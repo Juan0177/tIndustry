@@ -468,19 +468,19 @@ public sealed class StackConveyorTests
     [Fact]
     public void V21Refused()
     {
-        Assert.Equal(22, FactorySaveData.CurrentVersion);
-        Assert.Equal(22, FactorySaveData.MinReadableVersion);
+        Assert.Equal(23, FactorySaveData.CurrentVersion);
+        Assert.Equal(23, FactorySaveData.MinReadableVersion);
         var host = new SimHost(NewGame.Demo(Content));
         FactorySaveStore.Save("v21-rifiutato", host);
         var path = FactorySaveStore.SlotPath("v21-rifiutato");
         var json = File.ReadAllText(path);
-        Assert.Contains("\"version\": 22", json, StringComparison.Ordinal);
-        File.WriteAllText(path, json.Replace("\"version\": 22", "\"version\": 21"));
+        Assert.Contains("\"version\": 23", json, StringComparison.Ordinal);
+        File.WriteAllText(path, json.Replace("\"version\": 23", "\"version\": 21"));
 
         Assert.False(FactorySaveStore.TryLoadSlot(Content, "v21-rifiutato", out var loaded, out var failure));
         Assert.Null(loaded);
         Assert.Equal(SaveLoadError.OlderVersion, failure!.Code);
-        var snapshot = Encoding.UTF8.GetString(host.CreateSnapshot()).Replace("\"version\":22", "\"version\":21");
+        var snapshot = Encoding.UTF8.GetString(host.CreateSnapshot()).Replace("\"version\":23", "\"version\":21");
         Assert.Throws<InvalidDataException>(() => Snapshot.Read(Content, Encoding.UTF8.GetBytes(snapshot)));
     }
 
@@ -530,7 +530,8 @@ public sealed class StackConveyorTests
         Assert.All(line, p => Assert.IsType<PlaceBelt>(p.Command));
         Assert.All(line, p => Assert.False(((PlaceBelt)p.Command!).Crossing));
         Assert.All(line, p => Assert.Equal(Direction.East, p.Direction));
-        Assert.NotNull(line[2].Refusal); // the crossed belt stays: the stack line stops there
+        // No crossing: a stack conveyor over the crossed belt replaces it (LogisticsReplaceTests).
+        Assert.Null(line[2].Refusal);
 
         // Across a forno (40..41, 40..41): a plain belt line bridges it, a stack line does not.
         Assert.True(factory.TryPlaceSmelter(new GridPosition(40, 40), Direction.East));
@@ -542,11 +543,16 @@ public sealed class StackConveyorTests
         Assert.DoesNotContain(stack, p => p.Command is PlaceBuilding);
         Assert.DoesNotContain(stack, p => p.Spanned);
 
-        // Even a crossing asked by hand (an agent's command) is not made.
+        // Even a crossing asked by hand (an agent's command) is not made: the stack conveyor replaces the belt instead.
+        foreach (var id in new[] { "plastic", "silicon", "graphite" })
+        {
+            factory.Wallet.AddMaterial(id, 5);
+        }
+
         var host = new SimHost(factory);
         host.Submit(new PlaceBelt(Player, new GridPosition(12, 20), Direction.East, StackId, Crossing: true));
         host.Advance(SimulationClock.TickSeconds);
-        Assert.Equal(LogisticsKind.Belt, factory.Belts.Cells[new GridPosition(12, 20)].Kind);
+        Assert.Equal(LogisticsKind.Stack, factory.Belts.Cells[new GridPosition(12, 20)].Kind);
     }
 
     [Fact]
@@ -556,9 +562,9 @@ public sealed class StackConveyorTests
         PlaceStack(factory, new GridPosition(10, 10));
         Assert.Equal(BeltOverBelt.Same, factory.BeltOverBeltAt(new GridPosition(10, 10), Direction.East, StackId));
         Assert.Equal(BeltOverBelt.Rotate, factory.BeltOverBeltAt(new GridPosition(10, 10), Direction.South, StackId));
-        // Never a tier change between a belt and a stack conveyor.
-        Assert.Equal(BeltOverBelt.None, factory.BeltOverBeltAt(new GridPosition(10, 10), Direction.East, "conveyor-basic"));
+        // A belt and a stack conveyor replace each other (every 1×1 logistics block, LogisticsReplaceTests).
+        Assert.Equal(BeltOverBelt.Replace, factory.BeltOverBeltAt(new GridPosition(10, 10), Direction.East, "conveyor-basic"));
         Assert.True(factory.TryPlaceBelt(new GridPosition(11, 10), Direction.East));
-        Assert.Equal(BeltOverBelt.None, factory.BeltOverBeltAt(new GridPosition(11, 10), Direction.East, StackId));
+        Assert.Equal(BeltOverBelt.Replace, factory.BeltOverBeltAt(new GridPosition(11, 10), Direction.East, StackId));
     }
 }

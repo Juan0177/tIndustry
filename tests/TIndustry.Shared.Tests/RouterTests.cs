@@ -317,7 +317,7 @@ public sealed class RouterTests
     }
 
     [Fact]
-    public void ADraggedLineOfRoutersOverAPerpendicularBeltMakesNoCrossing()
+    public void ADraggedLineOfRoutersOverAPerpendicularBeltReplacesItWithoutACrossing()
     {
         // A belt column x = 40, y 30..36 heading South; a router line dragged East along y 33 across it.
         var factory = SandboxFactory();
@@ -334,7 +334,8 @@ public sealed class RouterTests
         var line = PlacementLine.Plan(
             host.State, new LineRequest(Player, "router", new GridPosition(37, 33), new GridPosition(44, 33), Direction.East));
         Assert.All(line, c => Assert.IsType<PlaceBuilding>(c.Command));
-        Assert.Contains(line, c => c.Cell == crossing && c.Refusal == RefusalCode.Occupied);
+        // A router over a belt replaces it (Mindustry's replace, LogisticsReplaceTests).
+        Assert.DoesNotContain(line, c => c.Refusal is not null);
         foreach (var command in PlacementLine.Commands(line))
         {
             host.Submit(command);
@@ -343,10 +344,9 @@ public sealed class RouterTests
         host.AdvanceTicks(1);
 
         Assert.Empty(refusals);
-        Assert.Equal(LogisticsKind.Belt, factory.Belts.Cells[crossing].Kind);
-        Assert.Equal(Direction.South, factory.Belts.Cells[crossing].Direction);
+        Assert.Equal(LogisticsKind.Router, factory.Belts.Cells[crossing].Kind);
         Assert.DoesNotContain(factory.Belts.Cells.Values, c => c.Kind == LogisticsKind.Junction);
-        Assert.Equal(7, factory.Belts.Cells.Values.Count(c => c.Kind == LogisticsKind.Router));
+        Assert.Equal(8, factory.Belts.Cells.Values.Count(c => c.Kind == LogisticsKind.Router));
     }
 
     [Fact]

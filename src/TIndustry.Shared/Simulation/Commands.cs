@@ -286,19 +286,22 @@ public enum BeltCrossing
     Junction
 }
 
-/// <summary>What a plain belt placed over a plain belt does (<see cref="IGameView.BeltOverBeltAt"/>); tier = conveyor id.</summary>
+/// <summary>
+/// What a 1×1 logistics block placed over another does (<see cref="IGameView.BeltOverBeltAt"/>): belts of every tier,
+/// the armored and the stack conveyor, junction, router, both sorters and both gates; never a bridge.
+/// </summary>
 public enum BeltOverBelt
 {
-    /// <summary>Not a belt over a free plain belt: placed (or refused) as usual.</summary>
+    /// <summary>Not a 1×1 logistics block over a free one: placed (or refused) as usual.</summary>
     None,
 
-    /// <summary>Same belt, same direction: nothing to do, silently.</summary>
+    /// <summary>The same block in the same direction, or one without a direction: nothing to do, silently.</summary>
     Same,
 
-    /// <summary>Same belt, another direction: it turns in place, at once and free, keeping its items.</summary>
+    /// <summary>The same belt or stack conveyor, another direction: it turns in place, at once and free, keeping its items.</summary>
     Rotate,
 
-    /// <summary>Another tier: the belt is replaced (not produced yet).</summary>
+    /// <summary>Another block: it replaces the old one, paying the difference (at once with instant build, else a site).</summary>
     Replace
 }
 

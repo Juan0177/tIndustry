@@ -4,7 +4,10 @@ using System.Text.Json.Serialization;
 namespace TIndustry.Shared;
 
 /// <summary>
-/// Full game state as stored in the canonical snapshot (see <see cref="Snapshot"/>). Version 22: the stack conveyor's
+/// Full game state as stored in the canonical snapshot (see <see cref="Snapshot"/>). Version 23: a replacement site
+/// remembers a list of replaced blocks, each with its state (<see cref="SiteSaveDto.Replaced"/>: every 1×1 logistics block
+/// replaces another, a sorter's filter and turns, a router's state and a stack conveyor's packs come back when it is
+/// cancelled); since 22 the stack conveyor's
 /// packs (<see cref="ItemSaveDto.Count"/>), the wait of the pack being formed (<see cref="BeltSaveDto.StackWaitTicks"/>),
 /// the long bridge's power (<see cref="BeltSaveDto.PowerId"/>), the solar panels (<see cref="SolarPanels"/>), the
 /// combustion generator (<see cref="GeneratorSaveDto.DefinitionId"/>, its pieces per fuel in
@@ -26,10 +29,10 @@ namespace TIndustry.Shared;
 /// </summary>
 public sealed class FactorySaveData
 {
-    public const int CurrentVersion = 22;
+    public const int CurrentVersion = 23;
 
     /// <summary>Oldest version still read: only the current one.</summary>
-    public const int MinReadableVersion = 22;
+    public const int MinReadableVersion = 23;
 
     /// <summary><see cref="Generator"/> of a campaign map file (<see cref="MapId"/> names it).</summary>
     public const string CampaignGenerator = "campagna";
@@ -322,15 +325,33 @@ public sealed class SiteSaveDto
     public int RefundBasisPoints { get; set; }
     public int Owner { get; set; }
 
-    /// <summary>The belt a replacement site took away (written only for replacement sites).</summary>
-    public ReplacedSaveDto? Replaced { get; set; }
+    /// <summary>The blocks a replacement site took away (written only for replacement sites; <see cref="ConstructSite.Replaced"/>).</summary>
+    public List<ReplacedSaveDto>? Replaced { get; set; }
 }
 
-/// <summary>A belt taken away by a replacement site: its spec and items (front first).</summary>
+/// <summary>
+/// A block taken away by a replacement site (<see cref="ReplacedBlock"/>): its spec (a sorter's filter included), its
+/// items (front first) and its state, each field written only when not at rest.
+/// </summary>
 public sealed class ReplacedSaveDto
 {
     public BuildSpecSaveDto Spec { get; set; } = new();
     public List<ItemSaveDto> Items { get; set; } = [];
+
+    /// <summary>Sorter or gate: the four turn bits (<see cref="BeltGridCell.SorterTurns"/>); null = 0.</summary>
+    public int? SorterTurns { get; set; }
+
+    /// <summary>Router: first side to try (<see cref="BeltGridCell.RouterTurn"/>); null = 0.</summary>
+    public int? RouterTurn { get; set; }
+
+    /// <summary>Router: ticks its item has waited (<see cref="BeltGridCell.RouterWaitTicks"/>); null = 0.</summary>
+    public int? RouterWaitTicks { get; set; }
+
+    /// <summary>Router: the side its item came from (<see cref="BeltGridCell.RouterFrom"/>); null = unknown.</summary>
+    public string? RouterFrom { get; set; }
+
+    /// <summary>Stack conveyor: the wait of the pack being formed (<see cref="BeltGridCell.StackWaitTicks"/>); null = 0.</summary>
+    public int? StackWaitTicks { get; set; }
 }
 
 /// <summary>One cost line of a site: <see cref="ItemId"/> null means money.</summary>

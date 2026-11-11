@@ -1347,6 +1347,22 @@ public sealed class AgentGame : IDisposable
             return new JsonObject { ["tick"] = View.CurrentTick, ["celle"] = new JsonArray(), ["rifiuti"] = new JsonArray() };
         }
 
+        // The block each command replaces (Mindustry's replace), read before the commands change the cells.
+        var replaces = new Dictionary<GridPosition, string>();
+        foreach (var command in commands)
+        {
+            var spec = command is PlaceBelt belt ? BuildSpec.FromCommand(belt) : BuildSpec.FromCommand((PlaceBuilding)command);
+            var crossing = command is PlaceBelt { Crossing: true }
+                && (View.BeltCrossingAt(spec.Origin, spec.Direction) == BeltCrossing.Junction
+                    || (View.Belts.TryGetValue(spec.Origin, out var under) && under.Kind == LogisticsKind.Junction));
+            if (!crossing
+                && View.BeltOverBeltAt(spec.Origin, spec.Direction, spec.StructureId) == BeltOverBelt.Replace
+                && View.Belts.TryGetValue(spec.Origin, out var old))
+            {
+                replaces[spec.Origin] = old.Definition.Id;
+            }
+        }
+
         return Command(commands, outcomes =>
         {
             var placed = new JsonArray();
@@ -1376,6 +1392,11 @@ public sealed class AgentGame : IDisposable
                     if (outcome.Command is PlaceBelt { Crossing: true } crossing && JunctionAt(crossing.Position))
                     {
                         cell["incrocio"] = true;
+                    }
+
+                    if (replaces.TryGetValue(placement.Cell, out var replaced))
+                    {
+                        cell["sostituisce"] = replaced;
                     }
 
                     // The line's automatic bridge (its spanned cells are not listed).

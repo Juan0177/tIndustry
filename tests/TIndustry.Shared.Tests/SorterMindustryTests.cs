@@ -409,7 +409,7 @@ public sealed class SorterMindustryTests
     [Theory]
     [InlineData("sorter")]
     [InlineData("sorter-inverted")]
-    public void ADraggedLineOfSortersOverAPerpendicularBeltMakesNoCrossing(string id)
+    public void ADraggedLineOfSortersOverAPerpendicularBeltReplacesItWithoutACrossing(string id)
     {
         // A belt column x = 40, y 30..36 heading South; a sorter line dragged East along y 33 across it.
         var factory = SandboxFactory();
@@ -426,7 +426,8 @@ public sealed class SorterMindustryTests
         var line = PlacementLine.Plan(
             host.State, new LineRequest(Player, id, new GridPosition(37, 33), new GridPosition(44, 33), Direction.East));
         Assert.All(line, c => Assert.IsType<PlaceBuilding>(c.Command));
-        Assert.Contains(line, c => c.Cell == crossing && c.Refusal == RefusalCode.Occupied);
+        // A sorter over a belt replaces it (Mindustry's replace, LogisticsReplaceTests).
+        Assert.DoesNotContain(line, c => c.Refusal is not null);
         foreach (var command in PlacementLine.Commands(line))
         {
             host.Submit(command);
@@ -435,11 +436,10 @@ public sealed class SorterMindustryTests
         host.AdvanceTicks(1);
 
         Assert.Empty(refusals);
-        Assert.Equal(LogisticsKind.Belt, factory.Belts.Cells[crossing].Kind);
-        Assert.Equal(Direction.South, factory.Belts.Cells[crossing].Direction);
+        Assert.Equal(LogisticsKind.Sorter, factory.Belts.Cells[crossing].Kind);
         Assert.DoesNotContain(factory.Belts.Cells.Values, c => c.Kind == LogisticsKind.Junction);
         var sorters = factory.Belts.Cells.Values.Where(c => c.Kind == LogisticsKind.Sorter).ToList();
-        Assert.Equal(7, sorters.Count);
+        Assert.Equal(8, sorters.Count);
         Assert.All(sorters, c => Assert.Equal(id, c.Definition.Id));
         Assert.All(sorters, c => Assert.Equal(Direction.North, c.Direction));
     }

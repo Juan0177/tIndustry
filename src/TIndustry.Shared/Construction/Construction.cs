@@ -140,22 +140,22 @@ public static class Construction
     }
 
     /// <summary>
-    /// Starts replacing the plain belt under <paramref name="spec"/> with another tier: the old belt goes away without
-    /// refund, the site remembers its spec and items (<see cref="ConstructSite.Replaced"/>) and counts the common part of
-    /// the two costs as already spent (<see cref="ReplacementCredit"/>). The build time is the new belt's whole time.
-    /// Throws when there is no plain belt to replace.
+    /// Starts replacing the blocks under <paramref name="spec"/> (<see cref="BeltOverBelt.Replace"/>): they go away without
+    /// refund, the site remembers each with its items and state (<see cref="ConstructSite.Replaced"/>) and counts the
+    /// common part of the costs as already spent (<see cref="ReplacementCredit"/>). The build time is the new block's
+    /// whole time. Throws when there is nothing to replace.
     /// </summary>
     public static ConstructSite BeginReplace(GameState s, BuildSpec spec, int ownerPlayerId)
     {
         ArgumentNullException.ThrowIfNull(s);
         ArgumentNullException.ThrowIfNull(spec);
-        if (!new Factory(s).TryTakeBeltForReplacement(spec.Origin, out var old))
+        if (!new Factory(s).TryTakeForReplacement(spec, out var taken))
         {
-            throw new InvalidOperationException($"Nessun nastro da sostituire su {spec.Origin}.");
+            throw new InvalidOperationException($"Nessun blocco da sostituire su {spec.Origin}.");
         }
 
         var site = BeginBuild(s, spec, ownerPlayerId);
-        site.Replaced = old;
+        site.Replaced = taken;
         var credit = ReplacementCredit(s.Content, site);
         for (var i = 0; i < credit.Length; i++)
         {
@@ -166,11 +166,34 @@ public static class Construction
     }
 
     /// <summary>
-    /// Credit of a replacement site per <see cref="ConstructSite.Cost"/> line: <c>min(new, old)</c> for the same item
-    /// (money is a line of its own); all 0 for an ordinary site. Recomputed from the content, never saved.
+    /// Credit of a replacement site per <see cref="ConstructSite.Cost"/> line: <c>min(new, old)</c> for the same item,
+    /// the old cost summed over all the replaced blocks (money is a line of its own); all 0 for an ordinary site.
+    /// Recomputed from the content, never saved.
     /// </summary>
     internal static int[] ReplacementCredit(FactoryContent c, ConstructSite site) =>
-        site.Replaced is { } old ? Credit(site.Cost, CostOf(c, old.Spec)) : new int[site.Cost.Count];
+        site.Replaced is { } taken
+            ? Credit(site.Cost, CostOfAll(c, taken.Select(b => b.Spec)))
+            : new int[site.Cost.Count];
+
+    /// <summary>The cost of all <paramref name="specs"/> together, one line per item (money: no item id).</summary>
+    internal static IReadOnlyList<CostEntry> CostOfAll(FactoryContent c, IEnumerable<BuildSpec> specs)
+    {
+        var lines = new List<CostEntry>();
+        foreach (var entry in specs.SelectMany(spec => CostOf(c, spec)))
+        {
+            var index = lines.FindIndex(l => string.Equals(l.ItemId, entry.ItemId, StringComparison.Ordinal));
+            if (index < 0)
+            {
+                lines.Add(entry);
+            }
+            else
+            {
+                lines[index] = lines[index] with { Amount = lines[index].Amount + entry.Amount };
+            }
+        }
+
+        return lines;
+    }
 
     /// <summary><c>min(new, old)</c> per line of <paramref name="newCost"/>, matched by item id (null = money).</summary>
     internal static int[] Credit(IReadOnlyList<CostEntry> newCost, IReadOnlyList<CostEntry> oldCost)
@@ -227,7 +250,7 @@ public static class Construction
     /// <summary>
     /// Cancels a site under construction: it is taken apart from where it is and gives back all it
     /// has spent. A replacement site first takes its credit out of what it spent (it was never paid) and, at 0,
-    /// puts the old belt back with its items. No-op on a site that is already deconstructing.
+    /// puts the old blocks back with their items and state. No-op on a site that is already deconstructing.
     /// </summary>
     public static void Cancel(GameState s, ConstructSite site)
     {
@@ -328,9 +351,9 @@ public static class Construction
             throw new InvalidOperationException($"Cantiere {site.Id} completato su celle non valide.");
         }
 
-        if (site.Replaced is { } old)
+        if (site.Replaced is { } taken)
         {
-            factory.SettleReplacement(site.Spec, old);
+            factory.SettleReplacement(site.Spec, taken);
         }
 
         return ConstructStep.Finished;
@@ -376,9 +399,9 @@ public static class Construction
         }
 
         s.Sites.Remove(site);
-        if (site.Replaced is { } old)
+        if (site.Replaced is { } taken)
         {
-            new Factory(s).RestoreReplacedBelt(old);
+            new Factory(s).RestoreReplaced(taken);
         }
 
         return ConstructStep.Finished;

@@ -286,17 +286,19 @@ public sealed class SimHost
             return ApplyAutoJunction(command.PlayerId, spec.Origin, spec.Direction);
         }
 
-        // Belt over belt (a locked crossing too: the crossed line then merges into the new one), in both build modes.
-        switch (factory.BeltOverBeltAt(spec.Origin, spec.Direction, spec.StructureId))
+        // A dragged line goes on through a junction: it already crosses, as the auto-junction would have made it.
+        if (command.Crossing
+            && factory.Belts.TryGet(spec.Origin, out var crossed)
+            && crossed.Kind == LogisticsKind.Junction
+            && factory.BeltOverBeltAt(spec.Origin, spec.Direction, spec.StructureId) != BeltOverBelt.None)
         {
-            case BeltOverBelt.Same:
-                return null;
-            case BeltOverBelt.Rotate:
-                return factory.TryRotateBelt(spec.Origin, spec.Direction) ? null : RefusalCode.Occupied;
-            case BeltOverBelt.Replace when factory.State.Rules.InstantBuild:
-                return factory.IsStructureUnlocked(spec.StructureId)
-                    ? Built(factory.TryReplaceBeltInstant(spec))
-                    : new Refusal(RefusalCode.Locked, spec.StructureId);
+            return null;
+        }
+
+        // Logistics over logistics (a locked crossing too: the crossed line then merges into the new one).
+        if (OverLogistics(spec, out var outcome))
+        {
+            return outcome;
         }
 
         if (factory.State.Rules.InstantBuild)
@@ -306,6 +308,32 @@ public sealed class SimHost
         }
 
         return QueuePlan(command.PlayerId, spec);
+    }
+
+    /// <summary>
+    /// Mindustry's replace of a 1×1 logistics block by another (<see cref="Factory.BeltOverBeltAt"/>), in both build
+    /// modes: the same block does nothing, the same belt facing another way turns at once, another block with instant
+    /// build replaces at once (paying the difference). True when it decided the outcome; false lets the command go on
+    /// (a plain placement, or a plan that the drone turns into a replacement site, <see cref="QueuePlan"/>).
+    /// </summary>
+    private bool OverLogistics(BuildSpec spec, out Refusal? outcome)
+    {
+        outcome = null;
+        switch (factory.BeltOverBeltAt(spec.Origin, spec.Direction, spec.StructureId))
+        {
+            case BeltOverBelt.Same:
+                return true;
+            case BeltOverBelt.Rotate:
+                outcome = factory.TryRotateBelt(spec.Origin, spec.Direction) ? null : RefusalCode.Occupied;
+                return true;
+            case BeltOverBelt.Replace when factory.State.Rules.InstantBuild:
+                outcome = factory.IsStructureUnlocked(spec.StructureId)
+                    ? Built(factory.TryReplaceInstant(spec))
+                    : new Refusal(RefusalCode.Locked, spec.StructureId);
+                return true;
+            default:
+                return false;
+        }
     }
 
     /// <summary>
@@ -364,6 +392,12 @@ public sealed class SimHost
             return RefusalCode.InvalidCommand;
         }
 
+        // A junction, router, sorter or gate over another 1×1 logistics block.
+        if (OverLogistics(spec, out var outcome))
+        {
+            return outcome;
+        }
+
         // The market screen (one per game, touching the Core) is checked in both modes, planned screens included; a
         // locked one is refused as usual below.
         if (command.Kind == BuildingKind.MarketScreen && factory.IsStructureUnlocked(spec.StructureId))
@@ -400,9 +434,8 @@ public sealed class SimHost
             return new Refusal(RefusalCode.Locked, spec.StructureId);
         }
 
-        // A belt of another tier over a free plain belt: the drone will replace it (BuilderSystem.BeginWork).
-        var replaces = spec.Kind is null
-            && factory.BeltOverBeltAt(spec.Origin, spec.Direction, spec.StructureId) == BeltOverBelt.Replace;
+        // A logistics block over another free 1×1 logistics block: the drone will replace it (BuilderSystem.BeginWork).
+        var replaces = factory.BeltOverBeltAt(spec.Origin, spec.Direction, spec.StructureId) == BeltOverBelt.Replace;
         if (!replaces && !factory.CanPlace(spec, out var reason))
         {
             return reason ?? RefusalCode.Occupied;
@@ -454,12 +487,15 @@ public sealed class SimHost
         {
             if (site.Deconstructing)
             {
-                // The rectangle marks the old belt a cancelled tier change gives back; otherwise nothing changes.
-                if (command.OnlyMark && site.Replaced is { } old && builder is not null)
+                // The rectangle marks the old blocks a cancelled replacement gives back; otherwise nothing changes.
+                if (command.OnlyMark && site.Replaced is { } taken && builder is not null)
                 {
-                    if (!builder.Plans.Any(p => p.Breaking && p.Spec.Origin == tile))
+                    foreach (var old in taken)
                     {
-                        builder.PlanQueue.Add(new BuildPlan(old.Spec, Breaking: true));
+                        if (!builder.Plans.Any(p => p.Breaking && p.Spec.Origin == old.Spec.Origin))
+                        {
+                            builder.PlanQueue.Add(new BuildPlan(old.Spec, Breaking: true));
+                        }
                     }
 
                     return null;

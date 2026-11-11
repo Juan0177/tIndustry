@@ -115,10 +115,11 @@ public static class PlacementLine
                 direction = intoCore;
             }
 
+            // A junction inside the line is a crossing too: the line goes on through it, the junction stays.
             var crossing = belt
                 && !stack
                 && BeltLine.IsInterior(previous, cell, next, direction)
-                && BeltLine.MayCross(view, cell, direction);
+                && (BeltLine.MayCross(view, cell, direction) || under?.Kind == LogisticsKind.Junction);
             SimCommand command = belt
                 ? new PlaceBelt(request.PlayerId, cell, direction, request.StructureId, crossing)
                 : new PlaceBuilding(request.PlayerId, kind!.Value, cell, direction, request.RecipeId, request.FilterItemId);
@@ -345,13 +346,15 @@ public static class PlacementLine
     }
 
     /// <summary>
-    /// The refusal the simulation would give that the line can already tell: none for a belt over a belt (it turns,
-    /// merges or changes tier) or a crossing (Occupied when the crossed cell is planned), else <see cref="IGameView.CanPlace"/>'s reason, or Occupied over a plan.
+    /// The refusal the simulation would give that the line can already tell: none for a 1×1 logistics block over another
+    /// (it turns, does nothing or replaces it) or a crossing (Occupied when the crossed cell is planned), else
+    /// <see cref="IGameView.CanPlace"/>'s reason, or Occupied over a plan.
     /// </summary>
     private static RefusalCode? Foreseen(IGameView view, SimCommand command, bool crossing)
     {
         var spec = command is PlaceBelt placeBelt ? BuildSpec.FromCommand(placeBelt) : BuildSpec.FromCommand((PlaceBuilding)command);
-        if (spec.Kind is null && (crossing || view.BeltOverBeltAt(spec.Origin, spec.Direction, spec.StructureId) != BeltOverBelt.None))
+        if ((spec.Kind is null && crossing)
+            || view.BeltOverBeltAt(spec.Origin, spec.Direction, spec.StructureId) != BeltOverBelt.None)
         {
             // A crossing skips CanPlace (the belt is there) but not the plan queue, which refuses a planned cell.
             return crossing && view.IsPlannedTile(spec.Origin) ? RefusalCode.Occupied : null;

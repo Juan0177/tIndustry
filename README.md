@@ -125,7 +125,7 @@ Controlli completi, salvataggi, Ricerca e Mercato: [`godot/README.md`](godot/REA
 | **Ricerca** | Albero stile Mindustry dal CORE, a rami: Logistica, Produzione, Energia, Finanza; potenziamenti del drone, dei minatori, delle macchine e del magazzino; premi dei capitoli della campagna; costi pensati per circa 6 ore di partita |
 | **Campagna** | 10 livelli su mappe prestabilite, da 200×200 (*Primi passi*) a 1000×1000 (*Espansione T2*), con tutorial non bloccante |
 | **Interfaccia** | Tema unico in stile Mindustry, carattere pixel nostro, italiano e inglese, Scala UI 75–200% solo dell'interfaccia, colori normali, per daltonici e ad alto contrasto; schermo intero alla risoluzione dello schermo |
-| **Salvataggi** | Continua (autosave con copia di riserva), slot, Salva come; formato versione 22 (le versioni precedenti non si aprono più) |
+| **Salvataggi** | Continua (autosave con copia di riserva), slot, Salva come; formato versione 23 (le versioni precedenti non si aprono più) |
 
 Il combattimento è fuori dal progetto per ora.
 
