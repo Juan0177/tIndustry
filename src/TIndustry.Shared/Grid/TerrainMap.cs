@@ -158,6 +158,28 @@ public sealed class TerrainMap
         return count;
     }
 
+    /// <summary>True for the floors a miner digs sand from (<see cref="FloorKind.Sand"/>, <see cref="FloorKind.DarkSand"/>).</summary>
+    public static bool IsSandFloor(FloorKind floor) => floor is FloorKind.Sand or FloorKind.DarkSand;
+
+    /// <summary>Cells of the <paramref name="size"/>×<paramref name="size"/> footprint on a sand floor with no deposit.</summary>
+    public int CountSandTiles(GridPosition origin, int size)
+    {
+        var count = 0;
+        for (var y = 0; y < size; y++)
+        {
+            for (var x = 0; x < size; x++)
+            {
+                var p = new GridPosition(origin.X + x, origin.Y + y);
+                if (InBounds(p) && this[p].Deposit == DepositKind.None && IsSandFloor(this[p].Floor))
+                {
+                    count++;
+                }
+            }
+        }
+
+        return count;
+    }
+
     /// <summary>
     /// The deposit covering most cells of the footprint, among those <paramref name="canDig"/> accepts (all when
     /// null); <see cref="DepositKind.None"/> when there is none.

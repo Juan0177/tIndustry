@@ -3333,6 +3333,8 @@ public sealed class Factory : IGameView
         return true;
     }
 
+    private const string SandItemId = "sand";
+
     private bool PlaceMiner(
         GridPosition origin,
         Direction direction,
@@ -3340,7 +3342,8 @@ public sealed class Factory : IGameView
         string definitionId,
         bool charge)
     {
-        var covered = Miner.FootprintArea;
+        var size = Miner.Size;
+        var covered = size * size;
         var itemId = outputItemId;
         if (Terrain is { } terrain)
         {
@@ -3350,13 +3353,21 @@ public sealed class Factory : IGameView
             }
 
             // Ores harder than the miner's tier do not count: a T1 on iron + titanium digs the iron cells only.
-            var majority = terrain.MajorityDeposit(origin, Miner.Size, d => Content.MinerCanDig(definitionId, d));
-            covered = majority == DepositKind.None
-                ? 0
-                : terrain.CountDepositTiles(origin, Miner.Size, majority);
+            var majority = terrain.MajorityDeposit(origin, size, d => Content.MinerCanDig(definitionId, d));
             if (majority != DepositKind.None)
             {
+                covered = terrain.CountDepositTiles(origin, size, majority);
                 itemId = TerrainMap.ItemIdForDeposit(majority);
+            }
+            else if (terrain.CountSandTiles(origin, size) is > 0 and var sandTiles)
+            {
+                // No diggable deposit: the sand floor underneath is dug instead.
+                covered = sandTiles;
+                itemId = SandItemId;
+            }
+            else
+            {
+                covered = 0;
             }
         }
 
@@ -3376,7 +3387,8 @@ public sealed class Factory : IGameView
 
     /// <summary>
     /// True when the footprint at <paramref name="origin"/> has ore but none that <paramref name="minerId"/> can
-    /// dig (a T1 on titanium only). A footprint without ore is not refused, as before.
+    /// dig (a T1 on titanium only). A footprint without ore is not refused, as before, and neither is one with
+    /// sand floor cells (the miner digs the sand instead).
     /// </summary>
     private bool MinerTooWeak(GridPosition origin, string minerId)
     {
@@ -3385,10 +3397,11 @@ public sealed class Factory : IGameView
             return false;
         }
 
+        const int size = Miner.Size;
         var anyOre = false;
-        for (var y = 0; y < Miner.Size; y++)
+        for (var y = 0; y < size; y++)
         {
-            for (var x = 0; x < Miner.Size; x++)
+            for (var x = 0; x < size; x++)
             {
                 var p = new GridPosition(origin.X + x, origin.Y + y);
                 if (!terrain.InBounds(p) || terrain[p].Deposit == DepositKind.None)
@@ -3405,7 +3418,7 @@ public sealed class Factory : IGameView
             }
         }
 
-        return anyOre;
+        return anyOre && terrain.CountSandTiles(origin, size) == 0;
     }
 
     private bool PlaceCrafter(
