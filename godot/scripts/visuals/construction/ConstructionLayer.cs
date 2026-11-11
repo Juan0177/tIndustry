@@ -58,7 +58,7 @@ public partial class ConstructionLayer : Node2D
     /// <summary>World layer that draws <paramref name="spec"/> once built: belts and logistics, or buildings.</summary>
     public static StructureLayers LayerOf(BuildSpec spec) =>
         spec.Kind is null or BuildingKind.Junction or BuildingKind.Router or BuildingKind.Sorter
-            or BuildingKind.SorterInverted or BuildingKind.Bridge
+            or BuildingKind.SorterInverted or BuildingKind.Bridge or BuildingKind.OverflowGate or BuildingKind.UnderflowGate
             ? StructureLayers.Belts
             // A bigger Core changes the belts that now touch it (their joins) as well as the Core itself.
             : BuildSpec.IsCoreUpgrade(spec.Kind) ? StructureLayers.Both

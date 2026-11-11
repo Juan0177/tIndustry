@@ -483,6 +483,8 @@ public partial class World
         BuildTool.Separator => BuildingKind.Separator,
         BuildTool.Plasticizer => BuildingKind.Plasticizer,
         BuildTool.ImpactDrill => BuildingKind.ImpactDrill,
+        BuildTool.OverflowGate => BuildingKind.OverflowGate,
+        BuildTool.UnderflowGate => BuildingKind.UnderflowGate,
         _ => null
     };
 

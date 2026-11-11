@@ -55,6 +55,8 @@ public sealed class Factory : IGameView
         RouterDefinition = content.RequireConveyor("router");
         SorterDefinition = content.RequireConveyor("sorter");
         SorterInvertedDefinition = content.RequireConveyor("sorter-inverted");
+        OverflowGateDefinition = content.RequireConveyor(OverflowGateId);
+        UnderflowGateDefinition = content.RequireConveyor(UnderflowGateId);
         BridgeDefinition = content.RequireConveyor("conveyor-bridge");
     }
 
@@ -68,6 +70,8 @@ public sealed class Factory : IGameView
         RouterDefinition = state.Content.RequireConveyor("router");
         SorterDefinition = state.Content.RequireConveyor("sorter");
         SorterInvertedDefinition = state.Content.RequireConveyor("sorter-inverted");
+        OverflowGateDefinition = state.Content.RequireConveyor(OverflowGateId);
+        UnderflowGateDefinition = state.Content.RequireConveyor(UnderflowGateId);
         BridgeDefinition = state.Content.RequireConveyor("conveyor-bridge");
     }
 
@@ -79,6 +83,15 @@ public sealed class Factory : IGameView
     public ConveyorDefinition SorterDefinition { get; }
 
     public ConveyorDefinition SorterInvertedDefinition { get; }
+
+    /// <summary>Content id of the overflow gate (<see cref="LogisticsKind.Gate"/>).</summary>
+    public const string OverflowGateId = "overflow-gate";
+
+    /// <summary>Content id of the underflow gate (<see cref="LogisticsKind.Gate"/>, inverted).</summary>
+    public const string UnderflowGateId = "underflow-gate";
+
+    public ConveyorDefinition OverflowGateDefinition { get; }
+    public ConveyorDefinition UnderflowGateDefinition { get; }
     public ConveyorDefinition BridgeDefinition { get; }
     public IReadOnlySet<GridPosition> CoreTiles => State.CoreTiles;
     public int CoreTier => State.CoreTier;
@@ -571,9 +584,9 @@ public sealed class Factory : IGameView
             return false;
         }
 
-        // A junction sends the item on away from the building, a router and a sorter never back to it: their direction is
-        // unused.
-        return cell.Kind is LogisticsKind.Junction or LogisticsKind.Router or LogisticsKind.Sorter
+        // A junction sends the item on away from the building, a router, a sorter and a gate never back to it: their
+        // direction is unused.
+        return cell.Kind is LogisticsKind.Junction or LogisticsKind.Router || cell.PassesThrough
             || !BuildingIo.Occupies(building.Origin, building.Size, next);
     }
 
@@ -1022,7 +1035,7 @@ public sealed class Factory : IGameView
                 BridgePartnerX = c.BridgePartner?.X,
                 BridgePartnerY = c.BridgePartner?.Y,
                 FilterItemId = c.Kind == LogisticsKind.Sorter ? c.FilterItemId : null,
-                SorterTurns = c.Kind == LogisticsKind.Sorter && c.SorterTurns != 0 ? c.SorterTurns : null,
+                SorterTurns = c.PassesThrough && c.SorterTurns != 0 ? c.SorterTurns : null,
                 Items = c.Items.Select(CaptureItem).ToList()
             }).ToList()
         };
@@ -1162,7 +1175,7 @@ public sealed class Factory : IGameView
                     ParseRouterFrom(cell.RouterFrom));
             }
 
-            if (def.Kind == LogisticsKind.Sorter)
+            if (def.Kind is LogisticsKind.Sorter or LogisticsKind.Gate)
             {
                 if (cell.SorterTurns is < 0 or > 0b1111)
                 {
@@ -2493,6 +2506,8 @@ public sealed class Factory : IGameView
         "generator" => "generator",
         "sorter" => "sorter",
         "sorter-inverted" => "sorter-inverted",
+        OverflowGateId => OverflowGateId,
+        UnderflowGateId => UnderflowGateId,
         "bridge" => "conveyor-bridge",
         "extractor" => "extractor",
         "power-node" => "power-node",
@@ -2938,7 +2953,8 @@ public sealed class Factory : IGameView
 
         var ok = spec.Kind switch
         {
-            null or BuildingKind.Junction or BuildingKind.Router or BuildingKind.Sorter or BuildingKind.SorterInverted =>
+            null or BuildingKind.Junction or BuildingKind.Router or BuildingKind.Sorter or BuildingKind.SorterInverted
+                or BuildingKind.OverflowGate or BuildingKind.UnderflowGate =>
                 !Belts.Contains(spec.Origin) && CanOccupy(spec.Origin),
             BuildingKind.Bridge =>
                 !Belts.Contains(spec.Origin)
@@ -3065,6 +3081,10 @@ public sealed class Factory : IGameView
                 return PlaceLogistics(origin, dir, SorterDefinition, charge, spec.FilterItemId);
             case BuildingKind.SorterInverted:
                 return PlaceLogistics(origin, dir, SorterInvertedDefinition, charge, spec.FilterItemId);
+            case BuildingKind.OverflowGate:
+                return PlaceLogistics(origin, dir, OverflowGateDefinition, charge);
+            case BuildingKind.UnderflowGate:
+                return PlaceLogistics(origin, dir, UnderflowGateDefinition, charge);
             case BuildingKind.Bridge:
                 return PlaceBridge(origin, dir, charge, bridgeExit);
             case BuildingKind.Miner:
@@ -3228,6 +3248,13 @@ public sealed class Factory : IGameView
                         cell.Direction,
                         FilterItemId: cell.FilterItemId);
                     return true;
+                case LogisticsKind.Gate:
+                    spec = new BuildSpec(
+                        id,
+                        cell.Definition.Inverted ? BuildingKind.UnderflowGate : BuildingKind.OverflowGate,
+                        tile,
+                        cell.Direction);
+                    return true;
                 case LogisticsKind.Bridge when cell.BridgePartner is { } partner:
                     var entry = IsAhead(tile, cell.Direction, partner) ? tile : partner;
                     spec = new BuildSpec(id, BuildingKind.Bridge, entry, cell.Direction);
@@ -3256,6 +3283,7 @@ public sealed class Factory : IGameView
 
         var removed = spec.Kind is null or BuildingKind.Junction or BuildingKind.Router
             or BuildingKind.Sorter or BuildingKind.SorterInverted or BuildingKind.Bridge
+            or BuildingKind.OverflowGate or BuildingKind.UnderflowGate
             ? Belts.TryRemove(tile)
             : TryRemoveBuildingEntity(tile, out _);
         if (!removed)

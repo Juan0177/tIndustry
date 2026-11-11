@@ -81,6 +81,8 @@ public sealed record BuildSpec(
         BuildingKind.Separator => Crafter.SeparatorId,
         BuildingKind.Plasticizer => Crafter.PlasticizerId,
         BuildingKind.ImpactDrill => Miner.ImpactDrillId,
+        BuildingKind.OverflowGate => Factory.OverflowGateId,
+        BuildingKind.UnderflowGate => Factory.UnderflowGateId,
         _ => null
     };
 

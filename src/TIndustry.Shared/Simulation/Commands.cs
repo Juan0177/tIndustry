@@ -41,7 +41,9 @@ public enum BuildingKind
     GraphitePress,
     Separator,
     Plasticizer,
-    ImpactDrill
+    ImpactDrill,
+    OverflowGate,
+    UnderflowGate
 }
 
 /// <summary>

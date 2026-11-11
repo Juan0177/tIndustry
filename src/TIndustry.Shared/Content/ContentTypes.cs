@@ -12,13 +12,16 @@ public enum LogisticsKind
     Junction,
     Router,
     Bridge,
-    Sorter
+    Sorter,
+
+    /// <summary>Overflow gate (Mindustry's), or the underflow gate when <see cref="ConveyorDefinition.Inverted"/>.</summary>
+    Gate
 }
 
 /// <summary>
 /// A belt or a logistics block. <see cref="RateItemsPerSecond"/> is the speed in cells per second (the name is older
 /// than the spacing); a full line carries speed / <see cref="ItemSpacing"/> items per second, at most
-/// <see cref="Capacity"/> items per cell. <paramref name="Inverted"/> marks the inverted sorter (<c>sorter-inverted</c>).
+/// <see cref="Capacity"/> items per cell. <paramref name="Inverted"/> marks the inverted sorter (<c>sorter-inverted</c>) and the underflow gate (<c>underflow-gate</c>).
 /// </summary>
 public sealed record ConveyorDefinition(
     string Id,

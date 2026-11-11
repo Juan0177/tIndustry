@@ -46,6 +46,8 @@ NODES = [
     ("conveyor-fast", 1, 4, [("iron-ore", 8), ("lead-ore", 8), ("titanium-ore", 8)]),
     ("sorter", 1, 4, [("iron-ore", 10), ("lead-ore", 10)]),
     ("sorter-inverted", 1, 4, [("iron-ore", 10), ("lead-ore", 10)]),
+    ("overflow-gate", 1, 0.6, [("lead-plate", 4), ("copper-wire", 2)]),
+    ("underflow-gate", 1, 0.8, [("lead-plate", 4), ("copper-wire", 2)]),
     ("conveyor-bridge", 1, 5, [("iron-ore", 21), ("lead-ore", 21)]),
     ("battery", 1, 5, [("lead-plate", 10), ("copper-wire", 5)]),
     ("container", 1, 6, [("iron-plate", 20), ("lead-plate", 10)]),

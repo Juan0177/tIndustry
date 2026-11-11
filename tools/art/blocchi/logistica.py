@@ -1,6 +1,6 @@
 """Logistics sprites: narrow belts in four tiers (basic, fast, express, armored; icon, straight strip,
 corner strip, T merge strip, side join strips: variant C "Mindustry" of the proposal sheet), junction,
-router, sorter, inverted sorter, bridge end and bridge span.
+router, sorter, inverted sorter, overflow and underflow gates, bridge end and bridge span.
 
 Every directional sprite faces East (flow towards +x); the client rotates it. The belt is as wide as
 Mindustry's at 32 px: a 12 px tread (rows 10-21) between side plates of 4 px (outline, three rail tones
@@ -313,6 +313,41 @@ def sorter_inverted():
     for x, y in ((15, 8), (16, 8), (15, 23), (16, 23), (8, 15), (8, 16), (23, 15), (23, 16)):
         forme.pixel(im, x, y, OUT)
     return im
+
+
+def _gate(cornice, verso):
+    """Overflow / underflow gate: the crossing treads under a square cap framed in `cornice`, with a small arrow on
+    each tread (no direction on screen, so all four alike). `verso` "fuori": arrows point out of the cap, toward the
+    edges (the item leaves straight ahead first); "lati": they point back toward the cap (the sides come first)."""
+    im = _piastra()
+    _croce(im)
+    forme.rett(im, 9, 9, 22, 22, OUT)
+    forme.pannello(im, 10, 10, 21, 21, METALLO)
+    forme.rett(im, 12, 12, 19, 19, OUT)
+    forme.rett(im, 13, 13, 18, 18, cornice[1])
+    forme.rett(im, 13, 13, 18, 13, cornice[3])
+    forme.rett(im, 13, 13, 13, 18, cornice[3])
+    forme.rett(im, 15, 15, 16, 16, cornice[4])
+    if verso == "fuori":
+        frecce = ((29, 16, "E"), (2, 15, "W"), (15, 2, "N"), (16, 29, "S"))
+    else:
+        frecce = ((23, 15, "W"), (8, 16, "E"), (16, 8, "S"), (15, 23, "N"))
+    for cx, cy, punta in frecce:
+        _freccia(im, cx, cy, punta, cornice, lato=2)
+    return im
+
+
+@sprite("overflow-gate")
+def overflow_gate():
+    """Overflow gate: items go straight on, to the sides only when the way ahead is full. Amber cap, arrows leaving
+    toward every edge."""
+    return _gate(ACCENTO, "fuori")
+
+
+@sprite("underflow-gate")
+def underflow_gate():
+    """Underflow gate: the overflow the other way round (sides first). Red cap, arrows turned back toward the cap."""
+    return _gate(ROSSO, "lati")
 
 
 @sprite("conveyor-bridge")

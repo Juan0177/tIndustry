@@ -27,6 +27,8 @@ public partial class BuildPalette : PanelContainer
         new(ToolKind.Router, "router", "6"),
         new(ToolKind.Sorter, "sorter", "8"),
         new(ToolKind.SorterInverted, "sorter-inverted", ""),
+        new(ToolKind.OverflowGate, Factory.OverflowGateId, ""),
+        new(ToolKind.UnderflowGate, Factory.UnderflowGateId, ""),
         new(ToolKind.Bridge, "conveyor-bridge", "9")
     ];
 
@@ -520,7 +522,7 @@ public partial class BuildPalette : PanelContainer
     private static BuildCategory CategoryFor(ToolKind tool) => tool switch
     {
         ToolKind.Belt or ToolKind.BeltFast or ToolKind.BeltExpress or ToolKind.BeltArmored or ToolKind.Junction or ToolKind.Router
-            or ToolKind.Sorter or ToolKind.SorterInverted or ToolKind.Bridge
+            or ToolKind.Sorter or ToolKind.SorterInverted or ToolKind.OverflowGate or ToolKind.UnderflowGate or ToolKind.Bridge
             => BuildCategory.Logistics,
         ToolKind.Miner or ToolKind.MinerAdvanced or ToolKind.Smelter or ToolKind.Assembler or ToolKind.Extractor
             or ToolKind.SmelterAdvanced or ToolKind.GraphitePress or ToolKind.Separator or ToolKind.Plasticizer

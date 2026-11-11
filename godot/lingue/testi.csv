@@ -8,6 +8,8 @@ struttura.junction.nome,Incrocio,Junction
 struttura.router.nome,Router,Router
 struttura.sorter.nome,Selezionatore,Sorter
 struttura.sorter-inverted.nome,Selezionatore invertito,Inverted sorter
+struttura.overflow-gate.nome,Overflow gate,Overflow gate
+struttura.underflow-gate.nome,Underflow gate,Underflow gate
 struttura.conveyor-bridge.nome,Nastro ponte,Bridge belt
 struttura.conveyor-express.nome,Nastro T3,Belt T3
 struttura.conveyor-armored.nome,Nastro rinforzato,Armored belt
@@ -125,6 +127,8 @@ struttura.junction.suggerimento,Incrocio a croce,Cross junction
 struttura.router.suggerimento,Un oggetto alla volta · a turno su ogni lato · mai indietro,One item at a time · takes turns on every side · never back
 struttura.sorter.suggerimento,Filtro col clic sul blocco · icona al centro · chi passa va dritto · gli altri a sinistra e a destra alternando · senza filtro tutto ai lati,Filter with a click on the block · icon in the middle · matches go straight · others alternate left and right · with no filter all to the sides
 struttura.sorter-inverted.suggerimento,Il selezionatore al contrario · filtro col clic · chi passa il filtro va ai lati · gli altri dritti,The sorter the other way round · filter with a click · matches go to the sides · others go straight
+struttura.overflow-gate.suggerimento,Dritto se davanti c'è posto · se no a sinistra e a destra alternando · sblocca in Ricerca,Straight on if there is room ahead · else left and right alternating · unlock in Research
+struttura.underflow-gate.suggerimento,L'overflow al contrario · prima ai lati alternando · dritto solo se i lati sono pieni · sblocca in Ricerca,The overflow the other way round · sides first alternating · straight only when the sides are full · unlock in Research
 struttura.conveyor-bridge.suggerimento,Ponte span 2–4 · I/O 3 lati · teletrasporto istantaneo,Bridge span 2–4 · I/O on 3 sides · instant teleport
 struttura.miner.suggerimento,Estrae minerali · {0} · sabbia dal pavimento di sabbia senza giacimento · uscita su tutti i lati · 2×2,Mines ore · {0} · sand from sand floor without a deposit · output on every side · 2×2
 struttura.miner-advanced.suggerimento,Minatore T2 · {0} · sabbia senza giacimento · 2× velocità · +20% con corrente (la consuma) · sblocca in Ricerca,Miner T2 · {0} · sand without a deposit · 2× speed · +20% with power (uses it) · unlock in Research
@@ -463,6 +467,8 @@ struttura.junction.descrizione,Incrocio a croce per nastri,Cross junction for be
 struttura.router.descrizione,Distribuisce gli oggetti a turno su tutti i lati · mai verso il lato da cui arrivano,Hands items out in turn on every side · never back to the side they came from
 struttura.sorter.descrizione,Filtro col clic sul blocco · icona al centro · chi passa va dritto · gli altri a sinistra e a destra alternando · senza filtro tutto ai lati,Filter with a click on the block · icon in the middle · matches go straight · others alternate left and right · with no filter all to the sides
 struttura.sorter-inverted.descrizione,Chi passa il filtro esce a sinistra e a destra alternando · gli altri vanno dritti · senza filtro tutto dritto,Items matching the filter leave left and right alternating · the others go straight · with no filter everything goes straight
+struttura.overflow-gate.descrizione,Nessuna direzione · l'oggetto va dritto se il blocco davanti lo prende · se no a sinistra e a destra alternando · se nessuno lo prende aspetta sul nastro · mai in un altro gate o selezionatore,No direction · items go straight on if the block ahead takes them · else left and right alternating · if nothing takes them they wait on the belt · never into another gate or sorter
+struttura.underflow-gate.descrizione,Nessuna direzione · l'oggetto va a sinistra e a destra alternando · dritto solo se nessun lato lo prende · se nessuno lo prende aspetta sul nastro · mai in un altro gate o selezionatore,No direction · items go left and right alternating · straight on only if neither side takes them · if nothing takes them they wait on the belt · never into another gate or sorter
 struttura.conveyor-bridge.descrizione,Ponte span 2–4 · I/O 3 lati · teletrasporto istantaneo,Bridge span 2–4 · I/O on 3 sides · instant teleport
 struttura.generator.descrizione,Brucia carbone per energia · 2×2,Burns coal for power · 2×2
 struttura.power-node.descrizione,Nodo T1 · 1×1 · raggio 6 · 6 collegamenti · si collega da solo ai blocchi vicini,Power node T1 · 1×1 · range 6 · 6 links · links to the nearby blocks by itself

@@ -62,7 +62,7 @@ public sealed class AgentGame : IDisposable
         ('E', "estrattore"), ('P', "nodo di energia"), ('Q', "nodo di energia T2"), ('L', "lampada"),
         ('B', "batteria"), ('K', "contenitore"), ('V', "deposito"), ('$', "schermo di borsa"),
         ('W', "fonderia avanzata"), ('H', "pressa grande"), ('X', "separatore"), ('Y', "plastificatore"),
-        ('T', "trapano a impatto"),
+        ('T', "trapano a impatto"), ('O', "overflow gate"), ('U', "underflow gate"),
         ('!', "struttura senza simbolo"),
         ('#', "parete"), ('~', "acqua profonda"), (',', "acqua bassa"), ('s', "pavimento di sabbia"),
         ('i', "giacimento di ferro"), ('r', "giacimento di rame"), ('k', "giacimento di carbone"),
@@ -676,6 +676,7 @@ public sealed class AgentGame : IDisposable
                 ["incroci"] = logistics.GetValueOrDefault(LogisticsKind.Junction),
                 ["router"] = logistics.GetValueOrDefault(LogisticsKind.Router),
                 ["selezionatori"] = logistics.GetValueOrDefault(LogisticsKind.Sorter),
+                ["gate"] = logistics.GetValueOrDefault(LogisticsKind.Gate),
                 // Each bridge has two end cells.
                 ["ponti"] = logistics.GetValueOrDefault(LogisticsKind.Bridge) / 2
             },
@@ -959,6 +960,7 @@ public sealed class AgentGame : IDisposable
                 LogisticsKind.Router => KindSymbol(BuildingKind.Router),
                 LogisticsKind.Sorter => KindSymbol(belt.Definition.Inverted ? BuildingKind.SorterInverted : BuildingKind.Sorter),
                 LogisticsKind.Bridge => KindSymbol(BuildingKind.Bridge),
+                LogisticsKind.Gate => KindSymbol(belt.Definition.Inverted ? BuildingKind.UnderflowGate : BuildingKind.OverflowGate),
                 _ => '!'
             };
         }
@@ -1026,6 +1028,8 @@ public sealed class AgentGame : IDisposable
         BuildingKind.Separator => 'X',
         BuildingKind.Plasticizer => 'Y',
         BuildingKind.ImpactDrill => 'T',
+        BuildingKind.OverflowGate => 'O',
+        BuildingKind.UnderflowGate => 'U',
         _ => '!'
     };
 

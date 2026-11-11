@@ -631,9 +631,9 @@ public sealed class Crafter
             }
 
             // Outward: next cell after belt must not re-enter footprint (a junction sends it on away from the building, a
-            // router or a sorter never hands it back where it came from).
+            // router, a sorter or a gate never hands it back where it came from).
             var next = outputPosition.Step(cell.Direction);
-            if (cell.Kind is not (LogisticsKind.Junction or LogisticsKind.Router or LogisticsKind.Sorter) && Occupies(next))
+            if (cell.Kind is not (LogisticsKind.Junction or LogisticsKind.Router) && !cell.PassesThrough && Occupies(next))
             {
                 continue;
             }

@@ -101,6 +101,8 @@ public partial class World
         BuildTool.Separator => Hud.ToolKind.Separator,
         BuildTool.Plasticizer => Hud.ToolKind.Plasticizer,
         BuildTool.ImpactDrill => Hud.ToolKind.ImpactDrill,
+        BuildTool.OverflowGate => Hud.ToolKind.OverflowGate,
+        BuildTool.UnderflowGate => Hud.ToolKind.UnderflowGate,
         _ => Hud.ToolKind.None
     };
 
@@ -136,6 +138,8 @@ public partial class World
         Hud.ToolKind.Separator => BuildTool.Separator,
         Hud.ToolKind.Plasticizer => BuildTool.Plasticizer,
         Hud.ToolKind.ImpactDrill => BuildTool.ImpactDrill,
+        Hud.ToolKind.OverflowGate => BuildTool.OverflowGate,
+        Hud.ToolKind.UnderflowGate => BuildTool.UnderflowGate,
         _ => BuildTool.None
     };
 

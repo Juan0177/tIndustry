@@ -170,6 +170,71 @@
       "inverted": true
     },
     {
+      "id": "overflow-gate",
+      "tier": 1,
+      "rateItemsPerSecond": 8.0,
+      "capacity": 1,
+      "itemSpacing": 1.0,
+      "moneyCost": 0,
+      "buildCost": [
+        {
+          "itemId": "lead-plate",
+          "amount": 4
+        },
+        {
+          "itemId": "copper-wire",
+          "amount": 2
+        }
+      ],
+      "unlock": {
+        "money": 11000,
+        "materials": [
+          {
+            "itemId": "lead-plate",
+            "amount": 12
+          },
+          {
+            "itemId": "copper-wire",
+            "amount": 6
+          }
+        ]
+      },
+      "kind": "gate"
+    },
+    {
+      "id": "underflow-gate",
+      "tier": 1,
+      "rateItemsPerSecond": 8.0,
+      "capacity": 1,
+      "itemSpacing": 1.0,
+      "moneyCost": 0,
+      "buildCost": [
+        {
+          "itemId": "lead-plate",
+          "amount": 4
+        },
+        {
+          "itemId": "copper-wire",
+          "amount": 2
+        }
+      ],
+      "unlock": {
+        "money": 15000,
+        "materials": [
+          {
+            "itemId": "lead-plate",
+            "amount": 12
+          },
+          {
+            "itemId": "copper-wire",
+            "amount": 6
+          }
+        ]
+      },
+      "kind": "gate",
+      "inverted": true
+    },
+    {
       "id": "conveyor-bridge",
       "tier": 1,
       "rateItemsPerSecond": 5.25,
@@ -665,6 +730,52 @@
       "isStub": false,
       "prerequisites": [
         "sorter"
+      ]
+    },
+    {
+      "id": "overflow-gate",
+      "displayName": "Overflow gate",
+      "kind": "conveyor",
+      "unlockedByDefault": false,
+      "unlock": {
+        "money": 11000,
+        "materials": [
+          {
+            "itemId": "lead-plate",
+            "amount": 12
+          },
+          {
+            "itemId": "copper-wire",
+            "amount": 6
+          }
+        ]
+      },
+      "isStub": false,
+      "prerequisites": [
+        "router"
+      ]
+    },
+    {
+      "id": "underflow-gate",
+      "displayName": "Underflow gate",
+      "kind": "conveyor",
+      "unlockedByDefault": false,
+      "unlock": {
+        "money": 15000,
+        "materials": [
+          {
+            "itemId": "lead-plate",
+            "amount": 12
+          },
+          {
+            "itemId": "copper-wire",
+            "amount": 6
+          }
+        ]
+      },
+      "isStub": false,
+      "prerequisites": [
+        "overflow-gate"
       ]
     },
     {

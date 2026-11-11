@@ -43,7 +43,9 @@ public partial class Hud : Control
         GraphitePress,
         Separator,
         Plasticizer,
-        ImpactDrill
+        ImpactDrill,
+        OverflowGate,
+        UnderflowGate
     }
 
     internal enum BuildCategory
@@ -445,6 +447,8 @@ public partial class Hud : Control
         ToolKind.Separator => Crafter.SeparatorId,
         ToolKind.Plasticizer => Crafter.PlasticizerId,
         ToolKind.ImpactDrill => Miner.ImpactDrillId,
+        ToolKind.OverflowGate => Factory.OverflowGateId,
+        ToolKind.UnderflowGate => Factory.UnderflowGateId,
         _ => "conveyor-basic"
     };
 

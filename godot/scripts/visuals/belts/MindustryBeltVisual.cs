@@ -80,7 +80,7 @@ public partial class MindustryBeltVisual : Node2D
         {
             switch (cell.Kind)
             {
-                case LogisticsKind.Junction or LogisticsKind.Router or LogisticsKind.Sorter:
+                case LogisticsKind.Junction or LogisticsKind.Router or LogisticsKind.Sorter or LogisticsKind.Gate:
                     AddSpecial(view, pos, cell.Kind, cell.Direction, tileSize, cell.FilterItemId, cell.Definition.Inverted);
                     break;
                 case LogisticsKind.Bridge:
@@ -215,6 +215,7 @@ public partial class MindustryBeltVisual : Node2D
             LogisticsKind.Junction => "junction-base",
             LogisticsKind.Router => "router",
             LogisticsKind.Sorter => inverted ? "sorter-inverted" : "sorter",
+            LogisticsKind.Gate => inverted ? Factory.UnderflowGateId : Factory.OverflowGateId,
             LogisticsKind.Bridge => "conveyor-bridge",
             _ => BuildSpec.DefaultConveyorId
         });
@@ -231,7 +232,7 @@ public partial class MindustryBeltVisual : Node2D
             TextureFilter = CanvasItem.TextureFilterEnum.Nearest,
             Scale = Vector2.One * Sprites.ScaleToCells(texture, 1, tileSize)
         };
-        // A bridge turns with its facing; junctions, routers and sorters have no direction (Mindustry).
+        // A bridge turns with its facing; junctions, routers, sorters and gates have no direction (Mindustry).
         if (kind == LogisticsKind.Bridge)
         {
             sprite.RotationDegrees = ScrollingBeltStrip.RotationFor(direction);

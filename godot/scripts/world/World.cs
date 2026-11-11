@@ -69,7 +69,9 @@ public partial class World : Node2D
         GraphitePress,
         Separator,
         Plasticizer,
-        ImpactDrill
+        ImpactDrill,
+        OverflowGate,
+        UnderflowGate
     }
 
     // The simulation lives behind the host: the client reads IGameView and submits commands.
