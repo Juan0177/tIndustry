@@ -23,6 +23,11 @@ struttura.market-screen.nome,Schermo di borsa,Market screen
 struttura.finance-forecast.nome,Modulo previsione,Forecast module
 struttura.finance-percent.nome,Modulo percentuale,Percent module
 struttura.finance-odds.nome,Modulo probabilità,Odds module
+struttura.graphite-press.nome,Pressa grande,Graphite press
+struttura.smelter-advanced.nome,Fonderia avanzata,Advanced smelter
+struttura.separator.nome,Separatore,Separator
+struttura.plasticizer.nome,Plastificatore,Plasticizer
+struttura.circuit.nome,Ricetta dei circuiti,Circuit recipe
 struttura.core-foundation.nome,CORE Fondazione,CORE Foundation
 struttura.core-nucleus.nome,CORE Nucleo,CORE Nucleus
 struttura.core-shard.nome,CORE Frammento,CORE Shard
@@ -55,6 +60,7 @@ ricetta.smelt-glass.nome,Vetro,Glass
 ricetta.press-graphite.nome,Grafite,Graphite
 ricetta.separate-sand.nome,Minerali dalla sabbia,Ores from sand
 ricetta.plasticize-plastic.nome,Plastica,Plastic
+ricetta.craft-circuit.nome,Circuito,Circuit
 giacimento.iron.nome,ferro,iron
 giacimento.copper.nome,rame,copper
 giacimento.coal.nome,carbone,coal
@@ -135,6 +141,11 @@ struttura.market-screen.suggerimento,Schermo di borsa · 2×2 · attaccato al CO
 struttura.finance-forecast.suggerimento,Modulo previsione · sullo schermo di borsa · quando arriva il picco e quando vendere · sblocca in Ricerca,Forecast module · on the market screen · when the spike comes and when to sell · unlock in Research
 struttura.finance-percent.suggerimento,Modulo percentuale · sullo schermo di borsa · il prezzo come percentuale su B · sblocca in Ricerca,Percent module · on the market screen · the price as a percentage over B · unlock in Research
 struttura.finance-odds.suggerimento,Modulo probabilità · sullo schermo di borsa · la probabilità del jackpot di un «Vendi tutto» ora · sblocca in Ricerca,Odds module · on the market screen · the jackpot odds of a «Sell all» now · unlock in Research
+struttura.graphite-press.suggerimento,Pressa grande · 2 grafite da 3 carbone · senza corrente · 2×2 · sblocca in Ricerca,Graphite press · 2 graphite from 3 coal · no power · 2×2 · unlock in Research
+struttura.smelter-advanced.suggerimento,Fonderia avanzata · le ricette del forno a velocità doppia · solo con corrente (20) · niente carbone · 2×2 · sblocca in Ricerca,Advanced smelter · the smelter's recipes at double speed · power only (20) · no coal · 2×2 · unlock in Research
+struttura.separator.suggerimento,Separatore · un minerale a caso da 2 sabbia · corrente 8 · 2×2 · sblocca in Ricerca,Separator · a random ore from 2 sand · power 8 · 2×2 · unlock in Research
+struttura.plasticizer.suggerimento,Plastificatore · plastica da 2 carbone · corrente 6 · 2×2 · sblocca in Ricerca,Plasticizer · plastic from 2 coal · power 6 · 2×2 · unlock in Research
+struttura.circuit.suggerimento,Ricetta dei circuiti · nell'assemblatore · filo di rame + silicio + lastra di piombo · sblocca in Ricerca,Circuit recipe · in the assembler · copper wire + silicon + lead plate · unlock in Research
 struttura.core-foundation.suggerimento,CORE Fondazione · 4×4 · 4000 per oggetto · sblocca in Ricerca,CORE Foundation · 4×4 · 4000 per item · unlock in Research
 struttura.core-nucleus.suggerimento,CORE Nucleo · 5×5 · 12000 per oggetto · sblocca in Ricerca,CORE Nucleus · 5×5 · 12000 per item · unlock in Research
 struttura.scava,Scava: {0},Digs: {0}
@@ -461,6 +472,11 @@ struttura.market-screen.descrizione,Schermo di borsa · 2×2 · uno solo · a co
 struttura.finance-forecast.descrizione,Modulo previsione · niente da piazzare · con lo schermo di borsa attivo dice fra quanto arriva il picco o finisce il crollo e consiglia «aspetta» o «vendi ora»,Forecast module · nothing to place · with an active market screen it tells when the spike comes or the crash ends and advises «wait» or «sell now»
 struttura.finance-percent.descrizione,Modulo percentuale · niente da piazzare · con lo schermo di borsa attivo mostra il prezzo come «+N% su B»,Percent module · nothing to place · with an active market screen it shows the price as «+N% over B»
 struttura.finance-odds.descrizione,Modulo probabilità · niente da piazzare · con lo schermo di borsa attivo mostra la probabilità del jackpot se ora vendessi tutto quell'oggetto,Odds module · nothing to place · with an active market screen it shows the jackpot odds if you sold all of that item now
+struttura.graphite-press.descrizione,"Pressa grande · pressa 3 carbone in 2 grafite in 1,5 s · non usa corrente · 2×2",Graphite press · presses 3 coal into 2 graphite in 1.5 s · uses no power · 2×2
+struttura.smelter-advanced.descrizione,"Fonderia avanzata · fonde come il forno (2 ferro grezzo, 2 piombo grezzo o 3 titanio grezzo in una lastra, 2 sabbia in vetro) al doppio della velocità · consuma 20 di corrente · senza corrente si ferma · non brucia carbone · 2×2","Advanced smelter · smelts like the smelter (2 iron ore, 2 lead ore or 3 titanium ore into a plate, 2 sand into glass) at double speed · uses 20 power · stops without power · burns no coal · 2×2"
+struttura.separator.descrizione,"Separatore · separa 2 sabbia in un minerale a caso: ferro, rame o piombo grezzo (30% ciascuno) o titanio grezzo (10%) · consuma 8 di corrente · senza corrente si ferma · 2×2","Separator · separates 2 sand into a random ore: iron, copper or lead ore (30% each) or titanium ore (10%) · uses 8 power · stops without power · 2×2"
+struttura.plasticizer.descrizione,Plastificatore · fa 1 plastica da 2 carbone in 2 s · consuma 6 di corrente · senza corrente si ferma · 2×2,Plasticizer · makes 1 plastic from 2 coal in 2 s · uses 6 power · stops without power · 2×2
+struttura.circuit.descrizione,"Ricetta dei circuiti · niente da piazzare · l'assemblatore fa un circuito da filo di rame, silicio e lastra di piombo in 3 s","Circuit recipe · nothing to place · the assembler makes a circuit from copper wire, silicon and lead plate in 3 s"
 struttura.core-foundation.descrizione,CORE Fondazione · 4×4 · 4000 per oggetto · vende 25 pezzi al secondo · drone beta,CORE Foundation · 4×4 · 4000 per item · sells 25 pieces per second · beta drone
 struttura.core-nucleus.descrizione,CORE Nucleo · 5×5 · 12000 per oggetto · vende 60 pezzi al secondo · drone gamma,CORE Nucleus · 5×5 · 12000 per item · sells 60 pieces per second · gamma drone
 tutorial.passo.1,"Il drone sei tu: muovilo con WASD, la visuale lo segue. Tieni premuto il tasto centrale e trascina per guardare lontano (al rilascio torna sul drone). Rotella = zoom · H torna sul drone.","You are the drone: move it with WASD, the view follows it. Hold the middle button and drag to look away (on release it goes back to the drone). Wheel = zoom · H goes back to the drone."

@@ -472,6 +472,31 @@
           "amount": 1
         }
       ]
+    },
+    {
+      "id": "craft-circuit",
+      "durationSeconds": 3.0,
+      "research": "circuit",
+      "inputs": [
+        {
+          "itemId": "copper-wire",
+          "amount": 1
+        },
+        {
+          "itemId": "silicon",
+          "amount": 1
+        },
+        {
+          "itemId": "lead-plate",
+          "amount": 1
+        }
+      ],
+      "outputs": [
+        {
+          "itemId": "circuit",
+          "amount": 1
+        }
+      ]
     }
   ],
   "structures": [
@@ -935,6 +960,51 @@
       "prerequisites": [ "finance-percent" ]
     },
     {
+      "id": "graphite-press",
+      "displayName": "Pressa grande",
+      "kind": "building",
+      "unlockedByDefault": false,
+      "unlock": { "money": 64000, "materials": [ { "itemId": "iron-plate", "amount": 60 }, { "itemId": "lead-plate", "amount": 30 } ] },
+      "isStub": false,
+      "prerequisites": [ "assembler" ]
+    },
+    {
+      "id": "smelter-advanced",
+      "displayName": "Fonderia avanzata",
+      "kind": "building",
+      "unlockedByDefault": false,
+      "unlock": { "money": 360000, "materials": [ { "itemId": "titanium-plate", "amount": 160 }, { "itemId": "copper-wire", "amount": 80 } ] },
+      "isStub": false,
+      "prerequisites": [ "smelter" ]
+    },
+    {
+      "id": "separator",
+      "displayName": "Separatore",
+      "kind": "building",
+      "unlockedByDefault": false,
+      "unlock": { "money": 390000, "materials": [ { "itemId": "titanium-plate", "amount": 160 }, { "itemId": "graphite", "amount": 80 } ] },
+      "isStub": false,
+      "prerequisites": [ "smelter-advanced" ]
+    },
+    {
+      "id": "plasticizer",
+      "displayName": "Plastificatore",
+      "kind": "building",
+      "unlockedByDefault": false,
+      "unlock": { "money": 360000, "materials": [ { "itemId": "silicon", "amount": 120 }, { "itemId": "graphite", "amount": 120 } ] },
+      "isStub": false,
+      "prerequisites": [ "graphite-press" ]
+    },
+    {
+      "id": "circuit",
+      "displayName": "Ricetta dei circuiti",
+      "kind": "recipe",
+      "unlockedByDefault": false,
+      "unlock": { "money": 480000, "materials": [ { "itemId": "silicon", "amount": 160 }, { "itemId": "lead-plate", "amount": 160 } ] },
+      "isStub": false,
+      "prerequisites": [ "assembler" ]
+    },
+    {
       "id": "core-foundation",
       "displayName": "CORE Fondazione",
       "kind": "core-upgrade",
@@ -1242,6 +1312,46 @@
       "buildCost": [ { "itemId": "iron-plate", "amount": 60 }, { "itemId": "copper-wire", "amount": 25 }, { "itemId": "lead-plate", "amount": 10 } ],
       "refundPercent": 100,
       "footprint": 2
+    },
+    {
+      "id": "smelter-advanced",
+      "moneyCost": 0,
+      "buildCost": [ { "itemId": "iron-plate", "amount": 30 }, { "itemId": "titanium-plate", "amount": 15 }, { "itemId": "copper-wire", "amount": 10 } ],
+      "refundPercent": 100,
+      "footprint": 2,
+      "powerUse": 20,
+      "recipes": "smelt-",
+      "powerMode": "required",
+      "craftSpeed": 2
+    },
+    {
+      "id": "graphite-press",
+      "moneyCost": 0,
+      "buildCost": [ { "itemId": "iron-plate", "amount": 20 }, { "itemId": "lead-plate", "amount": 10 } ],
+      "refundPercent": 100,
+      "footprint": 2,
+      "recipes": "press-",
+      "powerMode": "none"
+    },
+    {
+      "id": "separator",
+      "moneyCost": 0,
+      "buildCost": [ { "itemId": "iron-plate", "amount": 20 }, { "itemId": "titanium-plate", "amount": 10 }, { "itemId": "copper-wire", "amount": 10 } ],
+      "refundPercent": 100,
+      "footprint": 2,
+      "powerUse": 8,
+      "recipes": "separate-",
+      "powerMode": "required"
+    },
+    {
+      "id": "plasticizer",
+      "moneyCost": 0,
+      "buildCost": [ { "itemId": "titanium-plate", "amount": 20 }, { "itemId": "lead-plate", "amount": 20 }, { "itemId": "silicon", "amount": 10 } ],
+      "refundPercent": 100,
+      "footprint": 2,
+      "powerUse": 6,
+      "recipes": "plasticize-",
+      "powerMode": "required"
     }
   ],
   "economy": {

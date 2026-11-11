@@ -36,7 +36,11 @@ public enum BuildingKind
     Vault,
     Battery,
     SorterInverted,
-    MarketScreen
+    MarketScreen,
+    SmelterAdvanced,
+    GraphitePress,
+    Separator,
+    Plasticizer
 }
 
 /// <summary>

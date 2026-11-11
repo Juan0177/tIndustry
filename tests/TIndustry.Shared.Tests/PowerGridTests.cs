@@ -20,7 +20,8 @@ public sealed class PowerGridTests
         foreach (var id in new[]
                  {
                      Generator.BuildingId, PowerNode.Tier1Id, PowerNode.Tier2Id, Lamp.BuildingId, Battery.BuildingId,
-                     Crafter.SmelterBuildingId, Crafter.AssemblerBuildingId, Miner.AdvancedId
+                     Crafter.SmelterBuildingId, Crafter.AssemblerBuildingId, Miner.AdvancedId,
+                     Crafter.SmelterAdvancedId, Crafter.GraphitePressId, Crafter.SeparatorId, Crafter.PlasticizerId
                  })
         {
             factory.Research.ForceUnlock(id);

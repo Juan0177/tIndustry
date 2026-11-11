@@ -42,14 +42,17 @@ public sealed record ConveyorDefinition(
 
 /// <summary>
 /// A recipe of content.json. With <paramref name="RandomOutput"/> (JSON <c>randomOutput</c>) the amounts of
-/// <paramref name="Outputs"/> are weights and one craft makes a single piece of one of them.
+/// <paramref name="Outputs"/> are weights and one craft makes a single piece of one of them. A recipe with
+/// <paramref name="Research"/> (JSON <c>research</c>, the id of a structure of kind <c>recipe</c>) runs only once that
+/// research node is unlocked (<see cref="Factory.RecipesAvailableTo"/>).
 /// </summary>
 public sealed record RecipeDefinition(
     string Id,
     float DurationSeconds,
     IReadOnlyList<ResourceAmount> Inputs,
     IReadOnlyList<ResourceAmount> Outputs,
-    bool RandomOutput = false);
+    bool RandomOutput = false,
+    string? Research = null);
 
 /// <summary>
 /// How a craft machine uses power (JSON <c>powerMode</c>), on top of its <see cref="BuildingDefinition.CraftSpeedPercent"/>:

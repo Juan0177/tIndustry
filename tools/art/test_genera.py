@@ -34,6 +34,7 @@ NASTRI = ("conveyor-basic", "conveyor-fast", "conveyor-express", "conveyor-armor
 CELLE = {
     "miner": 2, "miner-advanced": 2, "smelter": 2, "assembler": 2, "generator": 2,
     "power-node-t2": 2,
+    "smelter-advanced": 2, "graphite-press": 2, "separator": 2, "plasticizer": 2,
     "extractor": 1, "power-node": 1, "lamp": 1, "battery": 1, "conveyor-basic": 1, "conveyor-fast": 1,
     "conveyor-express": 1, "conveyor-armored": 1, "junction": 1, "router": 1, "sorter": 1, "sorter-inverted": 1, "conveyor-bridge": 1,
     "core-1": 2, "core-2": 3, "core-3": 4, "core-4": 5,
@@ -626,6 +627,8 @@ class TestGenera(unittest.TestCase):
         # everywhere (no ground in the cut corners), with the dark outline on the edge.
         for nome in ("miner", "miner-base", "miner-advanced", "miner-advanced-base", "assembler",
                      "assembler-base", "smelter", "extractor", "generator", "generator-base",
+                     *(n + parte for n in ("smelter-advanced", "graphite-press", "separator", "plasticizer")
+                       for parte in ("", "-base")),
                      *(f"core-{n}" for n in range(1, CORE_TIER + 1))):
             with self.subTest(sprite=nome):
                 im = SPRITE[nome]()

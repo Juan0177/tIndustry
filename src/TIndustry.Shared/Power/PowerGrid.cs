@@ -287,7 +287,8 @@ public sealed class PowerGrid
 
     /// <summary>
     /// The power blocks of <paramref name="s"/> in id order: generators, nodes, batteries and the blocks with a power
-    /// use (forno, assembler, Miner T2, lamp). Belts, Miner T1, extractor, storage and the Core are not.
+    /// use (craft machines but the graphite press, Miner T2, lamp). Belts, Miner T1, extractor, graphite press, storage
+    /// and the Core are not.
     /// </summary>
     public static List<PowerBlock> Blocks(GameState s)
     {
@@ -310,7 +311,11 @@ public sealed class PowerGrid
 
         foreach (var c in s.CraftMachines())
         {
-            blocks.Add(new PowerBlock(c.Id, c.Position, Crafter.Size, PowerBlockKind.Consumer));
+            // A machine that never uses power (the graphite press) is not on any network.
+            if (c.PowerMode != CraftPowerMode.None)
+            {
+                blocks.Add(new PowerBlock(c.Id, c.Position, Crafter.Size, PowerBlockKind.Consumer));
+            }
         }
 
         foreach (var m in s.Miners)

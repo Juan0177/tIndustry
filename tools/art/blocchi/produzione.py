@@ -1,14 +1,18 @@
-"""Production sprites: miner (basic and advanced), smelter, assembler, extractor.
+"""Production sprites: miner (basic and advanced), smelter, assembler, extractor and the machines of the
+«Ricerca allargata» (advanced smelter, graphite press, separator, plasticizer).
 
 Every block is a still base plus its moving parts, each part a full-size layer so the client
 stacks them centred on the block:
 - miner: `-base`, `-drill-anim` (8 frames of the drill bit turning), advanced `-lamp` (lit with power);
 - smelter: `-base`, `-glow-anim` (4 frames of the glowing mouth);
-- assembler: `-base`, `-arm` (left arm, mirrored by the client for the right one, moved by code).
+- assembler: `-base`, `-arm` (left arm, mirrored by the client for the right one, moved by code);
+- advanced smelter, graphite press, separator, plasticizer: `-base` and the icon (still, for now).
 `<id>.png` is the composed icon (palette, research, plans, construction sites).
 The bases differ on purpose: chamfered grey plate (miner), red-trimmed plate with a lamp
 (advanced miner), sooty brick-red furnace with round rivets (smelter), blue steel bed on rails
-(assembler), lead-coloured octagon (extractor).
+(assembler), lead-coloured octagon (extractor), titanium furnace with two glowing mouths (advanced
+smelter), graphite ram between two steel pillars (graphite press), sand drum with four ore chutes
+(separator), magenta vat with a coal hopper (plasticizer).
 """
 import math
 
@@ -16,7 +20,8 @@ from PIL import Image
 
 import forme
 from blocchi import sprite
-from palette import ACCENTO, BAGLIORE, FERRO, FULIGGINE, METALLO, NASTRO, OUT, PIOMBO, RAME, ROSSO, TITANIO
+from palette import (ACCENTO, BAGLIORE, CARBONE, FERRO, FULIGGINE, GRAFITE, METALLO, NASTRO, OUT, PIOMBO, PLASTICA,
+                     RAME, ROSSO, SABBIA_GRANI, TITANIO)
 
 T = 32
 L = 2 * T  # side of a 2x2 block
@@ -340,3 +345,117 @@ def extractor():
     forme.rett(im, 9, 9, 22, 22, OUT)
     forme.rett(im, 10, 10, 21, 21, NASTRO[0])
     return forme.basamento(im, PIOMBO)
+
+
+# ---------------------------------------------------------------- machines of the «Ricerca allargata»
+
+def _angoli(im, rampa):
+    """Corner brackets with a bolt, as on the assembler."""
+    for bx, by in ((2, 2), (L - 5, 2), (2, L - 5), (L - 5, L - 5)):
+        forme.pannello(im, bx - 1, by - 1, bx + 2, by + 2, rampa)
+        forme.bullone(im, bx, by, METALLO)
+
+
+BOCCHE_AVANZATE = ((12, 22, 27, 41), (36, 22, 51, 41))  # the two mouths of the advanced smelter (inclusive)
+
+
+def _base_fonderia():
+    """Advanced smelter: a titanium casing with a red band and two dark mouths behind grates."""
+    im = forme.nuova(L, L)
+    forme.sagoma(im, forme.smussato(0, 0, L - 1, L - 1, 4), TITANIO)
+    forme.pannello(im, 7, 15, L - 8, L - 16, ROSSO[:4])
+    for x0, y0, x1, y1 in BOCCHE_AVANZATE:
+        forme.rett(im, x0 - 1, y0 - 1, x1 + 1, y1 + 1, OUT)
+        forme.rett(im, x0, y0, x1, y1, FULIGGINE[0])
+        forme.rett(im, x0, y1 - 2, x1, y1, FULIGGINE[1])
+    # Power socket on the North edge instead of the forno's coal hopper.
+    forme.pannello(im, 26, 3, 37, 10, METALLO)
+    forme.rett(im, 29, 5, 30, 8, OUT)
+    forme.rett(im, 33, 5, 34, 8, OUT)
+    _angoli(im, TITANIO)
+    return forme.basamento(im, TITANIO)
+
+
+def _bocche_accese():
+    """Both mouths lit, grates over them (transparent elsewhere)."""
+    im = forme.nuova(L, L)
+    for x0, y0, x1, y1 in BOCCHE_AVANZATE:
+        for y in range(y0, y1 + 1):
+            alto = y1 - y
+            c = BAGLIORE[1] if alto > 13 else BAGLIORE[2] if alto > 8 else BAGLIORE[3] if alto > 3 else BAGLIORE[4]
+            for x in range(x0, x1 + 1):
+                forme.pixel(im, x, y, c)
+        for x in range(x0 + 3, x1, 5):
+            forme.rett(im, x, y0, x, y1, OUT)
+    return im
+
+
+sprite("smelter-advanced-base")(_base_fonderia)
+sprite("smelter-advanced")(lambda: forme.componi(_base_fonderia(), _bocche_accese()))
+
+
+def _base_pressa():
+    """Graphite press: two steel pillars and a crosshead over a graphite ram pressing a coal bed."""
+    im = forme.nuova(L, L)
+    forme.sagoma(im, forme.smussato(0, 0, L - 1, L - 1, 3), FERRO)
+    # Coal bed in the middle.
+    forme.rett(im, 14, 36, L - 15, L - 10, OUT)
+    forme.rett(im, 15, 37, L - 16, L - 11, CARBONE[1])
+    for x in range(17, L - 16, 4):
+        forme.pixel(im, x, 39, CARBONE[3])
+        forme.pixel(im, x + 2, 42, CARBONE[2])
+    # Pillars and crosshead.
+    for x0 in (6, L - 13):
+        forme.pannello(im, x0, 6, x0 + 6, L - 7, METALLO)
+    forme.pannello(im, 6, 6, L - 7, 14, METALLO)
+    # The ram: a graphite block under the crosshead.
+    forme.pannello(im, 18, 15, L - 19, 33, GRAFITE)
+    forme.rett(im, 21, 18, L - 22, 18, GRAFITE[4])
+    forme.rett(im, 30, 15, 33, 33, GRAFITE[1])
+    _angoli(im, FERRO)
+    return forme.basamento(im, FERRO)
+
+
+sprite("graphite-press-base")(_base_pressa)
+sprite("graphite-press")(_base_pressa)
+
+
+def _base_separatore():
+    """Separator: a sand drum on a lead plate, with four ore chutes in the colours of what comes out."""
+    im = forme.nuova(L, L)
+    forme.sagoma(im, forme.smussato(0, 0, L - 1, L - 1, 3), PIOMBO)
+    scivoli = ((4, 4, FERRO), (L - 13, 4, RAME), (4, L - 13, PIOMBO), (L - 13, L - 13, TITANIO))
+    for x0, y0, rampa in scivoli:
+        forme.pannello(im, x0, y0, x0 + 8, y0 + 8, METALLO)
+        forme.rett(im, x0 + 2, y0 + 2, x0 + 6, y0 + 6, rampa[2])
+        forme.rett(im, x0 + 2, y0 + 2, x0 + 6, y0 + 2, rampa[3])
+    forme.cerchio(im, C, C, 18, METALLO)
+    forme.cerchio(im, C, C, 14, SABBIA_GRANI)
+    # Sieve slots across the drum.
+    for y in range(22, 43, 5):
+        forme.rett(im, 24, y, 39, y, SABBIA_GRANI[0])
+    forme.cerchio(im, C, C, 4, METALLO)
+    return forme.basamento(im, PIOMBO)
+
+
+sprite("separator-base")(_base_separatore)
+sprite("separator")(_base_separatore)
+
+
+def _base_plastificatore():
+    """Plasticizer: a magenta vat in a steel frame, a coal hopper on the North edge and two pipes."""
+    im = forme.nuova(L, L)
+    forme.sagoma(im, forme.smussato(0, 0, L - 1, L - 1, 3), METALLO)
+    forme.pannello(im, 23, 2, 40, 11, METALLO)
+    forme.rett(im, 25, 4, 38, 9, CARBONE[1])
+    forme.cerchio(im, C, C + 4, 17, PLASTICA)
+    forme.cerchio(im, C, C + 4, 11, PLASTICA, pieno=False)
+    forme.bagliore(im, C - 4, C, 5, PLASTICA)
+    forme.tubo(im, 4, 40, 12, 46, METALLO)
+    forme.tubo(im, L - 13, 40, L - 5, 46, METALLO)
+    _angoli(im, METALLO)
+    return forme.basamento(im, METALLO)
+
+
+sprite("plasticizer-base")(_base_plastificatore)
+sprite("plasticizer")(_base_plastificatore)

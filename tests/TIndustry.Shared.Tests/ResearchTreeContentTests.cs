@@ -30,6 +30,12 @@ public sealed class ResearchTreeContentTests
         { "smelter", "miner" },
         { "assembler", "smelter" },
         { "market-screen", "assembler" },
+        // Ricerca allargata: machines and the circuit recipe (kind "recipe", nothing to place).
+        { "graphite-press", "assembler" },
+        { "smelter-advanced", "smelter" },
+        { "separator", "smelter-advanced" },
+        { "plasticizer", "graphite-press" },
+        { "circuit", "assembler" },
         // Finanza: modules researched in a row after the screen, nothing to place.
         { "finance-forecast", "market-screen" },
         { "finance-percent", "finance-forecast" },

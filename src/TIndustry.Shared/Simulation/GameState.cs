@@ -303,6 +303,11 @@ public sealed class GameState
     public List<Miner> Miners { get; } = [];
     public List<Crafter> Smelters { get; } = [];
     public List<Crafter> Assemblers { get; } = [];
+
+    /// <summary>
+    /// Every other craft machine (advanced smelter, graphite press, separator, plasticizer), in ascending id order.
+    /// </summary>
+    public List<Crafter> Machines { get; } = [];
     public List<Generator> Generators { get; } = [];
     public List<Extractor> Extractors { get; } = [];
     public List<PowerNode> PowerNodes { get; } = [];
@@ -344,6 +349,7 @@ public sealed class GameState
     /// <summary>True once <see cref="FirstAttackDue"/> was raised (always night): it is raised once per game.</summary>
     public bool FirstAttackRaised { get; set; }
 
+    /// <summary>Every craft machine: fornos, assemblers, then <see cref="Machines"/> (each list in id order).</summary>
     public IEnumerable<Crafter> CraftMachines()
     {
         foreach (var s in Smelters)
@@ -354,6 +360,11 @@ public sealed class GameState
         foreach (var a in Assemblers)
         {
             yield return a;
+        }
+
+        foreach (var m in Machines)
+        {
+            yield return m;
         }
     }
 

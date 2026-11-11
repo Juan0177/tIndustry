@@ -105,6 +105,9 @@ public interface IGameView
 
     IReadOnlyList<Crafter> Assemblers { get; }
 
+    /// <summary>The other craft machines (advanced smelter, graphite press, separator, plasticizer), in id order.</summary>
+    IReadOnlyList<Crafter> Machines { get; }
+
     IReadOnlyList<Generator> Generators { get; }
 
     IReadOnlyList<Extractor> Extractors { get; }

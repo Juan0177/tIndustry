@@ -61,6 +61,7 @@ public sealed class AgentGame : IDisposable
         ('M', "minatore"), ('N', "minatore avanzato"), ('S', "forno"), ('A', "assemblatore"), ('G', "generatore"),
         ('E', "estrattore"), ('P', "nodo di energia"), ('Q', "nodo di energia T2"), ('L', "lampada"),
         ('B', "batteria"), ('K', "contenitore"), ('V', "deposito"), ('$', "schermo di borsa"),
+        ('W', "fonderia avanzata"), ('H', "pressa grande"), ('X', "separatore"), ('Y', "plastificatore"),
         ('!', "struttura senza simbolo"),
         ('#', "parete"), ('~', "acqua profonda"), (',', "acqua bassa"),
         ('i', "giacimento di ferro"), ('r', "giacimento di rame"), ('k', "giacimento di carbone"),
@@ -665,6 +666,7 @@ public sealed class AgentGame : IDisposable
                 ["minatori"] = View.Miners.Count,
                 ["forni"] = View.Smelters.Count,
                 ["assemblatori"] = View.Assemblers.Count,
+                ["macchine"] = View.Machines.Count,
                 ["generatori"] = View.Generators.Count,
                 ["estrattori"] = View.Extractors.Count,
                 ["nodi"] = View.PowerNodes.Count,
@@ -1013,6 +1015,10 @@ public sealed class AgentGame : IDisposable
         BuildingKind.Container => 'K',
         BuildingKind.Vault => 'V',
         BuildingKind.MarketScreen => '$',
+        BuildingKind.SmelterAdvanced => 'W',
+        BuildingKind.GraphitePress => 'H',
+        BuildingKind.Separator => 'X',
+        BuildingKind.Plasticizer => 'Y',
         _ => '!'
     };
 
@@ -1089,9 +1095,9 @@ public sealed class AgentGame : IDisposable
                 m.Position, m.Direction);
         }
 
-        foreach (var c in View.Smelters.Concat(View.Assemblers))
+        foreach (var c in View.Smelters.Concat(View.Assemblers).Concat(View.Machines))
         {
-            yield return (c.DefinitionId, c.IsAssembler ? BuildingKind.Assembler : BuildingKind.Smelter, c.Position, c.Direction);
+            yield return (c.DefinitionId, BuildSpec.KindFor(c.DefinitionId) ?? BuildingKind.Smelter, c.Position, c.Direction);
         }
 
         foreach (var g in View.Generators)

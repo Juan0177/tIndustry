@@ -76,8 +76,18 @@ public sealed record BuildSpec(
         BuildingKind.Container => "container",
         BuildingKind.Vault => "vault",
         BuildingKind.MarketScreen => MarketScreen.BuildingId,
+        BuildingKind.SmelterAdvanced => Crafter.SmelterAdvancedId,
+        BuildingKind.GraphitePress => Crafter.GraphitePressId,
+        BuildingKind.Separator => Crafter.SeparatorId,
+        BuildingKind.Plasticizer => Crafter.PlasticizerId,
         _ => null
     };
+
+    /// <summary>
+    /// True for the craft machines (<see cref="Crafter"/>): forno, assembler and the machines of the «Ricerca allargata».
+    /// </summary>
+    public static bool IsCrafter(BuildingKind? kind) => kind is BuildingKind.Smelter or BuildingKind.Assembler
+        or BuildingKind.SmelterAdvanced or BuildingKind.GraphitePress or BuildingKind.Separator or BuildingKind.Plasticizer;
 
     /// <summary>Core tier a Core block builds (1 foundation, 2 nucleus); -1 for every other kind.</summary>
     public static int CoreTierOf(BuildingKind? kind) => kind switch

@@ -25,6 +25,7 @@ public sealed class Factory : IGameView
     private List<Miner> miners => State.Miners;
     private List<Crafter> smelters => State.Smelters;
     private List<Crafter> assemblers => State.Assemblers;
+    private List<Crafter> machines => State.Machines;
     private List<Generator> generators => State.Generators;
     private List<Extractor> extractors => State.Extractors;
     private List<PowerNode> powerNodes => State.PowerNodes;
@@ -135,6 +136,9 @@ public sealed class Factory : IGameView
     public IReadOnlyList<Miner> Miners => miners;
     public IReadOnlyList<Crafter> Smelters => smelters;
     public IReadOnlyList<Crafter> Assemblers => assemblers;
+
+    /// <summary>The other craft machines (advanced smelter, graphite press, separator, plasticizer), in id order.</summary>
+    public IReadOnlyList<Crafter> Machines => machines;
     public IReadOnlyList<Generator> Generators => generators;
     public IReadOnlyList<Extractor> Extractors => extractors;
     public IReadOnlyList<PowerNode> PowerNodes => powerNodes;
@@ -469,6 +473,11 @@ public sealed class Factory : IGameView
         }
 
         foreach (var crafter in assemblers)
+        {
+            AddEjector(crafter.Position, Crafter.Size, null);
+        }
+
+        foreach (var crafter in machines)
         {
             AddEjector(crafter.Position, Crafter.Size, null);
         }
@@ -1357,12 +1366,15 @@ public sealed class Factory : IGameView
         SortById(factory.miners, m => m.Id);
         SortById(factory.smelters, s => s.Id);
         SortById(factory.assemblers, a => a.Id);
+        SortById(factory.machines, m => m.Id);
         SortById(factory.generators, g => g.Id);
         SortById(factory.extractors, e => e.Id);
         SortById(factory.powerNodes, n => n.Id);
         SortById(factory.lamps, l => l.Id);
         SortById(factory.batteries, b => b.Id);
         SortById(factory.storages, s => s.Id);
+        // The recipes gated by research follow the restored research.
+        factory.RefreshAvailableRecipes();
         // Which storage blocks touch the Core (the saved Core cells and tier are set above).
         factory.State.Storage.RecomputeLinks();
         factory.RefreshMarketScreen();
@@ -2167,6 +2179,8 @@ public sealed class Factory : IGameView
             Research.ForceUnlock(id);
         }
 
+        RefreshAvailableRecipes();
+
         // Seed layouts call TryPlace* (now charged) — stock enough for demo footprints.
         EnsureDemoBuildStock();
     }
@@ -2185,7 +2199,35 @@ public sealed class Factory : IGameView
     public bool TryUnlockStructure(string structureId)
     {
         var structure = Content.FindStructure(structureId);
-        return structure is not null && Research.TryUnlock(structure, Wallet);
+        if (structure is null || !Research.TryUnlock(structure, Wallet))
+        {
+            return false;
+        }
+
+        // A recipe node (kind "recipe") opens its recipe on the machines already built.
+        RefreshAvailableRecipes();
+        return true;
+    }
+
+    /// <summary>
+    /// The recipes of <paramref name="buildingId"/> (<see cref="FactoryContent.RecipesFor"/>) without those whose
+    /// research node (<see cref="RecipeDefinition.Research"/>) is not unlocked yet, in content order.
+    /// </summary>
+    public IReadOnlyList<RecipeDefinition> RecipesAvailableTo(string buildingId) =>
+        Content.RecipesFor(buildingId)
+            .Where(r => r.Research is null || Research.IsUnlocked(r.Research))
+            .ToList();
+
+    /// <summary>
+    /// Gives every craft machine the recipes it can run now (<see cref="RecipesAvailableTo"/>): after a research
+    /// unlock and after a restore.
+    /// </summary>
+    public void RefreshAvailableRecipes()
+    {
+        foreach (var craft in CraftMachines())
+        {
+            craft.SetAvailableRecipes(RecipesAvailableTo(craft.DefinitionId));
+        }
     }
 
     /// <summary>Sells stocked materials at the price of the moment (see <see cref="MarketSales.Sell"/>).</summary>
@@ -2412,6 +2454,10 @@ public sealed class Factory : IGameView
         "miner-advanced" => "miner-advanced",
         "smelter" => "smelter",
         "assembler" => "assembler",
+        Crafter.SmelterAdvancedId => Crafter.SmelterAdvancedId,
+        Crafter.GraphitePressId => Crafter.GraphitePressId,
+        Crafter.SeparatorId => Crafter.SeparatorId,
+        Crafter.PlasticizerId => Crafter.PlasticizerId,
         "junction" => "junction",
         "router" => "router",
         "generator" => "generator",
@@ -2825,7 +2871,7 @@ public sealed class Factory : IGameView
             return false;
         }
 
-        if (spec.RecipeId is { } recipeId && kind is BuildingKind.Smelter or BuildingKind.Assembler)
+        if (spec.RecipeId is { } recipeId && BuildSpec.IsCrafter(kind))
         {
             return FindRecipeFor(kind, recipeId) is not null;
         }
@@ -2997,10 +3043,12 @@ public sealed class Factory : IGameView
                 return PlaceMiner(origin, dir, Miner.DefaultOutputItemId, Miner.AdvancedId, charge);
             case BuildingKind.Smelter:
             case BuildingKind.Assembler:
+            case BuildingKind.SmelterAdvanced:
+            case BuildingKind.GraphitePress:
+            case BuildingKind.Separator:
+            case BuildingKind.Plasticizer:
             {
-                var buildingId = spec.Kind == BuildingKind.Smelter
-                    ? Crafter.SmelterBuildingId
-                    : Crafter.AssemblerBuildingId;
+                var buildingId = BuildSpec.StructureIdFor(spec.Kind.Value)!;
                 // IsValidSpec guarantees a non-null RecipeId names a recipe of this machine.
                 var recipe = spec.RecipeId is { } recipeId ? FindRecipeFor(spec.Kind.Value, recipeId) : null;
 
@@ -3052,7 +3100,7 @@ public sealed class Factory : IGameView
         {
             if (c.Occupies(tile))
             {
-                var kind = c.IsAssembler ? BuildingKind.Assembler : BuildingKind.Smelter;
+                var kind = BuildSpec.KindFor(c.DefinitionId) ?? BuildingKind.Smelter;
                 spec = new BuildSpec(c.DefinitionId, kind, c.Position, c.Direction, c.Recipe.Id);
                 entityId = c.Id;
                 return true;
@@ -3212,7 +3260,8 @@ public sealed class Factory : IGameView
     private int FootprintSize(BuildSpec spec) => spec.Kind switch
     {
         BuildingKind.Miner or BuildingKind.MinerAdvanced => Miner.Size,
-        BuildingKind.Smelter or BuildingKind.Assembler => Crafter.Size,
+        BuildingKind.Smelter or BuildingKind.Assembler or BuildingKind.SmelterAdvanced or BuildingKind.GraphitePress
+            or BuildingKind.Separator or BuildingKind.Plasticizer => Crafter.Size,
         BuildingKind.Generator => Generator.Size,
         BuildingKind.Extractor => Extractor.Size,
         BuildingKind.PowerNodeT2 => 2,
@@ -3428,9 +3477,14 @@ public sealed class Factory : IGameView
         string buildingId,
         bool charge)
     {
-        var isAssembler = buildingId == Crafter.AssemblerBuildingId;
-        var recipes = Content.RecipesFor(buildingId);
-        var defaultRecipeId = isAssembler ? "craft-copper-wire" : "smelt-iron";
+        var recipes = RecipesAvailableTo(buildingId);
+        // The forno and the assembler start on their classic recipe; every other machine on its first one.
+        var defaultRecipeId = buildingId switch
+        {
+            Crafter.AssemblerBuildingId => "craft-copper-wire",
+            Crafter.SmelterBuildingId => "smelt-iron",
+            _ => recipes.FirstOrDefault()?.Id ?? "smelt-iron"
+        };
         recipe ??= recipes.FirstOrDefault(r => r.Id == defaultRecipeId)
             ?? Content.FindRecipe(defaultRecipeId)
             ?? throw new InvalidDataException($"Ricetta {defaultRecipeId} mancante.");
@@ -3441,8 +3495,15 @@ public sealed class Factory : IGameView
         }
 
         buildingsVersion++;
-        (isAssembler ? assemblers : smelters).Add(Crafter.Create(
-            Content, origin, direction, recipe, buildingId, nextEntityId++));
+        var crafter = Crafter.Create(Content, origin, direction, recipe, buildingId, nextEntityId++);
+        crafter.SetAvailableRecipes(recipes);
+        var list = buildingId switch
+        {
+            Crafter.SmelterBuildingId => smelters,
+            Crafter.AssemblerBuildingId => assemblers,
+            _ => machines
+        };
+        list.Add(crafter);
         PowerBlocksChanged();
         return true;
     }
@@ -3735,6 +3796,17 @@ public sealed class Factory : IGameView
                 entityId = assemblers[i].Id;
                 buildingId = Crafter.AssemblerBuildingId;
                 assemblers.RemoveAt(i);
+                return true;
+            }
+        }
+
+        for (var i = machines.Count - 1; i >= 0; i--)
+        {
+            if (machines[i].Occupies(tile))
+            {
+                entityId = machines[i].Id;
+                buildingId = machines[i].DefinitionId;
+                machines.RemoveAt(i);
                 return true;
             }
         }

@@ -169,6 +169,7 @@ public sealed class FactoryContent
         ValidateLamp(buildings, structures);
         ValidatePowerBlocks(buildings);
         ValidateCrafters(buildings, recipes);
+        ValidateRecipeResearch(recipes, structures);
 
         return new FactoryContent
         {
@@ -209,6 +210,23 @@ public sealed class FactoryContent
             }
         }
     }
+
+    // A recipe gated by research names an existing structure of kind "recipe": a typo would gate it forever.
+    private static void ValidateRecipeResearch(List<RecipeDefinition> recipes, List<StructureDefinition> structures)
+    {
+        foreach (var recipe in recipes.Where(r => r.Research is not null))
+        {
+            var node = structures.FirstOrDefault(s => s.Id == recipe.Research);
+            if (node is null || node.Kind != RecipeKind)
+            {
+                throw new InvalidDataException(
+                    $"content.json: recipes '{recipe.Id}': research '{recipe.Research}' deve essere una struttura di kind '{RecipeKind}'.");
+            }
+        }
+    }
+
+    /// <summary>Kind of the research nodes that open a recipe (nothing to place).</summary>
+    public const string RecipeKind = "recipe";
 
     // Power network blocks that are declared need their numbers: a node without range or links, a battery without
     // capacity or a generator without output would sit in a network doing nothing.
@@ -526,7 +544,13 @@ public sealed class FactoryContent
                 $"content.json: recipes '{r.Id}' con randomOutput richiede almeno un'uscita e pesi (amount) maggiori di zero.");
         }
 
-        return new(r.Id, r.DurationSeconds, MapAmounts(r.Inputs), MapAmounts(r.Outputs), r.RandomOutput);
+        return new(
+            r.Id,
+            r.DurationSeconds,
+            MapAmounts(r.Inputs),
+            MapAmounts(r.Outputs),
+            r.RandomOutput,
+            string.IsNullOrWhiteSpace(r.Research) ? null : r.Research);
     }
 
     private static BuildingDefinition MapBuilding(BuildingDto b)
@@ -791,6 +815,8 @@ public sealed class FactoryContent
         public List<AmountDto>? Outputs { get; set; }
         /// <summary>The output amounts are weights: one craft makes one piece of one of them.</summary>
         public bool RandomOutput { get; set; }
+        /// <summary>Research node (kind <c>recipe</c>) that opens this recipe; null = always available.</summary>
+        public string? Research { get; set; }
     }
 
     private sealed class BuildingDto
