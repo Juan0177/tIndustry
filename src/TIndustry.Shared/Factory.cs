@@ -1546,6 +1546,7 @@ public sealed class Factory : IGameView
         // The saved lasers, then the networks from them and from contact.
         factory.RestorePowerLinks(data.PowerLinks);
         factory.State.PowerGrid.Rebuild(factory.State);
+        PowerSystem.RefreshSolarRates(factory.State); // panels show the light of the loaded tick before the first step
         factory.buildingsVersion++; // buildings were added straight to the lists: drop any cached corners
         return factory;
     }

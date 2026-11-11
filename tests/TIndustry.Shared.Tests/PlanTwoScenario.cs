@@ -98,6 +98,8 @@ internal static class PlanTwoScenario
 
         Refuel(factory);
         Inject(factory, 0);
+        // The day and night clock starts with the first block (the direct placements above do not note it).
+        factory.State.FirstBuildTick ??= factory.CurrentTick;
         return factory;
     }
 

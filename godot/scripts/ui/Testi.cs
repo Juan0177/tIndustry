@@ -129,6 +129,10 @@ public static class Testi
     /// <summary>A number written with the invariant "." given the decimal mark of the language (key <c>formato.decimale</c>).</summary>
     public static string Decimale(string invariant) => invariant.Replace(".", T("formato.decimale"), StringComparison.Ordinal);
 
+    /// <summary>A whole number with the thousands mark of the language (key <c>formato.migliaia</c>): 20.000 or 20,000.</summary>
+    public static string Migliaia(long value) =>
+        value.ToString("N0", CultureInfo.InvariantCulture).Replace(",", T("formato.migliaia"), StringComparison.Ordinal);
+
     /// <summary>
     /// Why a save did not load: key <c>salvataggi.errore.&lt;Code&gt;</c> with the map, level or generator it is about.
     /// <paramref name="mapName"/> gives the name of the level that uses a campaign map (the map id when there is none).

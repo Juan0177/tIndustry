@@ -12,7 +12,7 @@ In una cella di nastro stanno fino a **3 oggetti**, a 0,4 di cella l'uno dall'al
 | Nastro T2 (`conveyor-fast`) | 4,8 | 12 | 1 Ferro grezzo, 1 Piombo grezzo, 1 Titanio grezzo | dopo il Nastro T1 |
 | Nastro T3 (`conveyor-express`) | 7,2 | 18 | 1 Titanio grezzo, 1 Silicio, 1 Grafite | dopo il Nastro T2 |
 | Nastro rinforzato (`conveyor-armored`) | 4,8 | 12 | 1 Ferro grezzo, 1 Piombo grezzo, 2 Titanio grezzo, 1 Grafite | dopo il Nastro T2 |
-| Nastro a pacchi (`conveyor-stack`) | 21,6 | fino a 216 pezzi (21,6 pacchi da 10) | 1 Plastica, 1 Silicio, 1 Grafite | dopo il Nastro T3 |
+| Nastro a pacchi (`conveyor-stack`) | 21,6 | fino a 216 pezzi con più carichi che si uniscono (un solo carico arriva a circa 40–50 pezzi) | 1 Plastica, 1 Silicio, 1 Grafite | dopo il Nastro T3 |
 
 ## Pezzi speciali
 
@@ -101,8 +101,8 @@ Veloce come il Nastro T2, ma come l'*Armored Conveyor* di Mindustry prende ogget
 Come lo *Stack Conveyor* di Mindustry: porta **pacchi** di fino a **10 pezzi dello stesso oggetto**, uno per cella, a **21,6 celle al secondo** (tre volte il Nastro T3). Si piazza e si trascina come un nastro, con la sua direzione; si sblocca dopo il Nastro T3 e costa 1 Plastica, 1 Silicio e 1 Grafite per cella. Una linea a pacchi non mette mai incroci né ponti automatici; sopra una cella a pacchi la gira come un nastro, ma non sostituisce un nastro normale come un cambio di tier (la cella è occupata: prima si smonta il nastro).
 
 - **Carico.** Solo la **prima cella** della linea (quella a cui nessuna cella a pacchi consegna) prende oggetti: da dietro e dai lati, da nastri, edifici e logistica, come un nastro normale (mai dal blocco che ha di fronte). Ogni pezzo entra nel pacco in formazione se è lo stesso oggetto e il pacco ha meno di 10 pezzi; un oggetto diverso aspetta. Il pacco parte quando ha **10 pezzi** oppure **un secondo (60 tick) dopo l'ultimo pezzo entrato**, anche mezzo vuoto.
-- **In mezzo.** Le altre celle prendono solo pacchi dalla cella a pacchi dietro di loro: un nastro o un router di lato non ci entra (e un gate vede libera solo la prima cella).
-- **Scarico.** Solo l'**ultima cella** (davanti non ha un'altra cella a pacchi) scarica, e solo in un **edificio o nel CORE** davanti: consegna i pezzi uno alla volta finché l'edificio li prende, anche più pezzi nello stesso tick, e il pacco resta finché non è vuoto. Davanti a un nastro, un router, un incrocio o un gate la linea si ferma: per tornare su nastri normali serve un edificio in mezzo (per esempio un contenitore). Gli edifici non tirano niente dalle celle a pacchi.
+- **In mezzo.** Le altre celle prendono solo pacchi dalla cella a pacchi dietro di loro: prendono anche i pacchi di una linea a pacchi che arriva di lato, mentre un nastro o un router di lato non ci entra (e un gate vede libera solo la prima cella).
+- **Scarico.** Solo l'**ultima cella** (davanti non ha un'altra cella a pacchi) scarica, e solo in un **edificio o nel CORE** davanti: consegna i pezzi uno alla volta finché l'edificio li prende, anche più pezzi nello stesso tick, e il pacco resta finché non è vuoto. Davanti a un nastro, un router, un incrocio o un gate la linea si ferma: per tornare su nastri normali serve un edificio in mezzo più un estrattore che lo svuota (per esempio un contenitore e un estrattore). Gli edifici non tirano niente dalle celle a pacchi.
 - **Smontare** una cella a pacchi perde il suo pacco, come un nastro perde i suoi oggetti (ma qui sono fino a 10 pezzi). Due celle a pacchi testa a testa si fermano, come due nastri.
 - Nel mondo la cella si disegna sempre dritta e il pacco è lo sprite dell'oggetto con dietro da 0 a 3 copie più scure (1 pezzo, da 2 a 4, da 5 a 9, 10); il conto degli oggetti sui nastri dell'HUD somma i pezzi.
 

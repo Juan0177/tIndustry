@@ -151,7 +151,7 @@ struttura.battery.suggerimento,Batteria · accumula la corrente della sua rete �
 struttura.solar.suggerimento,Pannello solare · 3 di energia al secondo con la luce del giorno · 1×1,Solar panel · 3 power per second in daylight · 1×1
 struttura.solar-large.suggerimento,Pannello solare grande · 36 di energia al secondo con la luce del giorno · 3×3,Large solar panel · 36 power per second in daylight · 3×3
 struttura.combustion-generator.suggerimento,Generatore a combustione · brucia carbone o grafite · 90 di energia al secondo · 2×2,Combustion generator · burns coal or graphite · 90 power per second · 2×2
-struttura.battery-large.suggerimento,Batteria grande · accumula la corrente della sua rete · capacità 20000 · 3×3,Large battery · stores the power of its network · capacity 20000 · 3×3
+struttura.battery-large.suggerimento,Batteria grande · accumula la corrente della sua rete · capacità 20.000 · 3×3,"Large battery · stores the power of its network · capacity 20,000 · 3×3"
 struttura.container.suggerimento,Contenitore · 2×2 · 300 per oggetto · sblocca in Ricerca,Container · 2×2 · 300 per item · unlock in Research
 struttura.vault.suggerimento,Deposito · 3×3 · 1000 per oggetto · sblocca in Ricerca,Vault · 3×3 · 1000 per item · unlock in Research
 struttura.market-screen.suggerimento,Schermo di borsa · 2×2 · attaccato al CORE accende il jackpot · sblocca in Ricerca,Market screen · 2×2 · next to the CORE it turns the jackpot on · unlock in Research
@@ -499,7 +499,7 @@ struttura.battery.descrizione,Batteria · tiene la corrente avanzata e la rende 
 struttura.solar.descrizione,Pannello solare · produce 3 al secondo per la luce del mondo: tutto di giorno · niente di notte · a metà al tramonto · senza carburante · 1×1,Solar panel · makes 3 per second times the world's light: all of it by day · nothing at night · half at mid-dusk · no fuel · 1×1
 struttura.solar-large.descrizione,Pannello solare grande · produce 36 al secondo per la luce del mondo: tutto di giorno · niente di notte · senza carburante · 3×3,Large solar panel · makes 36 per second times the world's light: all of it by day · nothing at night · no fuel · 3×3
 struttura.combustion-generator.descrizione,Generatore a combustione · 90 al secondo mentre brucia: 1 carbone ogni 2 s oppure 1 grafite ogni 4 s · prima il carbone · scorta di 8 pezzi in tutto · 2×2,Combustion generator · 90 per second while burning: 1 coal every 2 s or 1 graphite every 4 s · coal first · holds 8 pieces in all · 2×2
-struttura.battery-large.descrizione,Batteria grande · tiene la corrente avanzata e la rende quando i generatori non bastano · capacità 20000 · divide la carica con le altre batterie in proporzione · 3×3,Large battery · keeps the spare power and gives it back when the generators fall short · capacity 20000 · shares the charge with the other batteries in proportion · 3×3
+struttura.battery-large.descrizione,Batteria grande · tiene la corrente avanzata e la rende quando i generatori non bastano · capacità 20.000 · divide la carica con le altre batterie in proporzione · 3×3,"Large battery · keeps the spare power and gives it back when the generators fall short · capacity 20,000 · shares the charge with the other batteries in proportion · 3×3"
 struttura.container.descrizione,Contenitore · 2×2 · tiene 300 pezzi per oggetto,Container · 2×2 · holds 300 pieces per item
 struttura.vault.descrizione,Deposito · 3×3 · tiene 1000 pezzi per oggetto,Vault · 3×3 · holds 1000 pieces per item
 struttura.market-screen.descrizione,Schermo di borsa · 2×2 · uno solo · a contatto col CORE · mostra il mercato di un oggetto e rende possibile il jackpot del «Vendi tutto»,Market screen · 2×2 · only one · touching the CORE · shows the market of one item and makes the «Sell all» jackpot possible
@@ -539,3 +539,4 @@ salvataggi.errore.MapsFolderMissing,"Mappa della campagna ""{0}"" non disponibil
 salvataggi.errore.CampaignMapMissing,"Mappa della campagna ""{0}"" mancante o non valida: il salvataggio si carica di nuovo quando la mappa torna al suo posto.","Campaign map ""{0}"" missing or invalid: the save loads again once the map is back."
 salvataggi.errore.CampaignMapChanged,"La mappa della campagna ""{0}"" ha cambiato misura dopo il salvataggio.","Campaign map ""{0}"" changed size after the save."
 formato.decimale,",",.
+formato.migliaia,.,","

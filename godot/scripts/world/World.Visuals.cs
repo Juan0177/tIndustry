@@ -765,8 +765,33 @@ public partial class World
         }
 
         // A stack conveyor's pack counts its pieces.
-        var onBelt = _view.Belts.Values.Sum(c => c.Items.Sum(i => i.Count));
-        var gensLive = _view.Generators.Count(g => g.IsGenerating);
+        var onBelt = 0;
+        foreach (var belt in _view.Belts.Values)
+        {
+            foreach (var item in belt.Items)
+            {
+                onBelt += item.Count;
+            }
+        }
+
+        // Generators that burn plus solar panels that make power now, out of all of them.
+        var gensLive = 0;
+        foreach (var gen in _view.Generators)
+        {
+            if (gen.IsGenerating)
+            {
+                gensLive++;
+            }
+        }
+
+        foreach (var panel in _view.SolarPanels)
+        {
+            if (panel.CurrentRate > 0)
+            {
+                gensLive++;
+            }
+        }
+
         var (stored, capacity) = BatteryUnits(_view);
         _hud.BindEconomy(_view.Content, _view.Wallet);
         _hud.UpdateCore(_view.Content.CoreTiers[_view.CoreTier], _coreCapacityOf ??= id => _view?.CoreCapacity(id) ?? 0);
@@ -784,7 +809,7 @@ public partial class World
             onBelt,
             _view.Wallet.Money,
             gensLive,
-            _view.Generators.Count,
+            _view.Generators.Count + _view.SolarPanels.Count,
             stored,
             capacity);
         var drone = LocalDrone;

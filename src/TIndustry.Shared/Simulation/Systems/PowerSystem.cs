@@ -43,17 +43,12 @@ public sealed class PowerSystem : ISimulationSystem
         }
 
         // Solar panels: their output at full light × this tick's light, floored to the thousandth (0 by night).
-        // A panel gone from the content produces nothing.
-        var light = DayNightClock.LightAt(state.Rules.DayNight, state.FirstBuildTick, state.CurrentTick);
-        var smallRate = SolarPanel.RateAt(OutputRateOf(state.Content, SolarPanel.SmallId), light);
-        var largeRate = SolarPanel.RateAt(OutputRateOf(state.Content, SolarPanel.LargeId), light);
+        RefreshSolarRates(state);
         foreach (var panel in state.SolarPanels)
         {
-            var rate = panel.DefinitionId == SolarPanel.LargeId ? largeRate : smallRate;
-            panel.CurrentRate = rate;
             if (grid.NetworkOf(panel.Id) is { } network)
             {
-                produced[network.Index] += rate;
+                produced[network.Index] += panel.CurrentRate;
             }
         }
 
@@ -151,6 +146,21 @@ public sealed class PowerSystem : ISimulationSystem
 
         var served = produced + stored;
         return ((int)Math.Min((long)FullBp, (long)((Int128)served * FullBp / requested)), 0);
+    }
+
+    /// <summary>
+    /// Sets every solar panel's <see cref="SolarPanel.CurrentRate"/> from the light of the current tick (a panel gone
+    /// from the content makes nothing). Shared by the power balance and by a restore, so a loaded panel is right at once.
+    /// </summary>
+    internal static void RefreshSolarRates(GameState state)
+    {
+        var light = DayNightClock.LightAt(state.Rules.DayNight, state.FirstBuildTick, state.CurrentTick);
+        var smallRate = SolarPanel.RateAt(OutputRateOf(state.Content, SolarPanel.SmallId), light);
+        var largeRate = SolarPanel.RateAt(OutputRateOf(state.Content, SolarPanel.LargeId), light);
+        foreach (var panel in state.SolarPanels)
+        {
+            panel.CurrentRate = panel.DefinitionId == SolarPanel.LargeId ? largeRate : smallRate;
+        }
     }
 
     /// <summary>The power output of <paramref name="buildingId"/> in thousandths of a unit per second (0 when it has none).</summary>

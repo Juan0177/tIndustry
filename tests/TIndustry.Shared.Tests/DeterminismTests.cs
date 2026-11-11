@@ -804,6 +804,7 @@ public sealed class DeterminismTests
         // The light really changed: the panels worked by day and stopped at night.
         Assert.Equal(DayNightPhase.Night, DayNightClock.PhaseAt(DayNightMode.Cycle, first.FirstBuildTick ?? 0, total));
         Assert.Equal(0, DayNightClock.LightAt(DayNightMode.Cycle, first.FirstBuildTick ?? 0, total));
+        Assert.All(first.SolarPanels, panel => Assert.Equal(0, panel.CurrentRate));
         Assert.Contains(first.Belts.Cells.Values, c => c.Definition.Id == "conveyor-stack");
         Assert.True(first.Generators.Single(g => g.DefinitionId == "combustion-generator").FuelConsumed > 0);
         Assert.True(first.Batteries.Sum(b => b.Charge) > 0);
@@ -815,6 +816,13 @@ public sealed class DeterminismTests
         {
             var run = PlanTwoScenario.Build(content);
             PlanTwoScenario.RunTo(run, saveAt);
+            if (saveAt == 18_001)
+            {
+                // By day the panels really produce.
+                Assert.NotEmpty(run.SolarPanels);
+                Assert.All(run.SolarPanels, panel => Assert.True(panel.CurrentRate > 0));
+            }
+
             var loaded = Factory.Restore(content, run.Capture());
             PlanTwoScenario.RunTo(loaded, total);
             Assert.True(expected == Snapshot.Checksum(Snapshot.Write(loaded.State)), $"saved at tick {saveAt}");

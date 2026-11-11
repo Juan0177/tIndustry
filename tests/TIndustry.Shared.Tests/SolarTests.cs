@@ -290,6 +290,10 @@ public sealed class SolarTests
         Assert.True(restored.PowerGrid.HasLink(node.Id, small.Id));
         Assert.True(restored.NextEntityId > Math.Max(small.Id, large.Id));
 
+        // A restored panel shows the output of the loaded tick at once (noon: full light), before any step.
+        Assert.Equal(3_000, restored.SolarPanels.Single(p => p.Id == small.Id).CurrentRate);
+        Assert.Equal(36_000, restored.SolarPanels.Single(p => p.Id == large.Id).CurrentRate);
+
         // Both copies go on the same way, through the snapshot too.
         var copy = new Factory(Snapshot.Read(Content, Snapshot.Write(factory.State)));
         for (var tick = 0; tick < 60; tick++)

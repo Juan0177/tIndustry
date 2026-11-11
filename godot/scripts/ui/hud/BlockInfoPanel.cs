@@ -358,7 +358,8 @@ public partial class BlockInfoPanel : Control
         if (Battery.IsBatteryId(structureId))
         {
             return Testi.F(
-                "blocco.io.batteria", Battery.CapacityOf(content, structureId) / BuildingDefinition.ChargePerUnit);
+                "blocco.io.batteria",
+                Testi.Migliaia(Battery.CapacityOf(content, structureId) / BuildingDefinition.ChargePerUnit));
         }
 
         return "";

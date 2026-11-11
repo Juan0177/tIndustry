@@ -709,7 +709,9 @@ public sealed class SaveRoundTripTests
     {
         var content = LoadContent();
         var factory = PlanTwoScenario.Build(content);
-        // Tick 808: a pack in transit and one being formed at once, an item on the powered long bridge.
+        // Tick 808: a pack in transit and one being formed at once, an item on the powered long bridge. It was found by
+        // running the scenario and checking each tick for those three conditions; if a tuning change (belt speed, pack
+        // timing, bridge power) breaks the asserts below, search again for a tick where all three hold and put it here.
         PlanTwoScenario.RunTo(factory, 808);
 
         var data = factory.Capture();
