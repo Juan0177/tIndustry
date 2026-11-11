@@ -9,18 +9,18 @@
 ## A che punto siamo
 
 <!-- barra-stato:inizio -->
-<img src="https://raw.githubusercontent.com/Juan0177/tIndustry/main/docs/img/stato/totale.svg" alt="Avanzamento del gioco: 71%, 61 passi fatti su 86" width="100%">
+<img src="https://raw.githubusercontent.com/Juan0177/tIndustry/main/docs/img/stato/totale.svg" alt="Avanzamento del gioco: 72%, 63 passi fatti su 88" width="100%">
 
 | # | Aspetto | Avanzamento | % |
 | --- | --- | --- | --- |
 | 1 | [Fondamenta tecniche](https://github.com/Juan0177/tIndustry/blob/main/docs/ARCHITETTURA.md) | <img src="https://raw.githubusercontent.com/Juan0177/tIndustry/main/docs/img/stato/1.svg" alt="75%" width="160"> | 75% (6/8) |
-| 2 | [Costruzione](Costruzione) | <img src="https://raw.githubusercontent.com/Juan0177/tIndustry/main/docs/img/stato/2.svg" alt="100%" width="160"> | 100% (2/2) |
+| 2 | [Costruzione](Costruzione) | <img src="https://raw.githubusercontent.com/Juan0177/tIndustry/main/docs/img/stato/2.svg" alt="75%" width="160"> | 75% (3/4) |
 | 3 | [Logistica](Logistica) | <img src="https://raw.githubusercontent.com/Juan0177/tIndustry/main/docs/img/stato/3.svg" alt="100%" width="160"> | 100% (9/9) |
 | 4 | [Produzione](Produzione) | <img src="https://raw.githubusercontent.com/Juan0177/tIndustry/main/docs/img/stato/4.svg" alt="100%" width="160"> | 100% (2/2) |
 | 5 | [Energia](Energia) | <img src="https://raw.githubusercontent.com/Juan0177/tIndustry/main/docs/img/stato/5.svg" alt="100%" width="160"> | 100% (5/5) |
 | 6 | [Mercato ed economia](Mercato-come-una-borsa) | <img src="https://raw.githubusercontent.com/Juan0177/tIndustry/main/docs/img/stato/6.svg" alt="100%" width="160"> | 100% (7/7) |
 | 7 | [Mappe e terreno](Mappe-e-terreno) | <img src="https://raw.githubusercontent.com/Juan0177/tIndustry/main/docs/img/stato/7.svg" alt="33%" width="160"> | 33% (2/6) |
-| 8 | [Campagna](Campagna-e-mappe) | <img src="https://raw.githubusercontent.com/Juan0177/tIndustry/main/docs/img/stato/8.svg" alt="63%" width="160"> | 63% (5/8) |
+| 8 | [Campagna](Campagna-e-mappe) | <img src="https://raw.githubusercontent.com/Juan0177/tIndustry/main/docs/img/stato/8.svg" alt="75%" width="160"> | 75% (6/8) |
 | 9 | [Grafica ed effetti](Arte-generata) | <img src="https://raw.githubusercontent.com/Juan0177/tIndustry/main/docs/img/stato/9.svg" alt="67%" width="160"> | 67% (2/3) |
 | 10 | [Interfaccia](Interfaccia-e-lingue) | <img src="https://raw.githubusercontent.com/Juan0177/tIndustry/main/docs/img/stato/10.svg" alt="80%" width="160"> | 80% (4/5) |
 | 11 | [Drone e tier](https://github.com/Juan0177/tIndustry#stato-e-roadmap) | <img src="https://raw.githubusercontent.com/Juan0177/tIndustry/main/docs/img/stato/11.svg" alt="100%" width="160"> | 100% (4/4) |

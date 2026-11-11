@@ -122,7 +122,7 @@ Controlli completi, salvataggi, Ricerca e Mercato: [`godot/README.md`](godot/REA
 | **Logistica** | Nastri T1/T2/T3, nastro rinforzato, nastro a pacchi (pacchi da 10 pezzi), incrocio, router, selezionatore con filtro, overflow e underflow gate, ponte (2–4 caselle) e ponte lungo con corrente (fino a 8) |
 | **Energia** | Generatore e generatore a combustione (carbone o grafite), pannelli solari piccolo e grande che seguono la luce del giorno, nodi T1/T2 in rete con laser, Batteria e Batteria grande, Lampada |
 | **Economia** | Fondi, costi e rimborsi, Mercato come una borsa (prezzi che si muovono, picchi fino al triplo, crolli se svendi, vendita automatica per oggetto al prezzo minimo, a ritmo), schermo di borsa attaccato al CORE col jackpot e i moduli della Finanza, magazzino del CORE con un massimo per oggetto, tre livelli del CORE, container e vault |
-| **Ricerca** | Albero stile Mindustry dal CORE, a rami: Logistica, Produzione, Energia, Finanza; costi pensati per circa 6 ore di partita |
+| **Ricerca** | Albero stile Mindustry dal CORE, a rami: Logistica, Produzione, Energia, Finanza; potenziamenti del drone, dei minatori, delle macchine e del magazzino; premi dei capitoli della campagna; costi pensati per circa 6 ore di partita |
 | **Campagna** | 10 livelli su mappe prestabilite, da 200×200 (*Primi passi*) a 1000×1000 (*Espansione T2*), con tutorial non bloccante |
 | **Interfaccia** | Tema unico in stile Mindustry, carattere pixel nostro, italiano e inglese, Scala UI 75–200% solo dell'interfaccia, colori normali, per daltonici e ad alto contrasto; schermo intero alla risoluzione dello schermo |
 | **Salvataggi** | Continua (autosave con copia di riserva), slot, Salva come; formato versione 22 (le versioni precedenti non si aprono più) |
@@ -151,6 +151,7 @@ Il lavoro procede per sotto-progetti, ognuno con spec, piano, revisioni e un [di
 | Fatto | **Mercato 3 · Magazzino del CORE e livelli** | Massimo per oggetto, linee che si fermano a CORE pieno, CORE shard 3×3 → foundation 4×4 → nucleus 5×5 con droni alpha → beta → gamma, container e vault, vendita automatica a ritmo, salvataggi v15 ([specifica](docs/superpowers/specs/2026-10-23-magazzino-core-design.md)) |
 | Fatto, in attesa dell'ok | **Ricerca allargata, piano 1 · Oggetti, ricette e macchine** | Sabbia dal pavimento, vetro, plastica e circuiti; fonderia avanzata, pressa grande, separatore, plastificatore e trapano a impatto 3×3; ricetta dei circuiti in Ricerca; salvataggi v21 ([specifica](docs/superpowers/specs/2026-11-09-ricerca-allargata-design.md), [diario](docs/diario/2026-11-11-ricerca-allargata-1.md)) |
 | Fatto, in attesa dell'ok | **Ricerca allargata, piano 2 · Logistica ed energia** | Overflow e underflow gate, nastro a pacchi, ponte lungo con corrente; pannelli solari piccolo e grande, generatore a combustione, batteria grande; salvataggi v22 ([specifica](docs/superpowers/specs/2026-11-09-ricerca-allargata-design.md), [diario](docs/diario/2026-11-11-ricerca-allargata-2.md)) |
+| Fatto, in attesa dell'ok | **Ricerca allargata, piano 3 · Potenziamenti, premi e bilanciamento** | Undici potenziamenti del drone, dei minatori, delle macchine e del magazzino (il livello 2 sostituisce il livello 1); premi dei quattro capitoli della campagna, comprabili al triplo nella partita libera; Ricerca riequilibrata a 6,00 ore senza jackpot ([specifica](docs/superpowers/specs/2026-11-09-ricerca-allargata-design.md), [diario](docs/diario/2026-11-11-ricerca-allargata-3.md)) |
 | Previsto | **Bilanciamento dei giacimenti (generatore biomi-2)** | Rarità per minerale, titanio più lontano dal Core, partenza garantita più ricca, macchie più fitte; generatore nuovo, `biomi-1` resta congelato |
 | Fatto, in attesa dell'ok | **4 · Drone e tier** | Il drone lo comandi tu: WASD, costruzione nel raggio, scavo a mano con la stiva; CORE shard → foundation → nucleus e droni alpha → beta → gamma |
 | Previsto | **Attacco e difesa** | Unità nemiche e difese. I nemici arrivano **solo di notte**: quando torna il giorno i superstiti scappano, se il CORE ha resistito; se lo distruggono è **Game Over**. Il drone si mette l'elmetto durante l'attacco |
@@ -160,18 +161,18 @@ Il lavoro procede per sotto-progetti, ognuno con spec, piano, revisioni e un [di
 A che punto siamo, aspetto per aspetto:
 
 <!-- barra-stato:inizio -->
-<img src="docs/img/stato/totale.svg" alt="Avanzamento del gioco: 71%, 61 passi fatti su 86" width="100%">
+<img src="docs/img/stato/totale.svg" alt="Avanzamento del gioco: 72%, 63 passi fatti su 88" width="100%">
 
 | # | Aspetto | Avanzamento | % |
 | --- | --- | --- | --- |
 | 1 | [Fondamenta tecniche](docs/ARCHITETTURA.md) | <img src="docs/img/stato/1.svg" alt="75%" width="160"> | 75% (6/8) |
-| 2 | [Costruzione](https://github.com/Juan0177/tIndustry/wiki/Costruzione) | <img src="docs/img/stato/2.svg" alt="100%" width="160"> | 100% (2/2) |
+| 2 | [Costruzione](https://github.com/Juan0177/tIndustry/wiki/Costruzione) | <img src="docs/img/stato/2.svg" alt="75%" width="160"> | 75% (3/4) |
 | 3 | [Logistica](https://github.com/Juan0177/tIndustry/wiki/Logistica) | <img src="docs/img/stato/3.svg" alt="100%" width="160"> | 100% (9/9) |
 | 4 | [Produzione](https://github.com/Juan0177/tIndustry/wiki/Produzione) | <img src="docs/img/stato/4.svg" alt="100%" width="160"> | 100% (2/2) |
 | 5 | [Energia](https://github.com/Juan0177/tIndustry/wiki/Energia) | <img src="docs/img/stato/5.svg" alt="100%" width="160"> | 100% (5/5) |
 | 6 | [Mercato ed economia](https://github.com/Juan0177/tIndustry/wiki/Mercato-come-una-borsa) | <img src="docs/img/stato/6.svg" alt="100%" width="160"> | 100% (7/7) |
 | 7 | [Mappe e terreno](https://github.com/Juan0177/tIndustry/wiki/Mappe-e-terreno) | <img src="docs/img/stato/7.svg" alt="33%" width="160"> | 33% (2/6) |
-| 8 | [Campagna](https://github.com/Juan0177/tIndustry/wiki/Campagna-e-mappe) | <img src="docs/img/stato/8.svg" alt="63%" width="160"> | 63% (5/8) |
+| 8 | [Campagna](https://github.com/Juan0177/tIndustry/wiki/Campagna-e-mappe) | <img src="docs/img/stato/8.svg" alt="75%" width="160"> | 75% (6/8) |
 | 9 | [Grafica ed effetti](https://github.com/Juan0177/tIndustry/wiki/Arte-generata) | <img src="docs/img/stato/9.svg" alt="67%" width="160"> | 67% (2/3) |
 | 10 | [Interfaccia](https://github.com/Juan0177/tIndustry/wiki/Interfaccia-e-lingue) | <img src="docs/img/stato/10.svg" alt="80%" width="160"> | 80% (4/5) |
 | 11 | [Drone e tier](https://github.com/Juan0177/tIndustry#stato-e-roadmap) | <img src="docs/img/stato/11.svg" alt="100%" width="160"> | 100% (4/4) |

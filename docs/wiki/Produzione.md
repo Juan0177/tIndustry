@@ -19,7 +19,7 @@ I blocchi che producono: minatori, trapano a impatto, forno, assemblatore, fonde
 | Plastificatore (`plasticizer`) | 2×2 | 20 Lastre di titanio, 20 Lastre di piombo, 10 Silicio | Ricerca | Plastica da 2 Carbone, solo con corrente |
 | Estrattore (`extractor`) | 1×1 | 2 Lastre di ferro | Ricerca | Tira oggetti fuori da un magazzino o da una macchina |
 
-I costi di sblocco sono in [Economia e Ricerca](Economia-e-Ricerca). Le costruzioni non costano soldi, solo materiali presi dal CORE; smontarle rende tutto.
+I costi di sblocco sono in [Economia e Ricerca](Economia-e-Ricerca). Le costruzioni non costano soldi, solo materiali presi dal CORE; smontarle rende tutto. In Ricerca i potenziamenti **Minatori I** e **II** fanno andare tutti i minatori (T1, T2 e trapano) più veloci del 10% e del 20%, **Macchine I** e **II** forno, fonderia avanzata e assemblatore del 15% e del 30% (il livello 2 sostituisce il livello 1, vedi [I potenziamenti](Economia-e-Ricerca#i-potenziamenti)). La Ricetta dei circuiti è il premio del capitolo 3 della campagna.
 
 ## Come entrano ed escono gli oggetti
 

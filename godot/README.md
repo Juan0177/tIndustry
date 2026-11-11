@@ -193,7 +193,7 @@ Mappa completa: [`docs/ARCHITETTURA.md`](../docs/ARCHITETTURA.md).
 
 ## Ricerca
 
-**T** apre la Ricerca, un albero stile Mindustry: **CORE in cima**, ogni blocco sotto il suo prerequisito (linee a gomito; prerequisiti aggiuntivi tratteggiati). Bordo dorato = puoi sbloccarlo ora, lucchetto = prima sblocca il precedente; passa col mouse per costo e mancanze, click per il pannello di sblocco. Trascina per muoverti, rotella zoom, H vista intera. Sblocca strutture spendendo denaro/materiali; i blocchi non ancora sbloccati non si piazzano. Il salvataggio (versione 22) include `unlockedStructures` e lo stato del Mercato.
+**T** apre la Ricerca, un albero stile Mindustry: **CORE in cima**, ogni blocco sotto il suo prerequisito (linee a gomito; prerequisiti aggiuntivi tratteggiati). Bordo dorato = puoi sbloccarlo ora, lucchetto = prima sblocca il precedente; passa col mouse per costo e mancanze, click per il pannello di sblocco. Trascina per muoverti, rotella zoom, H vista intera. Sblocca strutture spendendo denaro/materiali; i blocchi non ancora sbloccati non si piazzano. Undici nodi sono **potenziamenti** senza blocco (drone: costruzione, stiva, raggio, scavo e Drone potenziato; Minatori I e II; Macchine I e II; Magazzino I e II): il pannello mostra la riga **Effetto** col numero di adesso e quello dopo. Quattro nodi sono i **premi dei capitoli** della campagna (generatore a combustione, nastro a pacchi, ricetta dei circuiti, Drone potenziato): in campagna hanno il numero del capitolo nell'angolo e non si comprano, nella partita libera costano il triplo. Il salvataggio (versione 22) include `unlockedStructures` e lo stato del Mercato.
 
 ## Mercato
 

@@ -36,6 +36,10 @@ Tipi di obiettivo:
 
 Il titanio compare sulle mappe solo dal livello 9, dove serve il Minatore T2.
 
+### Premi dei capitoli
+
+Quattro nodi della Ricerca sono il **premio di un capitolo** della campagna: capitolo 1 il Generatore a combustione, capitolo 2 il Nastro a pacchi, capitolo 3 la Ricetta dei circuiti, capitolo 4 il **Drone potenziato** (il livello 2 dei quattro potenziamenti del drone insieme). In campagna non si comprano: in Ricerca hanno il numero del capitolo nell'angolo e un bordo di un colore loro, il pannello dice «Premio del capitolo N» e lo sblocco è rifiutato con «Si ottiene chiudendo il capitolo N della campagna». Si ottengono **chiudendo il capitolo**, gratis: la simulazione ha già il modo di darli (`Factory.GrantCampaignReward`), ma a chiamarlo sarà il lancio della **campagna rifatta** ([specifica](https://github.com/Juan0177/tIndustry/blob/main/docs/superpowers/specs/2026-11-09-campagna-rifatta-design.md)), il prossimo lavoro sulla campagna. I dieci livelli di oggi non hanno capitoli, quindi lì i quattro nodi restano bloccati; nessun obiettivo li chiede. Nella partita libera si comprano al triplo del prezzo del foglio (vedi [Economia e Ricerca](Economia-e-Ricerca#i-premi-della-campagna)).
+
 ## Partita libera
 
 **Nuova partita** dalla Home genera una mappa dal **seme**:

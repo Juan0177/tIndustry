@@ -12,7 +12,7 @@ In una cella di nastro stanno fino a **3 oggetti**, a 0,4 di cella l'uno dall'al
 | Nastro T2 (`conveyor-fast`) | 4,8 | 12 | 1 Ferro grezzo, 1 Piombo grezzo, 1 Titanio grezzo | dopo il Nastro T1 |
 | Nastro T3 (`conveyor-express`) | 7,2 | 18 | 1 Titanio grezzo, 1 Silicio, 1 Grafite | dopo il Nastro T2 |
 | Nastro rinforzato (`conveyor-armored`) | 4,8 | 12 | 1 Ferro grezzo, 1 Piombo grezzo, 2 Titanio grezzo, 1 Grafite | dopo il Nastro T2 |
-| Nastro a pacchi (`conveyor-stack`) | 21,6 | fino a 216 pezzi con più carichi che si uniscono (un solo carico arriva a circa 40–50 pezzi) | 1 Plastica, 1 Silicio, 1 Grafite | dopo il Nastro T3 |
+| Nastro a pacchi (`conveyor-stack`) | 21,6 | fino a 216 pezzi con più carichi che si uniscono (un solo carico arriva a circa 40–50 pezzi) | 1 Plastica, 1 Silicio, 1 Grafite | dopo il Nastro T3; premio del capitolo 2 della campagna |
 
 ## Pezzi speciali
 
@@ -108,7 +108,7 @@ Come lo *Stack Conveyor* di Mindustry: porta **pacchi** di fino a **10 pezzi del
 
 ## Container e vault
 
-Due magazzini che si mettono sui nastri e accanto agli edifici. Il **Contenitore** (`container`, 2×2) tiene 300 per oggetto, il **Deposito** (`vault`, 3×3) 1.000; costano 40 Lastre di ferro e 20 Lastre di piombo il primo, 60 Lastre di titanio e 40 Lastre di ferro il secondo (sblocchi in [Economia e Ricerca](Economia-e-Ricerca#container-e-vault)).
+Due magazzini che si mettono sui nastri e accanto agli edifici. Il **Contenitore** (`container`, 2×2) tiene 300 per oggetto, il **Deposito** (`vault`, 3×3) 1.000; costano 40 Lastre di ferro e 20 Lastre di piombo il primo, 60 Lastre di titanio e 40 Lastre di ferro il secondo (sblocchi in [Economia e Ricerca](Economia-e-Ricerca#container-e-vault)). I potenziamenti Magazzino I e II alzano questi spazi del 25% e del 50% (vedi [I potenziamenti](Economia-e-Ricerca#i-potenziamenti)).
 
 - **A contatto con il CORE** (lato contro lato) allargano il suo magazzino: il loro spazio si somma al massimo di ogni oggetto e i nastri che vi consegnano consegnano al CORE.
 - **Lontani dal CORE** sono depositi a sé: accettano qualsiasi oggetto da nastri ed edifici finché c'è posto, e un Estrattore attaccato li svuota (prima dal CORE, se anche lui è a contatto e ha l'oggetto, poi dal deposito con l'id più basso).
