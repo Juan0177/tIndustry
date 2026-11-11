@@ -30,7 +30,8 @@ public partial class BuildPalette : PanelContainer
         new(ToolKind.SorterInverted, "sorter-inverted", ""),
         new(ToolKind.OverflowGate, Factory.OverflowGateId, ""),
         new(ToolKind.UnderflowGate, Factory.UnderflowGateId, ""),
-        new(ToolKind.Bridge, "conveyor-bridge", "9")
+        new(ToolKind.Bridge, "conveyor-bridge", "9"),
+        new(ToolKind.BridgeLong, Factory.BridgeLongId, "")
     ];
 
     private static readonly PaletteEntry[] ProductionEntries =
@@ -525,6 +526,7 @@ public partial class BuildPalette : PanelContainer
         ToolKind.Belt or ToolKind.BeltFast or ToolKind.BeltExpress or ToolKind.BeltArmored or ToolKind.BeltStack
             or ToolKind.Junction or ToolKind.Router
             or ToolKind.Sorter or ToolKind.SorterInverted or ToolKind.OverflowGate or ToolKind.UnderflowGate or ToolKind.Bridge
+            or ToolKind.BridgeLong
             => BuildCategory.Logistics,
         ToolKind.Miner or ToolKind.MinerAdvanced or ToolKind.Smelter or ToolKind.Assembler or ToolKind.Extractor
             or ToolKind.SmelterAdvanced or ToolKind.GraphitePress or ToolKind.Separator or ToolKind.Plasticizer

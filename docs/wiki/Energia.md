@@ -12,6 +12,7 @@ La corrente non è obbligatoria per i blocchi di base: il Forno può andare a ca
 | Assemblatore | Lavora fino al **20% più veloce** | 10 unità al secondo quando ha una ricetta da fare |
 | Minatore T2 | Estrae fino al **20% più veloce** | 0,5 unità al secondo mentre scava |
 | Lampada | Si accende e illumina la notte | 1 unità al secondo, solo di notte |
+| Ponte lungo (entrata) | Lascia passare gli oggetti | 1 unità al secondo, sempre |
 
 Alcuni blocchi della Ricerca invece **senza corrente sono fermi** e lavorano alla loro velocità per la soddisfazione della rete:
 
@@ -26,7 +27,7 @@ Il Minatore T1, la Pressa grande e l'Estrattore non usano corrente. Un blocco ch
 
 ## Blocchi di corrente
 
-Fanno parte della rete il Generatore, i Nodi T1 e T2, la Batteria e ogni blocco che consuma corrente (Forno, Assemblatore, Minatore T2, Lampada, Fonderia avanzata, Separatore, Plastificatore, Trapano a impatto). Nastri, Minatore T1, Pressa grande, Estrattore, magazzini e **CORE** non ne fanno parte: il CORE non produce né conserva corrente.
+Fanno parte della rete il Generatore, i Nodi T1 e T2, la Batteria e ogni blocco che consuma corrente (Forno, Assemblatore, Minatore T2, Lampada, Fonderia avanzata, Separatore, Plastificatore, Trapano a impatto, l'entrata del Ponte lungo). Gli altri nastri, Minatore T1, Pressa grande, Estrattore, magazzini e **CORE** non ne fanno parte: il CORE non produce né conserva corrente.
 
 ## Generatore
 
@@ -87,6 +88,7 @@ Con una soddisfazione `s` (da 0% a 100%):
 - **Assemblatore**: lavora sempre; velocità `1 + 0,2 × s`.
 - **Minatore T2**: velocità `1 + 0,2 × s`, oltre al suo doppio.
 - **Lampada**: luce proporzionale a `s`, spenta a 0.
+- **Ponte lungo**: con `s` sopra 0 gli oggetti passano subito (nessuna velocità ridotta), a 0 aspettano sull'entrata.
 - **Fonderia avanzata, Separatore, Plastificatore, Trapano a impatto**: velocità della macchina × `s`, ferme a 0.
 - **Forno**: con la corrente va a `1,2 × s`. Se ha carbone e `1,2 × s` è sotto 1, brucia il carbone e va a velocità 1, senza chiedere corrente in quel momento. Senza carbone e senza corrente è fermo.
 

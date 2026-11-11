@@ -72,7 +72,8 @@ public partial class World : Node2D
         ImpactDrill,
         OverflowGate,
         UnderflowGate,
-        BeltStack
+        BeltStack,
+        BridgeLong
     }
 
     // The simulation lives behind the host: the client reads IGameView and submits commands.

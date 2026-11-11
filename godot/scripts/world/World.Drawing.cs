@@ -415,7 +415,7 @@ public partial class World
             var rect = new Rect2(placement.Cell.X * TileSize, placement.Cell.Y * TileSize, size * TileSize, size * TileSize);
             PlacementPreview.Draw(canvas, spec.StructureId, rect, placement.Direction, turnSprite: spec.Kind is null,
                 arrow: PlacementPreview.HasDirection(spec.Kind), valid);
-            if (spec.Kind == BuildingKind.Bridge)
+            if (BuildSpec.IsBridge(spec.Kind))
             {
                 DrawBridgeGhost(canvas, spec, refused: !valid);
             }
@@ -485,6 +485,7 @@ public partial class World
         BuildTool.ImpactDrill => BuildingKind.ImpactDrill,
         BuildTool.OverflowGate => BuildingKind.OverflowGate,
         BuildTool.UnderflowGate => BuildingKind.UnderflowGate,
+        BuildTool.BridgeLong => BuildingKind.BridgeLong,
         _ => null
     };
 

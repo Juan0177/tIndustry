@@ -64,7 +64,7 @@ public sealed class AgentGame : IDisposable
         ('W', "fonderia avanzata"), ('H', "pressa grande"), ('X', "separatore"), ('Y', "plastificatore"),
         ('T', "trapano a impatto"), ('O', "overflow gate"), ('U', "underflow gate"),
         ('8', "nastro a pacchi verso nord"), ('6', "nastro a pacchi verso est"), ('2', "nastro a pacchi verso sud"),
-        ('4', "nastro a pacchi verso ovest"),
+        ('4', "nastro a pacchi verso ovest"), ('Z', "ponte lungo"),
         ('!', "struttura senza simbolo"),
         ('#', "parete"), ('~', "acqua profonda"), (',', "acqua bassa"), ('s', "pavimento di sabbia"),
         ('i', "giacimento di ferro"), ('r', "giacimento di rame"), ('k', "giacimento di carbone"),
@@ -962,7 +962,7 @@ public sealed class AgentGame : IDisposable
                 LogisticsKind.Junction => KindSymbol(BuildingKind.Junction),
                 LogisticsKind.Router => KindSymbol(BuildingKind.Router),
                 LogisticsKind.Sorter => KindSymbol(belt.Definition.Inverted ? BuildingKind.SorterInverted : BuildingKind.Sorter),
-                LogisticsKind.Bridge => KindSymbol(BuildingKind.Bridge),
+                LogisticsKind.Bridge => KindSymbol(BuildSpec.KindFor(belt.Definition.Id) ?? BuildingKind.Bridge),
                 LogisticsKind.Gate => KindSymbol(belt.Definition.Inverted ? BuildingKind.UnderflowGate : BuildingKind.OverflowGate),
                 // The stack conveyor: the arrows of a numeric keypad.
                 LogisticsKind.Stack => belt.Direction switch
@@ -1042,6 +1042,7 @@ public sealed class AgentGame : IDisposable
         BuildingKind.ImpactDrill => 'T',
         BuildingKind.OverflowGate => 'O',
         BuildingKind.UnderflowGate => 'U',
+        BuildingKind.BridgeLong => 'Z',
         _ => '!'
     };
 

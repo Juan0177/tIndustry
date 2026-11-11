@@ -1,7 +1,7 @@
 """Logistics sprites: narrow belts in four tiers (basic, fast, express, armored; icon, straight strip,
 corner strip, T merge strip, side join strips: variant C "Mindustry" of the proposal sheet), the stack
 conveyor (icon and straight strip: its cells are always drawn straight), junction,
-router, sorter, inverted sorter, overflow and underflow gates, bridge end and bridge span.
+router, sorter, inverted sorter, overflow and underflow gates, bridge end and bridge span, long bridge end and span.
 
 Every directional sprite faces East (flow towards +x); the client rotates it. The belt is as wide as
 Mindustry's at 32 px: a 12 px tread (rows 10-21) between side plates of 4 px (outline, three rail tones
@@ -16,7 +16,7 @@ import math
 
 import forme
 from blocchi import sprite
-from palette import ACCENTO, CARTA, FERRO, METALLO, NASTRO, OUT, PLASTICA, RAME, ROSSO, TITANIO
+from palette import ACCENTO, CARTA, ENERGIA, FERRO, METALLO, NASTRO, OUT, PLASTICA, RAME, ROSSO, TITANIO
 
 T = 32
 PASSO = 1  # px the tread moves per frame: 32 frames per cell, smooth next to items moving every tick
@@ -372,20 +372,55 @@ def conveyor_bridge():
     return im
 
 
-@sprite("conveyor-bridge-span")
-def conveyor_bridge_span():
-    """16 px of the bridge deck (East), tiled along the span; 22 px thick (~0.70 cell,
+def _campata(rotaia):
+    """16 px of a bridge deck (East) with side rails of the ramp `rotaia`, tiled along the span; 22 px thick (~0.70 cell,
     BridgeSpanVisual.DeckPixels in the client)."""
     w, h = 16, 22
     im = forme.nuova(w, h)
     for x in range(w):
-        for y, c in ((0, OUT), (1, METALLO[4]), (2, METALLO[3]), (3, OUT),
-                     (18, OUT), (19, METALLO[3]), (20, METALLO[2]), (21, OUT)):
+        for y, c in ((0, OUT), (1, rotaia[4]), (2, rotaia[3]), (3, OUT),
+                     (18, OUT), (19, rotaia[3]), (20, rotaia[2]), (21, OUT)):
             forme.pixel(im, x, y, c)
         for y in range(4, 18):
             k = x % 8
             forme.pixel(im, x, y, NASTRO[3] if k == 0 else NASTRO[0] if k == 1 else NASTRO[1])
+    return im
+
+
+@sprite("conveyor-bridge-span")
+def conveyor_bridge_span():
+    """16 px of the bridge deck (East), tiled along the span; 22 px thick (~0.70 cell,
+    BridgeSpanVisual.DeckPixels in the client)."""
+    im = _campata(METALLO)
     for x in (4, 12):
         forme.pixel(im, x, 1, METALLO[5])
         forme.pixel(im, x, 19, METALLO[4])
+    return im
+
+
+@sprite("bridge-long")
+def bridge_long():
+    """Long bridge end (Mindustry's phase conveyor, without the phase): the bridge housing in titanium with a power
+    lamp (it runs on power) and the span leaving East."""
+    im = _piastra()
+    _canale(im, -1, 9, T, 22)
+    forme.pannello(im, 5, 5, 26, 26, TITANIO)
+    forme.rett(im, 10, 10, 21, 21, OUT)
+    forme.rett(im, 11, 11, 20, 20, NASTRO[0])
+    forme.rett(im, 11, 11, 20, 11, NASTRO[2])
+    _freccia(im, 19, 16, "E", ACCENTO)
+    # Power lamp in the top-left corner of the housing.
+    forme.rett(im, 7, 7, 9, 9, OUT)
+    forme.pixel(im, 8, 8, ENERGIA[3])
+    return im
+
+
+@sprite("bridge-long-span")
+def bridge_long_span():
+    """16 px of the long bridge's deck (East), titanium rails with a yellow power stripe every 8 px; same size as the
+    plain bridge's deck (BridgeSpanVisual.DeckPixels)."""
+    im = _campata(TITANIO)
+    for x in (4, 12):
+        forme.pixel(im, x, 1, ENERGIA[3])
+        forme.pixel(im, x, 19, ENERGIA[2])
     return im

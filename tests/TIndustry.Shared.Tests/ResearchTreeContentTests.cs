@@ -27,6 +27,7 @@ public sealed class ResearchTreeContentTests
         { "overflow-gate", "router" },
         { "underflow-gate", "overflow-gate" },
         { "conveyor-bridge", "junction" },
+        { "bridge-long", "conveyor-bridge" },
         // Produzione
         { "miner", null },
         { "miner-advanced", "miner" },

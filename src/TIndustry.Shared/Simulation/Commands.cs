@@ -43,7 +43,8 @@ public enum BuildingKind
     Plasticizer,
     ImpactDrill,
     OverflowGate,
-    UnderflowGate
+    UnderflowGate,
+    BridgeLong
 }
 
 /// <summary>

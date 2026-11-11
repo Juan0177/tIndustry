@@ -83,6 +83,7 @@ public sealed record BuildSpec(
         BuildingKind.ImpactDrill => Miner.ImpactDrillId,
         BuildingKind.OverflowGate => Factory.OverflowGateId,
         BuildingKind.UnderflowGate => Factory.UnderflowGateId,
+        BuildingKind.BridgeLong => Factory.BridgeLongId,
         _ => null
     };
 
@@ -91,6 +92,12 @@ public sealed record BuildSpec(
     /// </summary>
     public static bool IsCrafter(BuildingKind? kind) => kind is BuildingKind.Smelter or BuildingKind.Assembler
         or BuildingKind.SmelterAdvanced or BuildingKind.GraphitePress or BuildingKind.Separator or BuildingKind.Plasticizer;
+
+    /// <summary>
+    /// True for the bridges (<see cref="BuildingKind.Bridge"/>, <see cref="BuildingKind.BridgeLong"/>): two ends, paid twice,
+    /// the exit on the first free cell in reach of the definition (<see cref="ConveyorDefinition.MaxSpan"/>).
+    /// </summary>
+    public static bool IsBridge(BuildingKind? kind) => kind is BuildingKind.Bridge or BuildingKind.BridgeLong;
 
     /// <summary>True for the miners (<see cref="Miner"/>): Miner T1, Miner T2 and the impact drill.</summary>
     public static bool IsMiner(BuildingKind? kind) =>

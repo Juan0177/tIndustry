@@ -104,6 +104,7 @@ public partial class World
         BuildTool.ImpactDrill => Hud.ToolKind.ImpactDrill,
         BuildTool.OverflowGate => Hud.ToolKind.OverflowGate,
         BuildTool.UnderflowGate => Hud.ToolKind.UnderflowGate,
+        BuildTool.BridgeLong => Hud.ToolKind.BridgeLong,
         _ => Hud.ToolKind.None
     };
 
@@ -142,6 +143,7 @@ public partial class World
         Hud.ToolKind.ImpactDrill => BuildTool.ImpactDrill,
         Hud.ToolKind.OverflowGate => BuildTool.OverflowGate,
         Hud.ToolKind.UnderflowGate => BuildTool.UnderflowGate,
+        Hud.ToolKind.BridgeLong => BuildTool.BridgeLong,
         _ => BuildTool.None
     };
 

@@ -28,5 +28,11 @@ public sealed class PowerDemandSystem : ISimulationSystem
         {
             lamp.PowerRequested = dark;
         }
+
+        // A powered bridge always draws, idle or not (as Mindustry's): simple and the same every tick.
+        foreach (var bridge in state.BridgePowers)
+        {
+            bridge.PowerRequested = true;
+        }
     }
 }

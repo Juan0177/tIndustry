@@ -435,6 +435,18 @@ public sealed class BeltSaveDto
     /// </summary>
     public int? StackWaitTicks { get; set; }
 
+    /// <summary>
+    /// Entry of a powered bridge (the long bridge): the id of its power entity (<see cref="BridgePower.Id"/>), so the node
+    /// lasers that point at it survive the load; null on every other cell (the exit included).
+    /// </summary>
+    public long? PowerId { get; set; }
+
+    /// <summary>
+    /// Entry of a powered bridge: the share of power it got in the last balance (<see cref="BridgePower.SatisfactionBp"/>,
+    /// 1–10 000; null = 0). The next tick's belts move before its balance, so a loaded game must start from it.
+    /// </summary>
+    public int? PowerSatisfactionBp { get; set; }
+
     public List<ItemSaveDto> Items { get; set; } = [];
 }
 

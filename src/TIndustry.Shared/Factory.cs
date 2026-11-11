@@ -58,6 +58,7 @@ public sealed class Factory : IGameView
         OverflowGateDefinition = content.RequireConveyor(OverflowGateId);
         UnderflowGateDefinition = content.RequireConveyor(UnderflowGateId);
         BridgeDefinition = content.RequireConveyor("conveyor-bridge");
+        BridgeLongDefinition = content.RequireConveyor(BridgeLongId);
     }
 
     /// <summary>Wraps an existing state (used by snapshots); definitions come from its content.</summary>
@@ -73,6 +74,7 @@ public sealed class Factory : IGameView
         OverflowGateDefinition = state.Content.RequireConveyor(OverflowGateId);
         UnderflowGateDefinition = state.Content.RequireConveyor(UnderflowGateId);
         BridgeDefinition = state.Content.RequireConveyor("conveyor-bridge");
+        BridgeLongDefinition = state.Content.RequireConveyor(BridgeLongId);
     }
 
     public FactoryContent Content => State.Content;
@@ -93,6 +95,15 @@ public sealed class Factory : IGameView
     public ConveyorDefinition OverflowGateDefinition { get; }
     public ConveyorDefinition UnderflowGateDefinition { get; }
     public ConveyorDefinition BridgeDefinition { get; }
+
+    /// <summary>Content id of the long bridge (<see cref="LogisticsKind.Bridge"/> with a power use and a longer reach).</summary>
+    public const string BridgeLongId = "bridge-long";
+
+    public ConveyorDefinition BridgeLongDefinition { get; }
+
+    /// <summary>The definition a bridge spec places: the long bridge's or the plain one's.</summary>
+    private ConveyorDefinition BridgeDefinitionOf(BuildSpec spec) =>
+        spec.Kind == BuildingKind.BridgeLong ? BridgeLongDefinition : BridgeDefinition;
     public IReadOnlySet<GridPosition> CoreTiles => State.CoreTiles;
     public int CoreTier => State.CoreTier;
     public int CoreCapacity(string itemId) => State.Storage.Capacity(itemId);
@@ -156,6 +167,7 @@ public sealed class Factory : IGameView
     public IReadOnlyList<Extractor> Extractors => extractors;
     public IReadOnlyList<PowerNode> PowerNodes => powerNodes;
     public IReadOnlyList<Lamp> Lamps => lamps;
+    public IReadOnlyList<BridgePower> BridgePowers => State.BridgePowers;
     public IReadOnlyList<Battery> Batteries => batteries;
 
     /// <summary>The finished stock-exchange screen (one per game), or null; active when it touches the Core.</summary>
@@ -765,7 +777,7 @@ public sealed class Factory : IGameView
             return SiteCentre(site);
         }
 
-        if (!plan.Breaking && plan.Spec.Kind != BuildingKind.Bridge)
+        if (!plan.Breaking && !BuildSpec.IsBridge(plan.Spec.Kind))
         {
             return SpecCentre(plan.Spec); // a square block: no need to list its cells
         }
@@ -1040,6 +1052,8 @@ public sealed class Factory : IGameView
                 FilterItemId = c.Kind == LogisticsKind.Sorter ? c.FilterItemId : null,
                 SorterTurns = c.PassesThrough && c.SorterTurns != 0 ? c.SorterTurns : null,
                 StackWaitTicks = c.Kind == LogisticsKind.Stack && c.StackWaitTicks != 0 ? c.StackWaitTicks : null,
+                PowerId = BridgePowerAt(c.Position)?.Id,
+                PowerSatisfactionBp = BridgePowerAt(c.Position) is { SatisfactionBp: > 0 } power ? power.SatisfactionBp : null,
                 Items = c.Items.Select(CaptureItem).ToList()
             }).ToList()
         };
@@ -1147,6 +1161,13 @@ public sealed class Factory : IGameView
     public static Factory Restore(FactoryContent content, FactorySaveData data, string? mapsDirectory = null)
     {
         var belts = new BeltGrid();
+        // Every saved cell by its position, so a bridge end can check that its partner is the same bridge (lookups only).
+        var savedAt = new Dictionary<GridPosition, BeltSaveDto>();
+        foreach (var cell in data.Belts)
+        {
+            savedAt[new GridPosition(cell.X, cell.Y)] = cell;
+        }
+
         foreach (var cell in data.Belts)
         {
             var def = content.FindConveyor(cell.DefinitionId)
@@ -1172,11 +1193,25 @@ public sealed class Factory : IGameView
                 partner = new GridPosition(bx, by);
             }
 
-            // A bridge the current rules would not allow (older saves reached 5 cells) is not placed, both ends.
+            // A bridge the current rules would not allow (older saves reached 5 cells; a long entry with a plain exit) is
+            // not placed, both ends.
             if (def.Kind == LogisticsKind.Bridge
-                && (partner is not { } end || !BeltGrid.IsBridgeSpan(new GridPosition(cell.X, cell.Y), end)))
+                && (partner is not { } end
+                    || !BeltGrid.IsBridgeSpan(new GridPosition(cell.X, cell.Y), end, def.MaxSpan)
+                    || !savedAt.TryGetValue(end, out var endCell)
+                    || content.FindConveyor(endCell.DefinitionId) != def))
             {
                 continue;
+            }
+
+            if (cell.PowerId is not null || cell.PowerSatisfactionBp is not null)
+            {
+                var entry = partner is { } exit
+                    && BeltGrid.IsBridgeEntry(new GridPosition(cell.X, cell.Y), dir, exit, def.MaxSpan);
+                if (!def.IsPoweredBridge || !entry || cell.PowerSatisfactionBp is < 1 or > PowerSystem.FullBp)
+                {
+                    throw new InvalidDataException($"Corrente del ponte non valida sul nastro {cell.X},{cell.Y}.");
+                }
             }
 
             belts.TryRestore(
@@ -1269,6 +1304,7 @@ public sealed class Factory : IGameView
             .Concat(data.Extractors.Select(d => d.Id))
             .Concat(data.PowerNodes.Select(d => d.Id))
             .Concat((data.Lamps ?? []).Select(d => d.Id))
+            .Concat(data.Belts.Select(d => d.PowerId ?? 0))
             .Concat((data.Batteries ?? []).Select(d => d.Id))
             .Concat((data.Storages ?? []).Select(d => d.Id))
             .Concat(data.Builders.Select(d => d.Id))
@@ -1337,6 +1373,21 @@ public sealed class Factory : IGameView
         foreach (var l in data.Lamps ?? [])
         {
             factory.lamps.Add(new Lamp(new GridPosition(l.X, l.Y), RestoredId(l.Id)));
+        }
+
+        // The power entity of every powered bridge restored above, on its entry (a dropped bridge has none).
+        foreach (var (position, cell) in factory.Belts.Cells)
+        {
+            if (cell.Definition.IsPoweredBridge
+                && cell.BridgePartner is { } partner
+                && BeltGrid.IsBridgeEntry(position, cell.Direction, partner, cell.Definition.MaxSpan))
+            {
+                var saved = savedAt.GetValueOrDefault(position);
+                factory.State.BridgePowers.Add(new BridgePower(position, RestoredId(saved?.PowerId ?? 0))
+                {
+                    SatisfactionBp = saved?.PowerSatisfactionBp ?? 0
+                });
+            }
         }
 
         foreach (var b in data.Batteries ?? [])
@@ -1426,6 +1477,7 @@ public sealed class Factory : IGameView
         SortById(factory.powerNodes, n => n.Id);
         SortById(factory.lamps, l => l.Id);
         SortById(factory.batteries, b => b.Id);
+        SortById(factory.State.BridgePowers, b => b.Id);
         SortById(factory.storages, s => s.Id);
         // The recipes gated by research follow the restored research.
         factory.RefreshAvailableRecipes();
@@ -2538,6 +2590,7 @@ public sealed class Factory : IGameView
         OverflowGateId => OverflowGateId,
         UnderflowGateId => UnderflowGateId,
         "bridge" => "conveyor-bridge",
+        BridgeLongId => BridgeLongId,
         "extractor" => "extractor",
         "power-node" => "power-node",
         "power-node-t2" => "power-node-t2",
@@ -2781,7 +2834,7 @@ public sealed class Factory : IGameView
 
     public bool TryPlaceBridge(GridPosition entry, Direction direction) =>
         RequireUnlocked("conveyor-bridge")
-        && PlaceBridge(entry, direction, charge: true, exit: null);
+        && PlaceBridge(entry, direction, BridgeDefinition, charge: true, exit: null);
 
     public bool TryRemoveBelt(GridPosition position)
     {
@@ -2792,7 +2845,7 @@ public sealed class Factory : IGameView
 
         var def = cell.Definition;
         var multiplicity = cell.Kind == LogisticsKind.Bridge ? 2 : 1;
-        if (!Belts.TryRemove(position))
+        if (!RemoveLogisticsCell(position))
         {
             return false;
         }
@@ -2852,7 +2905,7 @@ public sealed class Factory : IGameView
     public IReadOnlyList<GridPosition> Footprint(BuildSpec spec)
     {
         ArgumentNullException.ThrowIfNull(spec);
-        if (spec.Kind == BuildingKind.Bridge)
+        if (BuildSpec.IsBridge(spec.Kind))
         {
             // An existing bridge covers its own ends; a new one ends on the first free cell in range.
             if (Belts.TryGet(spec.Origin, out var cell)
@@ -2862,7 +2915,7 @@ public sealed class Factory : IGameView
                 return [spec.Origin, partner];
             }
 
-            return FindBridgeExit(spec.Origin, spec.Direction) is { } exit
+            return FindBridgeExit(spec.Origin, spec.Direction, BridgeDefinitionOf(spec).MaxSpan) is { } exit
                 ? [spec.Origin, exit]
                 : [spec.Origin];
         }
@@ -2985,10 +3038,10 @@ public sealed class Factory : IGameView
             null or BuildingKind.Junction or BuildingKind.Router or BuildingKind.Sorter or BuildingKind.SorterInverted
                 or BuildingKind.OverflowGate or BuildingKind.UnderflowGate =>
                 !Belts.Contains(spec.Origin) && CanOccupy(spec.Origin),
-            BuildingKind.Bridge =>
+            BuildingKind.Bridge or BuildingKind.BridgeLong =>
                 !Belts.Contains(spec.Origin)
                 && CanOccupy(spec.Origin)
-                && FindBridgeExit(spec.Origin, spec.Direction) is not null,
+                && FindBridgeExit(spec.Origin, spec.Direction, BridgeDefinitionOf(spec).MaxSpan) is not null,
             _ => CanOccupyFootprint(spec.Origin, FootprintSize(spec))
         };
         if (ok && BuildSpec.IsMiner(spec.Kind)
@@ -3058,13 +3111,13 @@ public sealed class Factory : IGameView
         }
 
         if (reason == RefusalCode.Occupied
-            && spec.Kind == BuildingKind.Bridge
+            && BuildSpec.IsBridge(spec.Kind)
             && !Belts.Contains(spec.Origin)
             && CanOccupy(spec.Origin)
-            && FindBridgeExit(spec.Origin, spec.Direction) is null)
+            && FindBridgeExit(spec.Origin, spec.Direction, BridgeDefinitionOf(spec).MaxSpan) is null)
         {
             var exits = new List<GridPosition>();
-            for (var span = BeltGridCell.MinBridgeSpan; span <= BeltGridCell.MaxBridgeSpan; span++)
+            for (var span = BeltGridCell.MinBridgeSpan; span <= BridgeDefinitionOf(spec).MaxSpan; span++)
             {
                 exits.Add(spec.Origin.Step(spec.Direction, span));
             }
@@ -3115,7 +3168,8 @@ public sealed class Factory : IGameView
             case BuildingKind.UnderflowGate:
                 return PlaceLogistics(origin, dir, UnderflowGateDefinition, charge);
             case BuildingKind.Bridge:
-                return PlaceBridge(origin, dir, charge, bridgeExit);
+            case BuildingKind.BridgeLong:
+                return PlaceBridge(origin, dir, BridgeDefinitionOf(spec), charge, bridgeExit);
             case BuildingKind.Miner:
                 return PlaceMiner(origin, dir, Miner.DefaultOutputItemId, Miner.BasicId, charge);
             case BuildingKind.MinerAdvanced:
@@ -3162,7 +3216,7 @@ public sealed class Factory : IGameView
 
     /// <summary>
     /// The spec of the building or belt piece on <paramref name="tile"/> (a bridge reads from its entry)
-    /// and its entity id (0 for belt pieces, which have none).
+    /// and its entity id (0 for belt pieces, which have none; a powered bridge answers with its power entity, <see cref="BridgePower"/>).
     /// </summary>
     public bool TryGetSpecAt(GridPosition tile, out BuildSpec spec, out long entityId)
     {
@@ -3285,8 +3339,10 @@ public sealed class Factory : IGameView
                         cell.Direction);
                     return true;
                 case LogisticsKind.Bridge when cell.BridgePartner is { } partner:
-                    var entry = IsAhead(tile, cell.Direction, partner) ? tile : partner;
-                    spec = new BuildSpec(id, BuildingKind.Bridge, entry, cell.Direction);
+                    var entry = IsAhead(tile, cell.Direction, partner, cell.Definition.MaxSpan) ? tile : partner;
+                    spec = new BuildSpec(id, BuildSpec.KindFor(id) ?? BuildingKind.Bridge, entry, cell.Direction);
+                    // A powered bridge (the long one) is a power block: both ends answer with its id, for the lasers.
+                    entityId = BridgePowerAt(entry)?.Id ?? 0;
                     return true;
                 default:
                     spec = new BuildSpec(id, null, tile, cell.Direction);
@@ -3311,9 +3367,9 @@ public sealed class Factory : IGameView
         }
 
         var removed = spec.Kind is null or BuildingKind.Junction or BuildingKind.Router
-            or BuildingKind.Sorter or BuildingKind.SorterInverted or BuildingKind.Bridge
+            or BuildingKind.Sorter or BuildingKind.SorterInverted or BuildingKind.Bridge or BuildingKind.BridgeLong
             or BuildingKind.OverflowGate or BuildingKind.UnderflowGate
-            ? Belts.TryRemove(tile)
+            ? RemoveLogisticsCell(tile)
             : TryRemoveBuildingEntity(tile, out _);
         if (!removed)
         {
@@ -3361,10 +3417,13 @@ public sealed class Factory : IGameView
         _ => 1
     };
 
-    /// <summary>First free bridge end 2–4 cells ahead of <paramref name="entry"/> (same rule as <see cref="BeltGrid.TryPlaceBridge"/>).</summary>
-    private GridPosition? FindBridgeExit(GridPosition entry, Direction direction)
+    /// <summary>
+    /// First free bridge end <see cref="BeltGridCell.MinBridgeSpan"/> to <paramref name="maxSpan"/> cells ahead of
+    /// <paramref name="entry"/> (same rule as <see cref="BeltGrid.TryPlaceBridge"/>).
+    /// </summary>
+    private GridPosition? FindBridgeExit(GridPosition entry, Direction direction, int maxSpan)
     {
-        for (var span = BeltGridCell.MinBridgeSpan; span <= BeltGridCell.MaxBridgeSpan; span++)
+        for (var span = BeltGridCell.MinBridgeSpan; span <= maxSpan; span++)
         {
             var candidate = entry.Step(direction, span);
             if (!Belts.Contains(candidate) && CanOccupy(candidate))
@@ -3376,9 +3435,9 @@ public sealed class Factory : IGameView
         return null;
     }
 
-    private static bool IsAhead(GridPosition from, Direction direction, GridPosition target)
+    private static bool IsAhead(GridPosition from, Direction direction, GridPosition target, int maxSpan)
     {
-        for (var span = 1; span <= BeltGridCell.MaxBridgeSpan; span++)
+        for (var span = 1; span <= maxSpan; span++)
         {
             if (from.Step(direction, span).Equals(target))
             {
@@ -3448,10 +3507,14 @@ public sealed class Factory : IGameView
         return true;
     }
 
-    /// <summary>Bridge from <paramref name="entry"/>; <paramref name="exit"/> forces the far end (finished sites).</summary>
-    private bool PlaceBridge(GridPosition entry, Direction direction, bool charge, GridPosition? exit)
+    /// <summary>
+    /// Bridge of <paramref name="definition"/> from <paramref name="entry"/>; <paramref name="exit"/> forces the far end
+    /// (finished sites). A powered bridge (the long one) gets its power entity on the entry (<see cref="BridgePower"/>).
+    /// </summary>
+    private bool PlaceBridge(
+        GridPosition entry, Direction direction, ConveyorDefinition definition, bool charge, GridPosition? exit)
     {
-        if (charge && !TryChargeConveyor(BridgeDefinition, multiplicity: 2))
+        if (charge && !TryChargeConveyor(definition, multiplicity: 2))
         {
             return false;
         }
@@ -3459,14 +3522,54 @@ public sealed class Factory : IGameView
         Func<GridPosition, bool> canOccupy = exit is { } forced
             ? p => CanOccupy(p) && (p.Equals(entry) || p.Equals(forced))
             : CanOccupy;
-        if (!Belts.TryPlaceBridge(entry, direction, BridgeDefinition, canOccupy))
+        if (!Belts.TryPlaceBridge(entry, direction, definition, canOccupy))
         {
             if (charge)
             {
-                RefundConveyor(BridgeDefinition, multiplicity: 2, putBack: true);
+                RefundConveyor(definition, multiplicity: 2, putBack: true);
             }
 
             return false;
+        }
+
+        if (definition.IsPoweredBridge)
+        {
+            State.BridgePowers.Add(new BridgePower(entry, nextEntityId++));
+            PowerBlocksChanged();
+        }
+
+        return true;
+    }
+
+    /// <summary>The power entity of the powered bridge whose entry is <paramref name="entry"/>, or null.</summary>
+    private BridgePower? BridgePowerAt(GridPosition entry) => State.BridgePowers.Find(b => b.Entry == entry);
+
+    /// <summary>
+    /// Takes the logistics cell on <paramref name="tile"/> away (both ends of a bridge); a powered bridge's power entity
+    /// goes with it, with its lasers, and the networks are recomputed.
+    /// </summary>
+    private bool RemoveLogisticsCell(GridPosition tile)
+    {
+        var partner = Belts.TryGet(tile, out var cell) ? cell.BridgePartner : null;
+        if (!Belts.TryRemove(tile))
+        {
+            return false;
+        }
+
+        var removedPower = false;
+        foreach (var end in partner is { } other ? new[] { tile, other } : [tile])
+        {
+            if (BridgePowerAt(end) is { } power)
+            {
+                State.BridgePowers.Remove(power);
+                State.PowerGrid.RemoveLinksOf(power.Id);
+                removedPower = true;
+            }
+        }
+
+        if (removedPower)
+        {
+            PowerBlocksChanged();
         }
 
         return true;

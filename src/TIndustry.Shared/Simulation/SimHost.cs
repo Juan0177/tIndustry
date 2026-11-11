@@ -384,7 +384,7 @@ public sealed class SimHost
             return QueuePlan(command.PlayerId, spec);
         }
 
-        var multiplicity = command.Kind == BuildingKind.Bridge ? 2 : 1;
+        var multiplicity = BuildSpec.IsBridge(command.Kind) ? 2 : 1;
         return CheckBuildable(spec.StructureId, multiplicity)
             ?? PlacedOrRefused(factory.PlaceInstant(spec, charge: true), spec);
     }

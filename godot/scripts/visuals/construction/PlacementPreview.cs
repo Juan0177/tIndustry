@@ -118,7 +118,7 @@ public static class PlacementPreview
     /// assemblers (their output side). Junctions, routers, sorters and extractors have none (Mindustry).
     /// </summary>
     public static bool HasDirection(BuildingKind? kind) =>
-        kind is null or BuildingKind.Bridge or BuildingKind.Assembler;
+        kind is null or BuildingKind.Bridge or BuildingKind.BridgeLong or BuildingKind.Assembler;
 
     /// <summary>Angle of <paramref name="direction"/> (East = 0, clockwise on screen).</summary>
     public static float Angle(Direction direction)

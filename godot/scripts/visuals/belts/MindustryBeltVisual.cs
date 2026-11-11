@@ -91,12 +91,14 @@ public partial class MindustryBeltVisual : Node2D
                     break;
                 case LogisticsKind.Bridge:
                     // Both ends get their pad; the span is drawn once, from the entry.
-                    AddSpecial(view, pos, LogisticsKind.Bridge, cell.Direction, tileSize);
-                    if (cell.BridgePartner is { } partner && IsBridgeEntryVisual(pos, cell.Direction, partner))
+                    // Each bridge its own sprite and deck (the long bridge's ends: <id>, <id>-span), its own reach.
+                    AddSpecial(view, pos, LogisticsKind.Bridge, cell.Direction, tileSize, bridgeId: cell.Definition.Id);
+                    if (cell.BridgePartner is { } partner
+                        && BeltGrid.IsBridgeEntry(pos, cell.Direction, partner, cell.Definition.MaxSpan))
                     {
                         var span = new BridgeSpanVisual { Name = $"BridgeSpan_{pos.X}_{pos.Y}" };
                         AddChild(span);
-                        span.Configure(pos, partner, cell.Direction, tileSize);
+                        span.Configure(pos, partner, cell.Direction, tileSize, cell.Definition.Id + "-span");
                     }
 
                     break;
@@ -191,26 +193,6 @@ public partial class MindustryBeltVisual : Node2D
         }
     }
 
-    private static bool IsBridgeEntryVisual(GridPosition entry, Direction direction, GridPosition partner)
-    {
-        var dx = partner.X - entry.X;
-        var dy = partner.Y - entry.Y;
-        var span = Math.Abs(dx) + Math.Abs(dy);
-        if (span < BeltGridCell.MinBridgeSpan || span > BeltGridCell.MaxBridgeSpan)
-        {
-            return false;
-        }
-
-        return direction switch
-        {
-            Direction.North => dx == 0 && dy < 0,
-            Direction.East => dy == 0 && dx > 0,
-            Direction.South => dx == 0 && dy > 0,
-            Direction.West => dy == 0 && dx < 0,
-            _ => false
-        };
-    }
-
     private void AddSpecial(
         IGameView view,
         GridPosition pos,
@@ -218,7 +200,8 @@ public partial class MindustryBeltVisual : Node2D
         Direction direction,
         int tileSize,
         string? filterItemId = null,
-        bool inverted = false)
+        bool inverted = false,
+        string bridgeId = "conveyor-bridge")
     {
         var texture = Sprites.For(kind switch
         {
@@ -226,7 +209,7 @@ public partial class MindustryBeltVisual : Node2D
             LogisticsKind.Router => "router",
             LogisticsKind.Sorter => inverted ? "sorter-inverted" : "sorter",
             LogisticsKind.Gate => inverted ? Factory.UnderflowGateId : Factory.OverflowGateId,
-            LogisticsKind.Bridge => "conveyor-bridge",
+            LogisticsKind.Bridge => bridgeId,
             _ => BuildSpec.DefaultConveyorId
         });
         var node = new Node2D

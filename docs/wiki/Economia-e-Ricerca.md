@@ -121,6 +121,7 @@ Sbloccare costa **soldi e materiali**, presi dal CORE; poi il blocco compare nel
 | Selezionatore (`sorter`) | Logistica | Incrocio | $73.000, 30 Ferro grezzo, 30 Piombo grezzo |
 | Selezionatore invertito (`sorter-inverted`) | Logistica | Selezionatore | $73.000, 30 Ferro grezzo, 30 Piombo grezzo |
 | Nastro ponte (`conveyor-bridge`) | Logistica | Incrocio | $91.000, 63 Ferro grezzo, 63 Piombo grezzo |
+| Ponte lungo (`bridge-long`) | Logistica | Nastro ponte | $97.000, 24 Lastre di titanio, 24 Lastre di piombo, 8 Silicio |
 | Nastro T2 (`conveyor-fast`) | Logistica | Nastro T1 | $73.000, 24 Ferro grezzo, 24 Piombo grezzo, 24 Titanio grezzo |
 | Nastro rinforzato (`conveyor-armored`) | Logistica | Nastro T2 | $1.300.000, 32 Ferro grezzo, 32 Piombo grezzo, 40 Titanio grezzo, 32 Grafite |
 | Nastro T3 (`conveyor-express`) | Logistica | Nastro T2 | $1.300.000, 32 Titanio grezzo, 32 Silicio, 32 Grafite |

@@ -121,7 +121,8 @@ public sealed class BeltGrid
         cells.TryGetValue(source, out var feeder) && feeder.Kind == LogisticsKind.Stack && feeder.OutputPosition == target;
 
     /// <summary>
-    /// Place paired bridge ends (span 2–4). Mid tiles stay empty so belts can cross.
+    /// Place paired bridge ends (span <see cref="BeltGridCell.MinBridgeSpan"/> to the definition's
+    /// <see cref="ConveyorDefinition.MaxSpan"/>): both ends have <paramref name="definition"/>. Mid tiles stay empty so belts can cross.
     /// </summary>
     public bool TryPlaceBridge(
         GridPosition entry,
@@ -137,7 +138,7 @@ public sealed class BeltGrid
         }
 
         GridPosition? exit = null;
-        for (var span = BeltGridCell.MinBridgeSpan; span <= BeltGridCell.MaxBridgeSpan; span++)
+        for (var span = BeltGridCell.MinBridgeSpan; span <= definition.MaxSpan; span++)
         {
             var candidate = entry.Step(direction, span);
             if (cells.ContainsKey(candidate))
@@ -235,6 +236,18 @@ public sealed class BeltGrid
     /// </summary>
     public Func<GridPosition, string, bool>? BuildingWouldReceive { get; set; }
 
+    /// <summary>
+    /// Whether the powered bridge (<see cref="ConveyorDefinition.IsPoweredBridge"/>, the long bridge) whose entry is on a
+    /// tile has power now: its entry hands items to its exit only then (any satisfaction above 0; partial power is
+    /// enough), else they wait on the entry. The simulation state sets it (<see cref="GameState"/>); a bare grid has
+    /// none, so every bridge passes. A bridge without a power use never asks. Not saved.
+    /// </summary>
+    public Func<GridPosition, bool>? BridgePowered { get; set; }
+
+    /// <summary>Whether the entry <paramref name="cell"/> may hand items to its exit now (<see cref="BridgePowered"/>).</summary>
+    private bool BridgeCanPass(BeltGridCell cell) =>
+        !cell.Definition.IsPoweredBridge || BridgePowered?.Invoke(cell.Position) != false;
+
     /// <summary>Whether a logistics cell or a building that takes items is on <paramref name="tile"/>.</summary>
     public bool TakesItemsAt(GridPosition tile) => cells.ContainsKey(tile) || BuildingTakesAt?.Invoke(tile) == true;
 
@@ -330,7 +343,8 @@ public sealed class BeltGrid
                 return false;
             }
 
-            if (cells.TryGetValue(partner, out var exitCell)
+            if (BridgeCanPass(cell)
+                && cells.TryGetValue(partner, out var exitCell)
                 && exitCell.TryInsert(item, cell.Direction))
             {
                 // Instantaneous start→end; ready to leave end immediately.
@@ -338,7 +352,7 @@ public sealed class BeltGrid
                 return true;
             }
 
-            // End blocked: hold on start, already ready to teleport next handoff.
+            // End blocked (or no power): hold on start, already ready to teleport next handoff.
             if (!cell.TryInsert(item, fromDirection))
             {
                 return false;
@@ -478,6 +492,7 @@ public sealed class BeltGrid
         if (cell.Kind == LogisticsKind.Bridge && cell.BridgePartner is { } partner)
         {
             if (IsBridgeEntry(cell, partner)
+                && BridgeCanPass(cell)
                 && cells.TryGetValue(partner, out var exitCell)
                 && exitCell.TryInsert(item, cell.Direction))
             {
@@ -652,7 +667,7 @@ public sealed class BeltGrid
                 return cell.IsStackLoader && origin != cell.OutputPosition && cell.CanLoad(item);
             case LogisticsKind.Bridge when cell.BridgePartner is { } partner && IsBridgeEntry(cell, partner):
                 return fromDirection != DirectionMath.Opposite(cell.Direction)
-                    && ((cells.TryGetValue(partner, out var exitCell) && exitCell.CanInsert(cell.Direction))
+                    && ((BridgeCanPass(cell) && cells.TryGetValue(partner, out var exitCell) && exitCell.CanInsert(cell.Direction))
                         || cell.CanInsert(fromDirection));
             case LogisticsKind.Bridge when cell.BridgePartner is not null && fromDirection == cell.Direction:
                 return false;
@@ -693,25 +708,34 @@ public sealed class BeltGrid
 
     private static bool IsAdjacent(GridPosition a, GridPosition b) => Math.Abs(a.X - b.X) + Math.Abs(a.Y - b.Y) == 1;
 
-    /// <summary>Whether two bridge ends can be partners: same row or column, 2–4 cells apart.</summary>
-    public static bool IsBridgeSpan(GridPosition a, GridPosition b)
+    /// <summary>
+    /// Whether two bridge ends can be partners: same row or column, <see cref="BeltGridCell.MinBridgeSpan"/> to
+    /// <paramref name="maxSpan"/> (the definition's <see cref="ConveyorDefinition.MaxSpan"/>) cells apart.
+    /// </summary>
+    public static bool IsBridgeSpan(GridPosition a, GridPosition b, int maxSpan)
     {
         var dx = Math.Abs(b.X - a.X);
         var dy = Math.Abs(b.Y - a.Y);
-        return (dx == 0 || dy == 0) && dx + dy >= BeltGridCell.MinBridgeSpan && dx + dy <= BeltGridCell.MaxBridgeSpan;
+        return (dx == 0 || dy == 0) && dx + dy >= BeltGridCell.MinBridgeSpan && dx + dy <= maxSpan;
     }
 
-    private static bool IsBridgeEntry(BeltGridCell cell, GridPosition partner)
+    private static bool IsBridgeEntry(BeltGridCell cell, GridPosition partner) =>
+        IsBridgeEntry(cell.Position, cell.Direction, partner, cell.Definition.MaxSpan);
+
+    /// <summary>
+    /// Whether the bridge end on <paramref name="position"/> facing <paramref name="direction"/> is the entry of its pair
+    /// with <paramref name="partner"/> (the partner stands ahead, within <paramref name="maxSpan"/>); else it is the exit.
+    /// </summary>
+    public static bool IsBridgeEntry(GridPosition position, Direction direction, GridPosition partner, int maxSpan)
     {
-        var dx = partner.X - cell.Position.X;
-        var dy = partner.Y - cell.Position.Y;
-        var span = Math.Abs(dx) + Math.Abs(dy);
-        if (span < BeltGridCell.MinBridgeSpan || span > BeltGridCell.MaxBridgeSpan)
+        var dx = partner.X - position.X;
+        var dy = partner.Y - position.Y;
+        if (!IsBridgeSpan(position, partner, maxSpan))
         {
             return false;
         }
 
-        return cell.Direction switch
+        return direction switch
         {
             Direction.North => dx == 0 && dy < 0,
             Direction.East => dy == 0 && dx > 0,
@@ -967,8 +991,8 @@ public sealed class BeltGrid
 
 public sealed class BeltGridCell
 {
+    /// <summary>Shortest bridge: its ends 2 cells apart (one cell crossed). The longest is the definition's <see cref="ConveyorDefinition.MaxSpan"/>.</summary>
     public const int MinBridgeSpan = 2;
-    public const int MaxBridgeSpan = 4; // Mindustry's bridge conveyor: ends at most 4 cells apart
 
     /// <summary>Items a junction holds per direction of travel (Mindustry's Junction capacity).</summary>
     public const int JunctionQueueLength = 6;

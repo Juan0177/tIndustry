@@ -264,7 +264,50 @@
           }
         ]
       },
-      "kind": "bridge"
+      "kind": "bridge",
+      "maxSpan": 4
+    },
+    {
+      "id": "bridge-long",
+      "tier": 2,
+      "rateItemsPerSecond": 5.25,
+      "capacity": 1,
+      "itemSpacing": 1.0,
+      "moneyCost": 0,
+      "buildCost": [
+        {
+          "itemId": "titanium-plate",
+          "amount": 6
+        },
+        {
+          "itemId": "lead-plate",
+          "amount": 6
+        },
+        {
+          "itemId": "silicon",
+          "amount": 2
+        }
+      ],
+      "unlock": {
+        "money": 97000,
+        "materials": [
+          {
+            "itemId": "titanium-plate",
+            "amount": 24
+          },
+          {
+            "itemId": "lead-plate",
+            "amount": 24
+          },
+          {
+            "itemId": "silicon",
+            "amount": 8
+          }
+        ]
+      },
+      "kind": "bridge",
+      "maxSpan": 8,
+      "powerUse": 1
     },
     {
       "id": "conveyor-express",
@@ -839,6 +882,33 @@
       "isStub": false,
       "prerequisites": [
         "junction"
+      ]
+    },
+    {
+      "id": "bridge-long",
+      "displayName": "Ponte lungo",
+      "kind": "conveyor",
+      "unlockedByDefault": false,
+      "unlock": {
+        "money": 97000,
+        "materials": [
+          {
+            "itemId": "titanium-plate",
+            "amount": 24
+          },
+          {
+            "itemId": "lead-plate",
+            "amount": 24
+          },
+          {
+            "itemId": "silicon",
+            "amount": 8
+          }
+        ]
+      },
+      "isStub": false,
+      "prerequisites": [
+        "conveyor-bridge"
       ]
     },
     {

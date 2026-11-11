@@ -46,7 +46,8 @@ public partial class Hud : Control
         ImpactDrill,
         OverflowGate,
         UnderflowGate,
-        BeltStack
+        BeltStack,
+        BridgeLong
     }
 
     internal enum BuildCategory
@@ -451,6 +452,7 @@ public partial class Hud : Control
         ToolKind.ImpactDrill => Miner.ImpactDrillId,
         ToolKind.OverflowGate => Factory.OverflowGateId,
         ToolKind.UnderflowGate => Factory.UnderflowGateId,
+        ToolKind.BridgeLong => Factory.BridgeLongId,
         _ => "conveyor-basic"
     };
 

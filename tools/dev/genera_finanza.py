@@ -53,6 +53,7 @@ NODES = [
     ("container", 1, 6, [("iron-plate", 20), ("lead-plate", 10)]),
     ("miner-advanced", 1, 8, [("iron-plate", 40), ("copper-wire", 8)]),
     ("market-screen", 1, 8, [("iron-plate", 80), ("copper-wire", 40)]),
+    ("bridge-long", 2, 1.6, [("titanium-plate", 6), ("lead-plate", 6), ("silicon", 2)]),
     ("power-node-t2", 2, 15, [("iron-plate", 12), ("copper-wire", 6)]),
     ("smelter-advanced", 2, 6, [("titanium-plate", 40), ("copper-wire", 20)]),
     ("separator", 2, 6.5, [("titanium-plate", 40), ("graphite", 20)]),

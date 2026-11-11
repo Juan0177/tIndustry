@@ -120,6 +120,12 @@ public interface IGameView
     /// <summary>Batteries, in id order.</summary>
     IReadOnlyList<Battery> Batteries { get; }
 
+    /// <summary>
+    /// Power entities of the powered bridges (the long bridge's entry), in id order: satisfaction of the last balance;
+    /// items cross only while it is above 0.
+    /// </summary>
+    IReadOnlyList<BridgePower> BridgePowers { get; }
+
     /// <summary>Containers and vaults, in id order (linked to the Core or standalone with their contents).</summary>
     IReadOnlyList<StorageBlock> Storages { get; }
 

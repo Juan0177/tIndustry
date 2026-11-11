@@ -533,7 +533,20 @@ public sealed class FactoryContent
             ParseKind(c.Kind),
             MapMultiplier(c.BuildCostMultiplier),
             c.Armored,
-            c.Inverted);
+            c.Inverted,
+            MapMaxSpan(c),
+            c.PowerUse < 0f
+                ? throw new InvalidDataException($"content.json: conveyors '{c.Id}': powerUse non può essere negativo.")
+                : c.PowerUse);
+
+    /// <summary>A bridge's reach: <see cref="ConveyorDefinition.DefaultMaxSpan"/> when absent, never below the shortest span.</summary>
+    private static int MapMaxSpan(ConveyorDto c) => c.MaxSpan switch
+    {
+        null => ConveyorDefinition.DefaultMaxSpan,
+        < BeltGridCell.MinBridgeSpan => throw new InvalidDataException(
+            $"content.json: conveyors '{c.Id}': maxSpan deve essere almeno {BeltGridCell.MinBridgeSpan}."),
+        { } span => span
+    };
 
     private static RecipeDefinition MapRecipe(RecipeDto r)
     {
@@ -807,6 +820,10 @@ public sealed class FactoryContent
         public float? BuildCostMultiplier { get; set; }
         public bool Armored { get; set; }
         public bool Inverted { get; set; }
+        /// <summary>Bridge: most cells between its two ends (null = <see cref="ConveyorDefinition.DefaultMaxSpan"/>).</summary>
+        public int? MaxSpan { get; set; }
+        /// <summary>Bridge: power its entry draws per second (0 = none, the plain bridge).</summary>
+        public float PowerUse { get; set; }
     }
 
     private sealed class RecipeDto

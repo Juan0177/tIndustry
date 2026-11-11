@@ -23,6 +23,7 @@ In una cella di nastro stanno fino a **3 oggetti**, a 0,4 di cella l'uno dall'al
 | Selezionatore invertito (`sorter-inverted`) | istantaneo, passa al ritmo del nastro | 2 Ferro grezzo, 2 Piombo grezzo | dopo il Selezionatore | Il contrario: l'oggetto del filtro di lato, gli altri dritti |
 | Estrattore (`extractor`) | 11 oggetti/s | 2 Lastre di ferro | Ricerca | Tira un oggetto fuori da un magazzino o da una macchina e lo dà al blocco accanto |
 | Nastro ponte (`conveyor-bridge`) | 5,25 oggetti/s | 6 Ferro grezzo, 6 Piombo grezzo **per estremo** (12 e 12 in tutto) | dopo l'Incrocio | Scavalca da 1 a 3 celle |
+| Ponte lungo (`bridge-long`) | 5,25 oggetti/s | 6 Lastre di titanio, 6 Lastre di piombo, 2 Silicio **per estremo** (12, 12 e 4 in tutto) | dopo il Nastro ponte | Scavalca da 1 a 7 celle; consuma 1 di corrente al secondo |
 
 I costi di sblocco sono in [Economia e Ricerca](Economia-e-Ricerca).
 
@@ -68,6 +69,8 @@ Come il *Sorter* di Mindustry: non ha direzione (`R` non lo gira) e passa l'ogge
 Un ponte ha due estremi 1×1 a una distanza da 2 a 4 celle, come in Mindustry, quindi scavalca da 1 a 3 celle; l'uscita è la prima cella libera in quella direzione. Le celle in mezzo restano libere: un nastro ci può passare sotto. L'ingresso prende oggetti da tre lati (non da quello della campata), li passa subito all'uscita, che li dà sui suoi tre lati liberi (davanti, sinistra, destra).
 
 Il ponte passa sopra pareti e acqua profonda, purché i due estremi stiano su celle costruibili. Smontando un estremo si smonta tutto il ponte.
+
+**Ponte lungo.** Come il ponte, ma gli estremi stanno da 2 a 8 celle (scavalca fino a 7 celle) e l'entrata è un blocco di corrente 1×1 che consuma 1 al secondo, anche quando non passa niente: si collega a un generatore, a una batteria o a un nodo per contatto o col laser di un nodo (cliccando una delle due estremità). Senza corrente (soddisfazione 0) gli oggetti aspettano sull'entrata e non se ne perde nessuno; con corrente anche parziale passano subito, come nel ponte. I due estremi sono sempre dello stesso ponte e il ponte automatico dei nastri usa solo il ponte normale.
 
 **Ponte automatico.** Col ponte sbloccato, una retta di nastri trascinata che incontra pareti, acqua profonda o edifici li scavalca da sola con un ponte (fino a 3 celle di ostacolo); un ostacolo più lungo resta rosso. Non succede con una direzione fissata con `R` di lato.
 

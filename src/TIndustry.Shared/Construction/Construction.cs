@@ -95,7 +95,7 @@ public static class Construction
             return [];
         }
 
-        var multiplicity = spec.Kind == BuildingKind.Bridge ? 2 : 1;
+        var multiplicity = BuildSpec.IsBridge(spec.Kind) ? 2 : 1;
         var cost = new List<CostEntry>();
         if (money > 0)
         {
@@ -319,7 +319,7 @@ public static class Construction
 
         s.Sites.Remove(site);
         var factory = new Factory(s);
-        var bridgeExit = site.Spec.Kind == BuildingKind.Bridge && site.Tiles.Count > 1
+        var bridgeExit = BuildSpec.IsBridge(site.Spec.Kind) && site.Tiles.Count > 1
             ? site.Tiles[1]
             : (GridPosition?)null;
         if (!factory.PlaceInstant(site.Spec, charge: false, bridgeExit))

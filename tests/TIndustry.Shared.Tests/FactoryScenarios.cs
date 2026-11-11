@@ -857,7 +857,7 @@ internal static class FactoryScenarios
         span4.TryPlaceFree(new GridPosition(3, 2), Direction.South, belt);
         Assert(span4.TryPlaceBridge(new GridPosition(0, 2), Direction.East, bridge), "span4 place");
         Assert(span4.Contains(new GridPosition(0, 2)) && span4.Contains(new GridPosition(4, 2)), "span4 ends");
-        Assert(BeltGridCell.MaxBridgeSpan == 4, "max span 4");
+        Assert(bridge.MaxSpan == 4, "max span 4");
         // End outputs to side (North) when facing East — 3-side I/O.
         var ioGrid = new BeltGrid();
         ioGrid.TryPlaceFree(new GridPosition(0, 1), Direction.East, belt);

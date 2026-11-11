@@ -14,6 +14,7 @@ struttura.conveyor-bridge.nome,Nastro ponte,Bridge belt
 struttura.conveyor-express.nome,Nastro T3,Belt T3
 struttura.conveyor-armored.nome,Nastro rinforzato,Armored belt
 struttura.conveyor-stack.nome,Nastro a pacchi,Stack conveyor
+struttura.bridge-long.nome,Ponte lungo,Long bridge
 struttura.assembler.nome,Assemblatore,Assembler
 struttura.generator.nome,Generatore,Generator
 struttura.power-node.nome,Nodo T1,Power node T1
@@ -132,6 +133,7 @@ struttura.sorter-inverted.suggerimento,Il selezionatore al contrario · filtro c
 struttura.overflow-gate.suggerimento,Dritto se davanti c'è posto · se no a sinistra e a destra alternando · sblocca in Ricerca,Straight on if there is room ahead · else left and right alternating · unlock in Research
 struttura.underflow-gate.suggerimento,L'overflow al contrario · prima ai lati alternando · dritto solo se i lati sono pieni · sblocca in Ricerca,The overflow the other way round · sides first alternating · straight only when the sides are full · unlock in Research
 struttura.conveyor-bridge.suggerimento,Ponte span 2–4 · I/O 3 lati · teletrasporto istantaneo,Bridge span 2–4 · I/O on 3 sides · instant teleport
+struttura.bridge-long.suggerimento,Ponte lungo span 2–8 · corrente 1/s · sblocca in Ricerca,Long bridge span 2–8 · power 1/s · unlock in Research
 struttura.miner.suggerimento,Estrae minerali · {0} · sabbia dal pavimento di sabbia senza giacimento · uscita su tutti i lati · 2×2,Mines ore · {0} · sand from sand floor without a deposit · output on every side · 2×2
 struttura.miner-advanced.suggerimento,Minatore T2 · {0} · sabbia senza giacimento · 2× velocità · +20% con corrente (la consuma) · sblocca in Ricerca,Miner T2 · {0} · sand without a deposit · 2× speed · +20% with power (uses it) · unlock in Research
 struttura.smelter.suggerimento,"Lastre di ferro, piombo o titanio dal minerale che arriva · carbone o corrente (+20%) · 2×2","Iron, lead or titanium plates from the ore it gets · coal or power (+20%) · 2×2"
@@ -473,6 +475,7 @@ struttura.sorter-inverted.descrizione,Chi passa il filtro esce a sinistra e a de
 struttura.overflow-gate.descrizione,Nessuna direzione · l'oggetto va dritto se il blocco davanti lo prende · se no a sinistra e a destra alternando · se nessuno lo prende aspetta sul nastro · mai in un altro gate o selezionatore,No direction · items go straight on if the block ahead takes them · else left and right alternating · if nothing takes them they wait on the belt · never into another gate or sorter
 struttura.underflow-gate.descrizione,Nessuna direzione · l'oggetto va a sinistra e a destra alternando · dritto solo se nessun lato lo prende · se nessuno lo prende aspetta sul nastro · mai in un altro gate o selezionatore,No direction · items go left and right alternating · straight on only if neither side takes them · if nothing takes them they wait on the belt · never into another gate or sorter
 struttura.conveyor-bridge.descrizione,Ponte span 2–4 · I/O 3 lati · teletrasporto istantaneo,Bridge span 2–4 · I/O on 3 sides · instant teleport
+struttura.bridge-long.descrizione,"Ponte span 2–8 · I/O 3 lati · corrente 1/s sull'entrata, anche fermo · senza corrente gli oggetti aspettano sull'entrata",Bridge span 2–8 · I/O on 3 sides · power 1/s on the entry even when idle · without power items wait on the entry
 struttura.generator.descrizione,Brucia carbone per energia · 2×2,Burns coal for power · 2×2
 struttura.power-node.descrizione,Nodo T1 · 1×1 · raggio 6 · 6 collegamenti · si collega da solo ai blocchi vicini,Power node T1 · 1×1 · range 6 · 6 links · links to the nearby blocks by itself
 struttura.power-node-t2.descrizione,Nodo T2 · 2×2 · raggio 10 · 10 collegamenti · si collega da solo ai blocchi vicini,Power node T2 · 2×2 · range 10 · 10 links · links to the nearby blocks by itself

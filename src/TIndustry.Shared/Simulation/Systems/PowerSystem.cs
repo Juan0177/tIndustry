@@ -67,6 +67,13 @@ public sealed class PowerSystem : ISimulationSystem
             lamp.PowerRequested = Ask(grid, lamp.Id, lamp.PowerRequested, lampRate, requested, out _);
         }
 
+        // A powered bridge's rate is its conveyor's power use; a bridge without one (or gone from the content) asks nothing.
+        foreach (var bridge in state.BridgePowers)
+        {
+            var bridgeRate = state.Belts.TryGet(bridge.Entry, out var cell) ? cell.Definition.PowerUseRate : 0;
+            bridge.PowerRequested = Ask(grid, bridge.Id, bridge.PowerRequested, bridgeRate, requested, out _);
+        }
+
         // Fornos with coal step out where the share is below their coal speed, then the balance is made again.
         var coalNetworks = new bool[count];
         for (var i = 0; i < count; i++)
@@ -98,6 +105,12 @@ public sealed class PowerSystem : ISimulationSystem
             network.RequestedRate = requested[i];
             network.SatisfactionBp = bp;
             ShareCharge(network, stored);
+        }
+
+        // The powered bridges read their share now: the belts of the next tick (and the settle pass of this one) ask it.
+        foreach (var bridge in state.BridgePowers)
+        {
+            bridge.SatisfactionBp = bridge.PowerRequested ? state.SatisfactionOf(bridge.Id) : 0;
         }
     }
 

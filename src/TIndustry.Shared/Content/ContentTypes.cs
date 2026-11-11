@@ -28,6 +28,9 @@ public enum LogisticsKind
 /// A belt or a logistics block. <see cref="RateItemsPerSecond"/> is the speed in cells per second (the name is older
 /// than the spacing); a full line carries speed / <see cref="ItemSpacing"/> items per second, at most
 /// <see cref="Capacity"/> items per cell. <paramref name="Inverted"/> marks the inverted sorter (<c>sorter-inverted</c>) and the underflow gate (<c>underflow-gate</c>).
+/// A bridge's ends stand <see cref="BeltGridCell.MinBridgeSpan"/> to <paramref name="MaxSpan"/> cells apart (JSON
+/// <c>maxSpan</c>, 4 when absent: Mindustry's bridge conveyor); <paramref name="PowerUse"/> (JSON <c>powerUse</c>, units per
+/// second, 0 = none) makes the bridge's entry a power consumer (<see cref="BridgePower"/>, the long bridge).
 /// </summary>
 public sealed record ConveyorDefinition(
     string Id,
@@ -41,8 +44,19 @@ public sealed record ConveyorDefinition(
     LogisticsKind Kind = LogisticsKind.Belt,
     float BuildCostMultiplier = 1f,
     bool Armored = false,
-    bool Inverted = false)
+    bool Inverted = false,
+    int MaxSpan = ConveyorDefinition.DefaultMaxSpan,
+    float PowerUse = 0f)
 {
+    /// <summary>Reach of a bridge when the content does not give one: Mindustry's bridge conveyor, ends at most 4 cells apart.</summary>
+    public const int DefaultMaxSpan = 4;
+
+    /// <summary><see cref="PowerUse"/> in thousandths of a unit per second, the integer rate of the power balance.</summary>
+    public long PowerUseRate => BuildingDefinition.MilliRate(PowerUse);
+
+    /// <summary>A bridge whose entry needs power to let items cross (<see cref="BridgePower"/>).</summary>
+    public bool IsPoweredBridge => Kind == LogisticsKind.Bridge && PowerUse > 0f;
+
     /// <summary>Armored belt (Mindustry's): takes items from non-belts only from behind, never blends with buildings.</summary>
     public bool IsArmoredBelt => Armored && Kind == LogisticsKind.Belt;
 

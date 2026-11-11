@@ -7,7 +7,7 @@ public enum PowerBlockKind
     Node,
     Battery,
 
-    /// <summary>A block with a power use: forno, assembler, Miner T2, lamp.</summary>
+    /// <summary>A block with a power use: forno, assembler, Miner T2, lamp, the long bridge's entry.</summary>
     Consumer
 }
 
@@ -287,7 +287,7 @@ public sealed class PowerGrid
 
     /// <summary>
     /// The power blocks of <paramref name="s"/> in id order: generators, nodes, batteries and the blocks with a power
-    /// use (craft machines but the graphite press, Miner T2, impact drill, lamp). Belts, Miner T1, extractor, graphite press, storage
+    /// use (craft machines but the graphite press, Miner T2, impact drill, lamp, the long bridge's entry). Belts, Miner T1, extractor, graphite press, storage
     /// and the Core are not.
     /// </summary>
     public static List<PowerBlock> Blocks(GameState s)
@@ -329,6 +329,11 @@ public sealed class PowerGrid
         foreach (var l in s.Lamps)
         {
             blocks.Add(new PowerBlock(l.Id, l.Position, Lamp.Size, PowerBlockKind.Consumer));
+        }
+
+        foreach (var b in s.BridgePowers)
+        {
+            blocks.Add(new PowerBlock(b.Id, b.Entry, BridgePower.Size, PowerBlockKind.Consumer));
         }
 
         blocks.Sort((a, b) => a.Id.CompareTo(b.Id));

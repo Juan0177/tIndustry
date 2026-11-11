@@ -36,6 +36,24 @@ public sealed class GameState
         belts.BuildingTakesAt = TakesItemsAt;
         belts.BuildingReceives = ReceiveFromLogistics;
         belts.BuildingWouldReceive = CanReceiveFromLogistics;
+        belts.BridgePowered = BridgePowered;
+    }
+
+    /// <summary>
+    /// Whether the powered bridge whose entry is on <paramref name="entry"/> got some power in the last balance
+    /// (<see cref="BridgePower.IsPowered"/>); false when no <see cref="BridgePower"/> stands there.
+    /// </summary>
+    public bool BridgePowered(GridPosition entry)
+    {
+        foreach (var power in BridgePowers)
+        {
+            if (power.Entry == entry)
+            {
+                return power.IsPowered;
+            }
+        }
+
+        return false;
     }
 
     /// <summary>
@@ -313,6 +331,9 @@ public sealed class GameState
     public List<PowerNode> PowerNodes { get; } = [];
     public List<Lamp> Lamps { get; } = [];
     public List<Battery> Batteries { get; } = [];
+
+    /// <summary>The power entities of the powered bridges (the long bridge's entry), in ascending id order.</summary>
+    public List<BridgePower> BridgePowers { get; } = [];
 
     /// <summary>Lasers and power networks (<see cref="PowerGrid.Rebuild"/> after every change of power blocks or lasers).</summary>
     public PowerGrid PowerGrid { get; } = new();
