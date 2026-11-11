@@ -84,4 +84,8 @@ Ultimo stato riportato dai task: build Release 0 errori e 0 avvisi (progetto God
 
 ## Revisione finale
 
-Revisione finale: in corso.
+Revisione finale dell'intero ramo: **pronto dopo le correzioni**. Due Important (il pannello del Core non mostrava sabbia, vetro, plastica e circuiti; il trapano a impatto senza corrente girava come se scavasse) e i minori 3-7 (testo dello strumento `piazza`, simbolo `s` della sabbia in `area`, «tre minatori» in ARCHITETTURA, ritmo della sabbia nella wiki Produzione, riga I/O del minatore) sono stati corretti nel commit `ba785d7`.
+
+Rinviati: i minori restanti della revisione, non bloccanti per il piano 1.
+
+Nota per il piano della campagna: le mappe della campagna hanno seme 0, quindi le sequenze del separatore si ripetono uguali per ogni id a ogni partita sulla stessa mappa (la specifica dice «seme della partita»).
