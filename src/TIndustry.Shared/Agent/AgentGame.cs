@@ -665,6 +665,7 @@ public sealed class AgentGame : IDisposable
             ["risorse"] = resources,
             ["energia"] = EnergyJson(),
             ["ricerca"] = research,
+            ["potenziamenti"] = UpgradesJson(),
             ["edifici"] = new JsonObject
             {
                 ["minatori"] = View.Miners.Count,
@@ -1569,6 +1570,25 @@ public sealed class AgentGame : IDisposable
 
     private static int Steer(float delta) => delta > SteerDeadZone ? 1 : delta < -SteerDeadZone ? -1 : 0;
 
+    /// <summary>
+    /// The bonus of each upgrade group now (<see cref="Upgrades"/>; level 2 replaces level 1, 0 without either): percent,
+    /// or cells for <c>raggio</c>.
+    /// </summary>
+    private JsonObject UpgradesJson()
+    {
+        var research = View.Research;
+        return new JsonObject
+        {
+            ["costruzione"] = Upgrades.DroneBuildPercent(research),
+            ["stiva"] = Upgrades.DroneHoldPercent(research),
+            ["raggio"] = Upgrades.DroneRangeCells(research),
+            ["scavo"] = Upgrades.DroneMinePercent(research),
+            ["minatori"] = Upgrades.MinerPercent(research),
+            ["macchine"] = Upgrades.MachinePercent(research),
+            ["magazzino"] = Upgrades.StoragePercent(research)
+        };
+    }
+
     private BuilderUnit? Drone() => View.Builders.FirstOrDefault(b => b.OwnerPlayerId == PlayerId);
 
     /// <summary>The player's drone: centre (tiles), held input, hold, mined cell and build range.</summary>
@@ -1579,7 +1599,7 @@ public sealed class AgentGame : IDisposable
             return null;
         }
 
-        var unit = content.UnitForTier(View.CoreTier);
+        var unit = View.EffectiveUnit; // with the research's drone upgrades
         return new JsonObject
         {
             ["x"] = Math.Round(drone.X, 2),

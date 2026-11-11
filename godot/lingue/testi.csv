@@ -37,6 +37,17 @@ struttura.separator.nome,Separatore,Separator
 struttura.plasticizer.nome,Plastificatore,Plasticizer
 struttura.impact-drill.nome,Trapano a impatto,Impact drill
 struttura.circuit.nome,Ricetta dei circuiti,Circuit recipe
+struttura.upgrade-drone-build.nome,Drone: costruzione,Drone: building
+struttura.upgrade-drone-hold.nome,Drone: stiva,Drone: hold
+struttura.upgrade-drone-range.nome,Drone: raggio,Drone: range
+struttura.upgrade-drone-mine.nome,Drone: scavo,Drone: mining
+struttura.drone-boost.nome,Drone potenziato,Boosted drone
+struttura.upgrade-miners-1.nome,Minatori I,Miners I
+struttura.upgrade-miners-2.nome,Minatori II,Miners II
+struttura.upgrade-machines-1.nome,Macchine I,Machines I
+struttura.upgrade-machines-2.nome,Macchine II,Machines II
+struttura.upgrade-storage-1.nome,Magazzino I,Storage I
+struttura.upgrade-storage-2.nome,Magazzino II,Storage II
 struttura.core-foundation.nome,CORE Fondazione,CORE Foundation
 struttura.core-nucleus.nome,CORE Nucleo,CORE Nucleus
 struttura.core-shard.nome,CORE Frammento,CORE Shard
@@ -164,6 +175,17 @@ struttura.separator.suggerimento,Separatore · un minerale a caso da 2 sabbia ·
 struttura.plasticizer.suggerimento,Plastificatore · plastica da 2 carbone · corrente 6 · 2×2 · sblocca in Ricerca,Plasticizer · plastic from 2 coal · power 6 · 2×2 · unlock in Research
 struttura.impact-drill.suggerimento,Trapano a impatto · {0} · fino a 4 pezzi al secondo · scava anche il titanio · corrente 30 · 3×3 · sblocca in Ricerca,Impact drill · {0} · up to 4 pieces per second · digs titanium too · power 30 · 3×3 · unlock in Research
 struttura.circuit.suggerimento,Ricetta dei circuiti · nell'assemblatore · filo di rame + silicio + lastra di piombo · sblocca in Ricerca,Circuit recipe · in the assembler · copper wire + silicon + lead plate · unlock in Research
+struttura.upgrade-drone-build.suggerimento,Drone: costruzione · potenziamento · il drone costruisce il 25% più in fretta · sblocca in Ricerca,Drone: building · upgrade · the drone builds 25% faster · unlock in Research
+struttura.upgrade-drone-hold.suggerimento,Drone: stiva · potenziamento · il drone porta il 50% di pezzi in più · sblocca in Ricerca,Drone: hold · upgrade · the drone carries 50% more pieces · unlock in Research
+struttura.upgrade-drone-range.suggerimento,Drone: raggio · potenziamento · il drone costruisce e scava 5 celle più lontano · sblocca in Ricerca,Drone: range · upgrade · the drone builds and digs 5 cells farther · unlock in Research
+struttura.upgrade-drone-mine.suggerimento,Drone: scavo · potenziamento · il drone scava a mano il 25% più in fretta · sblocca in Ricerca,Drone: mining · upgrade · the drone digs by hand 25% faster · unlock in Research
+struttura.drone-boost.suggerimento,Drone potenziato · potenziamento · costruzione +50% · stiva +100% · raggio +10 celle · scavo +50% · sblocca in Ricerca,Boosted drone · upgrade · building +50% · hold +100% · range +10 cells · mining +50% · unlock in Research
+struttura.upgrade-miners-1.suggerimento,Minatori I · potenziamento · tutti i minatori scavano il 10% più in fretta · sblocca in Ricerca,Miners I · upgrade · every miner digs 10% faster · unlock in Research
+struttura.upgrade-miners-2.suggerimento,Minatori II · potenziamento · tutti i minatori scavano il 20% più in fretta · sblocca in Ricerca,Miners II · upgrade · every miner digs 20% faster · unlock in Research
+struttura.upgrade-machines-1.suggerimento,"Macchine I · potenziamento · forno, fonderia avanzata e assemblatore +15% · sblocca in Ricerca","Machines I · upgrade · smelter, advanced smelter and assembler +15% · unlock in Research"
+struttura.upgrade-machines-2.suggerimento,"Macchine II · potenziamento · forno, fonderia avanzata e assemblatore +30% · sblocca in Ricerca","Machines II · upgrade · smelter, advanced smelter and assembler +30% · unlock in Research"
+struttura.upgrade-storage-1.suggerimento,Magazzino I · potenziamento · massimo per oggetto del CORE e dei depositi +25% · sblocca in Ricerca,Storage I · upgrade · maximum per item of the CORE and of storage +25% · unlock in Research
+struttura.upgrade-storage-2.suggerimento,Magazzino II · potenziamento · massimo per oggetto del CORE e dei depositi +50% · sblocca in Ricerca,Storage II · upgrade · maximum per item of the CORE and of storage +50% · unlock in Research
 struttura.core-foundation.suggerimento,CORE Fondazione · 4×4 · 4000 per oggetto · sblocca in Ricerca,CORE Foundation · 4×4 · 4000 per item · unlock in Research
 struttura.core-nucleus.suggerimento,CORE Nucleo · 5×5 · 12000 per oggetto · sblocca in Ricerca,CORE Nucleus · 5×5 · 12000 per item · unlock in Research
 struttura.scava,Scava: {0},Digs: {0}
@@ -512,6 +534,17 @@ struttura.separator.descrizione,"Separatore · separa 2 sabbia in un minerale a 
 struttura.plasticizer.descrizione,Plastificatore · fa 1 plastica da 2 carbone in 2 s · consuma 6 di corrente · senza corrente si ferma · 2×2,Plasticizer · makes 1 plastic from 2 coal in 2 s · uses 6 power · stops without power · 2×2
 struttura.impact-drill.descrizione,T3 · {0} · 4 pezzi al secondo a piena efficienza (il Minatore T2 senza corrente ne fa 1) · scava ogni giacimento (senza giacimento: sabbia dal pavimento di sabbia) · consuma 30 di corrente · senza corrente si ferma · 3×3 · uscita sui 12 lati,T3 · {0} · 4 pieces per second at full efficiency (an unpowered Miner T2 makes 1) · digs every deposit (without one: sand from sand floor) · uses 30 power · stops without power · 3×3 · output on all 12 sides
 struttura.circuit.descrizione,"Ricetta dei circuiti · niente da piazzare · l'assemblatore fa un circuito da filo di rame, silicio e lastra di piombo in 3 s","Circuit recipe · nothing to place · the assembler makes a circuit from copper wire, silicon and lead plate in 3 s"
+struttura.upgrade-drone-build.descrizione,Drone: costruzione · niente da piazzare · velocità di costruzione del drone +25% (Drone potenziato: +50%),Drone: building · nothing to place · drone build speed +25% (Boosted drone: +50%)
+struttura.upgrade-drone-hold.descrizione,"Drone: stiva · niente da piazzare · stiva del drone +50%, per difetto (Drone potenziato: +100%)","Drone: hold · nothing to place · drone hold +50%, rounded down (Boosted drone: +100%)"
+struttura.upgrade-drone-range.descrizione,Drone: raggio · niente da piazzare · raggio del drone +5 celle per costruire e scavare (Drone potenziato: +10 celle),Drone: range · nothing to place · drone range +5 cells for building and digging (Boosted drone: +10 cells)
+struttura.upgrade-drone-mine.descrizione,Drone: scavo · niente da piazzare · ritmo dello scavo a mano +25% (Drone potenziato: +50%),Drone: mining · nothing to place · hand-mining rate +25% (Boosted drone: +50%)
+struttura.drone-boost.descrizione,"Drone potenziato · niente da piazzare · il livello 2 dei quattro potenziamenti del drone insieme: costruzione +50%, stiva +100%, raggio +10 celle, scavo a mano +50% (al posto del livello 1)","Boosted drone · nothing to place · level 2 of the four drone upgrades together: building +50%, hold +100%, range +10 cells, hand mining +50% (instead of level 1)"
+struttura.upgrade-miners-1.descrizione,"Minatori I · niente da piazzare · Minatore T1, Minatore T2 e Trapano a impatto +10% di velocità","Miners I · nothing to place · Miner T1, Miner T2 and Impact drill +10% speed"
+struttura.upgrade-miners-2.descrizione,"Minatori II · niente da piazzare · Minatore T1, Minatore T2 e Trapano a impatto +20% di velocità (al posto del +10% di Minatori I)","Miners II · nothing to place · Miner T1, Miner T2 and Impact drill +20% speed (instead of the +10% of Miners I)"
+struttura.upgrade-machines-1.descrizione,"Macchine I · niente da piazzare · forno, fonderia avanzata e assemblatore lavorano il 15% più in fretta; pressa, separatore e plastificatore no","Machines I · nothing to place · smelter, advanced smelter and assembler work 15% faster; press, separator and plasticizer do not"
+struttura.upgrade-machines-2.descrizione,"Macchine II · niente da piazzare · forno, fonderia avanzata e assemblatore lavorano il 30% più in fretta (al posto del +15% di Macchine I)","Machines II · nothing to place · smelter, advanced smelter and assembler work 30% faster (instead of the +15% of Machines I)"
+struttura.upgrade-storage-1.descrizione,"Magazzino I · niente da piazzare · massimo per oggetto +25%, per difetto: il CORE con i depositi collegati (Frammento 1000 → 1250) e i contenitori e depositi a sé (300 → 375)","Storage I · nothing to place · maximum per item +25%, rounded down: the CORE with its linked storage (Shard 1000 → 1250) and standalone containers and vaults (300 → 375)"
+struttura.upgrade-storage-2.descrizione,"Magazzino II · niente da piazzare · massimo per oggetto +50%, per difetto, al posto del +25% di Magazzino I: il CORE con i depositi collegati (Frammento 1000 → 1500) e i contenitori e depositi a sé (300 → 450)","Storage II · nothing to place · maximum per item +50%, rounded down, instead of the +25% of Storage I: the CORE with its linked storage (Shard 1000 → 1500) and standalone containers and vaults (300 → 450)"
 struttura.core-foundation.descrizione,CORE Fondazione · 4×4 · 4000 per oggetto · vende 25 pezzi al secondo · drone beta,CORE Foundation · 4×4 · 4000 per item · sells 25 pieces per second · beta drone
 struttura.core-nucleus.descrizione,CORE Nucleo · 5×5 · 12000 per oggetto · vende 60 pezzi al secondo · drone gamma,CORE Nucleus · 5×5 · 12000 per item · sells 60 pieces per second · gamma drone
 tutorial.passo.1,"Il drone sei tu: muovilo con WASD, la visuale lo segue. Tieni premuto il tasto centrale e trascina per guardare lontano (al rilascio torna sul drone). Rotella = zoom · H torna sul drone.","You are the drone: move it with WASD, the view follows it. Hold the middle button and drag to look away (on release it goes back to the drone). Wheel = zoom · H goes back to the drone."

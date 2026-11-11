@@ -1,6 +1,10 @@
 namespace TIndustry.Shared;
 
-/// <summary>Fornos, assemblers then the other machines (<see cref="GameState.CraftMachines"/>), each with the satisfaction of its network when it asked for power this tick.</summary>
+/// <summary>
+/// Fornos, assemblers then the other machines (<see cref="GameState.CraftMachines"/>), each with the satisfaction of its
+/// network when it asked for power this tick; the forno, the advanced smelter and the assembler with the research's
+/// machine upgrade (<see cref="Crafter.BonusPercent"/>).
+/// </summary>
 public sealed class CraftingSystem : ISimulationSystem
 {
     public string Name => "Crafting";
@@ -9,8 +13,10 @@ public sealed class CraftingSystem : ISimulationSystem
     {
         // The game's seed draws the pieces of the random recipes (the separator); 0 without terrain.
         long seed = state.Terrain?.Seed ?? 0;
+        var bonus = Upgrades.MachinePercent(state.Research);
         foreach (var craft in state.CraftMachines())
         {
+            craft.BonusPercent = Upgrades.GetsMachineBonus(craft.DefinitionId) ? bonus : 0;
             var exclude = craft;
             craft.Tick(
                 ctx.Dt,

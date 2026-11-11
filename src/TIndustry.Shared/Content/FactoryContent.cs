@@ -171,6 +171,7 @@ public sealed class FactoryContent
         ValidateFuels(buildings, market, recipes);
         ValidateCrafters(buildings, recipes);
         ValidateRecipeResearch(recipes, structures);
+        ValidateUpgrades(structures, buildings, conveyors);
 
         return new FactoryContent
         {
@@ -228,6 +229,30 @@ public sealed class FactoryContent
 
     /// <summary>Kind of the research nodes that open a recipe (nothing to place).</summary>
     public const string RecipeKind = "recipe";
+
+    // The upgrade nodes (kind "upgrade", nothing to place) are the ones the simulation reads (Upgrades.NodeIds): an
+    // unknown id would cost money and do nothing, a known one under another kind would look like a block.
+    private static void ValidateUpgrades(
+        List<StructureDefinition> structures, List<BuildingDefinition> buildings, List<ConveyorDefinition> conveyors)
+    {
+        foreach (var structure in structures)
+        {
+            var upgrade = structure.Kind == Upgrades.Kind;
+            var known = Upgrades.NodeIds.Contains(structure.Id, StringComparer.Ordinal);
+            if (upgrade != known)
+            {
+                throw new InvalidDataException(upgrade
+                    ? $"content.json: structures '{structure.Id}': nessun potenziamento con questo id (kind '{Upgrades.Kind}')."
+                    : $"content.json: structures '{structure.Id}': un potenziamento deve avere kind '{Upgrades.Kind}'.");
+            }
+
+            if (upgrade && (buildings.Any(b => b.Id == structure.Id) || conveyors.Any(c => c.Id == structure.Id)))
+            {
+                throw new InvalidDataException(
+                    $"content.json: structures '{structure.Id}': un potenziamento non ha un blocco da piazzare.");
+            }
+        }
+    }
 
     // Power network blocks that are declared need their numbers: a node without range or links, a battery without
     // capacity or a generator without output would sit in a network doing nothing.

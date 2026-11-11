@@ -95,6 +95,13 @@ public sealed class Crafter
     public CraftPowerMode PowerMode { get; }
     /// <summary>Its speed in percent of the recipes' durations (100 = 1×), on top of the power mode.</summary>
     public int CraftSpeedPercent { get; }
+
+    /// <summary>
+    /// The research's machine upgrade on its speed, percent (<see cref="Upgrades.MachinePercent"/>; 0 for the machines out of
+    /// the group, <see cref="Upgrades.GetsMachineBonus"/>), set by <see cref="CraftingSystem"/> every tick. The speed is
+    /// multiplied by <c>(100 + BonusPercent) / 100f</c>: exactly 1 at 0.
+    /// </summary>
+    public int BonusPercent { get; internal set; }
     /// <summary>Coal-or-power gate (the forno): only these take coal as fuel.</summary>
     public bool UsesCoalOrPower => PowerMode == CraftPowerMode.CoalOrPower;
     public float Progress { get; private set; }
@@ -430,7 +437,7 @@ public sealed class Crafter
     /// One tick with <paramref name="powerBp"/> (0–10 000) of its power use, by <see cref="PowerMode"/>. Boost
     /// (assembler): always works, speed 1 + 0.2 × s. Coal or power (forno): speed 1.2 × s with power; with coal and
     /// 1.2 × s &lt; 1 it burns coal at speed 1; without either it stalls. Required: speed s, stalled at 0. None: speed 1.
-    /// Every speed is then × <see cref="CraftSpeedPercent"/> / 100. <paramref name="randomSeed"/> is the game's seed
+    /// Every speed is then × <see cref="CraftSpeedPercent"/> / 100 and × (100 + <see cref="BonusPercent"/>) / 100. <paramref name="randomSeed"/> is the game's seed
     /// (<see cref="TerrainMap.Seed"/>, 0 without terrain) for the recipes with a random output.
     /// </summary>
     public void Tick(
@@ -488,7 +495,7 @@ public sealed class Crafter
             {
                 IsWorking = true;
                 // × 1 exactly at 100%: the forno and the assembler keep their arithmetic.
-                AdvanceCraft(deltaSeconds * (speed * (CraftSpeedPercent / 100f)), randomSeed);
+                AdvanceCraft(deltaSeconds * (speed * (CraftSpeedPercent / 100f) * Upgrades.Factor(BonusPercent)), randomSeed);
             }
         }
 

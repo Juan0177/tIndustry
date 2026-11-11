@@ -7,7 +7,8 @@ namespace TIndustry.Shared;
 /// the tier digs: covered by the Core, a building, a belt or a site) is cancelled, target and progress cleared
 /// (Mindustry's <c>validMine</c>). While the drone is building (<see cref="BuilderUnit.CurrentSiteId"/>) mining
 /// pauses. With room in the hold for the ore (empty, or the same item below <see cref="UnitDefinition.HoldCapacity"/>)
-/// the progress gains the tier's <see cref="UnitDefinition.MineRateMilli"/> each tick and makes a piece at
+/// the progress gains the drone's <see cref="UnitDefinition.MineRateMilli"/> (the tier's unit with the research upgrades,
+/// <see cref="GameState.EffectiveUnit"/>; its hold and range likewise) each tick and makes a piece at
 /// <see cref="UnitDefinition.MineProgressPerPiece"/> (integers: 0.7 pieces/s is exactly 7 pieces in 600 ticks); a full
 /// hold (the Core full of that item too, when near it) waits, target and progress kept. The deposit is never consumed.</item>
 /// <item>Unloading: within <see cref="UnloadRange"/> cells of the Core (Euclidean distance from the drone's centre to the
@@ -30,7 +31,7 @@ public sealed class HandMiningSystem : ISimulationSystem
             return;
         }
 
-        var unit = state.Content.UnitForTier(state.CoreTier);
+        var unit = state.EffectiveUnit;
         Factory? factory = null;
         foreach (var builder in state.Builders)
         {
@@ -50,7 +51,7 @@ public sealed class HandMiningSystem : ISimulationSystem
     internal static RefusalCode? Refusal(Factory factory, BuilderUnit builder, GridPosition tile)
     {
         var state = factory.State;
-        var unit = state.Content.UnitForTier(state.CoreTier);
+        var unit = state.EffectiveUnit;
         if (Invalid(factory, builder, tile, unit) is { } invalid)
         {
             return invalid;

@@ -260,6 +260,31 @@ public sealed class GameState
     /// </summary>
     public GridPosition CoreStart { get; internal set; }
 
+    /// <summary>
+    /// The builder drone of the Core's tier with the research's drone upgrades (<see cref="Upgrades.Apply(UnitDefinition, IResearchView)"/>):
+    /// what every reader of the drone's numbers uses (build speed and range, hold, hand-mining rate). Without upgrades
+    /// it is the content's own unit; it follows the research and the tier from the moment they change.
+    /// </summary>
+    public UnitDefinition EffectiveUnit
+    {
+        get
+        {
+            var unit = Content.UnitForTier(CoreTier);
+            var key = (unit, Upgrades.DroneBuildPercent(Research), Upgrades.DroneHoldPercent(Research),
+                Upgrades.DroneRangeCells(Research), Upgrades.DroneMinePercent(Research));
+            if (effectiveUnit is not { } cached || !ReferenceEquals(cached.Key.Item1, unit) || cached.Key != key)
+            {
+                // Derived data only (nothing saved or hashed): kept to spare a new record per reader per tick.
+                cached = (key, Upgrades.Apply(unit, key.Item2, key.Item3, key.Item4, key.Item5));
+                effectiveUnit = cached;
+            }
+
+            return cached.Unit;
+        }
+    }
+
+    private ((UnitDefinition, int, int, int, int) Key, UnitDefinition Unit)? effectiveUnit;
+
     /// <summary>The Core's storage: the single entry point of items into the Core stock.</summary>
     public CoreStorage Storage { get; }
     public EconomyWallet Wallet { get; }

@@ -1065,7 +1065,7 @@
       "kind": "building",
       "unlockedByDefault": false,
       "unlock": {
-        "money": 910000,
+        "money": 180000,
         "materials": [
           {
             "itemId": "iron-plate",
@@ -1343,7 +1343,7 @@
       "displayName": "Plastificatore",
       "kind": "building",
       "unlockedByDefault": false,
-      "unlock": { "money": 360000, "materials": [ { "itemId": "silicon", "amount": 120 }, { "itemId": "graphite", "amount": 120 } ] },
+      "unlock": { "money": 240000, "materials": [ { "itemId": "silicon", "amount": 120 }, { "itemId": "graphite", "amount": 120 } ] },
       "isStub": false,
       "prerequisites": [ "graphite-press" ]
     },
@@ -1352,7 +1352,7 @@
       "displayName": "Ricetta dei circuiti",
       "kind": "recipe",
       "unlockedByDefault": false,
-      "unlock": { "money": 480000, "materials": [ { "itemId": "silicon", "amount": 160 }, { "itemId": "lead-plate", "amount": 160 } ] },
+      "unlock": { "money": 300000, "materials": [ { "itemId": "silicon", "amount": 160 }, { "itemId": "lead-plate", "amount": 160 } ] },
       "isStub": false,
       "prerequisites": [ "assembler" ]
     },
@@ -1361,9 +1361,108 @@
       "displayName": "Trapano a impatto",
       "kind": "building",
       "unlockedByDefault": false,
-      "unlock": { "money": 720000, "materials": [ { "itemId": "titanium-plate", "amount": 360 }, { "itemId": "silicon", "amount": 240 } ] },
+      "unlock": { "money": 180000, "materials": [ { "itemId": "titanium-plate", "amount": 360 }, { "itemId": "silicon", "amount": 240 } ] },
       "isStub": false,
       "prerequisites": [ "miner-advanced" ]
+    },
+    {
+      "id": "upgrade-drone-build",
+      "displayName": "Drone: costruzione",
+      "kind": "upgrade",
+      "unlockedByDefault": false,
+      "unlock": { "money": 1800, "materials": [ { "itemId": "iron-plate", "amount": 30 }, { "itemId": "copper-wire", "amount": 15 } ] },
+      "isStub": false,
+      "prerequisites": []
+    },
+    {
+      "id": "upgrade-drone-hold",
+      "displayName": "Drone: stiva",
+      "kind": "upgrade",
+      "unlockedByDefault": false,
+      "unlock": { "money": 1800, "materials": [ { "itemId": "iron-plate", "amount": 30 }, { "itemId": "copper-wire", "amount": 15 } ] },
+      "isStub": false,
+      "prerequisites": []
+    },
+    {
+      "id": "upgrade-drone-range",
+      "displayName": "Drone: raggio",
+      "kind": "upgrade",
+      "unlockedByDefault": false,
+      "unlock": { "money": 1800, "materials": [ { "itemId": "iron-plate", "amount": 30 }, { "itemId": "copper-wire", "amount": 15 } ] },
+      "isStub": false,
+      "prerequisites": []
+    },
+    {
+      "id": "upgrade-drone-mine",
+      "displayName": "Drone: scavo",
+      "kind": "upgrade",
+      "unlockedByDefault": false,
+      "unlock": { "money": 1800, "materials": [ { "itemId": "iron-plate", "amount": 30 }, { "itemId": "copper-wire", "amount": 15 } ] },
+      "isStub": false,
+      "prerequisites": []
+    },
+    {
+      "id": "drone-boost",
+      "displayName": "Drone potenziato",
+      "kind": "upgrade",
+      "unlockedByDefault": false,
+      "unlock": { "money": 3600, "materials": [ { "itemId": "titanium-plate", "amount": 240 }, { "itemId": "silicon", "amount": 240 } ] },
+      "isStub": false,
+      "prerequisites": [ "upgrade-drone-build", "upgrade-drone-hold", "upgrade-drone-range", "upgrade-drone-mine" ]
+    },
+    {
+      "id": "upgrade-miners-1",
+      "displayName": "Minatori I",
+      "kind": "upgrade",
+      "unlockedByDefault": false,
+      "unlock": { "money": 160000, "materials": [ { "itemId": "iron-plate", "amount": 120 }, { "itemId": "copper-wire", "amount": 30 } ] },
+      "isStub": false,
+      "prerequisites": [ "miner-advanced" ]
+    },
+    {
+      "id": "upgrade-miners-2",
+      "displayName": "Minatori II",
+      "kind": "upgrade",
+      "unlockedByDefault": false,
+      "unlock": { "money": 170000, "materials": [ { "itemId": "titanium-plate", "amount": 120 }, { "itemId": "copper-wire", "amount": 80 } ] },
+      "isStub": false,
+      "prerequisites": [ "upgrade-miners-1" ]
+    },
+    {
+      "id": "upgrade-machines-1",
+      "displayName": "Macchine I",
+      "kind": "upgrade",
+      "unlockedByDefault": false,
+      "unlock": { "money": 60000, "materials": [ { "itemId": "lead-plate", "amount": 120 }, { "itemId": "copper-wire", "amount": 80 } ] },
+      "isStub": false,
+      "prerequisites": [ "assembler" ]
+    },
+    {
+      "id": "upgrade-machines-2",
+      "displayName": "Macchine II",
+      "kind": "upgrade",
+      "unlockedByDefault": false,
+      "unlock": { "money": 380000, "materials": [ { "itemId": "titanium-plate", "amount": 360 }, { "itemId": "silicon", "amount": 180 } ] },
+      "isStub": false,
+      "prerequisites": [ "upgrade-machines-1", "smelter-advanced" ]
+    },
+    {
+      "id": "upgrade-storage-1",
+      "displayName": "Magazzino I",
+      "kind": "upgrade",
+      "unlockedByDefault": false,
+      "unlock": { "money": 120000, "materials": [ { "itemId": "lead-plate", "amount": 120 }, { "itemId": "titanium-plate", "amount": 40 } ] },
+      "isStub": false,
+      "prerequisites": [ "container" ]
+    },
+    {
+      "id": "upgrade-storage-2",
+      "displayName": "Magazzino II",
+      "kind": "upgrade",
+      "unlockedByDefault": false,
+      "unlock": { "money": 1500000, "materials": [ { "itemId": "titanium-plate", "amount": 360 }, { "itemId": "graphite", "amount": 180 } ] },
+      "isStub": false,
+      "prerequisites": [ "upgrade-storage-1", "vault" ]
     },
     {
       "id": "core-foundation",

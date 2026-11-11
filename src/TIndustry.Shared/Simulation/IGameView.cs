@@ -215,6 +215,12 @@ public interface IGameView
     /// <summary>Core tier (0 shard, 1 foundation, 2 nucleus), index in <see cref="FactoryContent.CoreTiers"/>.</summary>
     int CoreTier { get; }
 
+    /// <summary>
+    /// The builder drone of <see cref="CoreTier"/> with the research upgrades (<see cref="GameState.EffectiveUnit"/>):
+    /// its build range, hold and rates as the simulation uses them.
+    /// </summary>
+    UnitDefinition EffectiveUnit { get; }
+
     /// <summary>Maximum Core stock of <paramref name="itemId"/> (<see cref="CoreStorage.Capacity"/>).</summary>
     int CoreCapacity(string itemId);
 

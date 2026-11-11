@@ -474,8 +474,8 @@ def _numeri():
     with open(os.path.join(REPO, "data", "campaign.json"), encoding="utf-8") as fh:
         livelli = len(json.load(fh)["levels"])
     tier = sum(1 for s in c["structures"] if s["id"].startswith("conveyor-") and s["id"] != "conveyor-bridge")
-    # Finance modules are research nodes with nothing to place: not blocks.
-    blocchi = sum(1 for s in c["structures"] if s.get("kind") != "module")
+    # Finance modules and upgrades are research nodes with nothing to place: not blocks.
+    blocchi = sum(1 for s in c["structures"] if s.get("kind") not in ("module", "upgrade"))
     voci = ((blocchi, "blocchi"), (tier, "tier di nastri"), (len(c["recipes"]), "ricette"),
             (len(tr.MINERALI), "minerali"), (len(tr.BIOMI), "biomi"), (livelli, "livelli di campagna"))
     return (f'<ul class="numeri" style="{_at(192, 204, 600)}">'

@@ -168,10 +168,17 @@ public sealed record UnitDefinition(
     public IReadOnlyList<string> MineItems { get; init; } = [];
 
     /// <summary>
-    /// <see cref="MineRate"/> in thousandths of a piece per second: what one tick adds to the hand-mining progress, which
-    /// makes a piece at <see cref="MineProgressPerPiece"/> (0.7/s = 700 per tick, 42 000 per second: exact).
+    /// Percent of <see cref="MineRate"/> the unit mines at: 100 for the content's units, more with the research's
+    /// hand-mining upgrade (<see cref="Upgrades.Apply(UnitDefinition, IResearchView)"/>).
     /// </summary>
-    public long MineRateMilli => BuildingDefinition.MilliRate(MineRate);
+    public int MineRatePercent { get; init; } = 100;
+
+    /// <summary>
+    /// <see cref="MineRate"/> in thousandths of a piece per second: what one tick adds to the hand-mining progress, which
+    /// makes a piece at <see cref="MineProgressPerPiece"/> (0.7/s = 700 per tick, 42 000 per second: exact). With
+    /// <see cref="MineRatePercent"/> it is <c>milli × percent / 100</c> in integers, rounded down (700 → 875 → 1050).
+    /// </summary>
+    public long MineRateMilli => BuildingDefinition.MilliRate(MineRate) * MineRatePercent / 100;
 
     /// <summary>True when the unit mines <paramref name="itemId"/> by hand.</summary>
     public bool CanMine(string itemId)
@@ -190,7 +197,7 @@ public sealed record UnitDefinition(
     public bool Equals(UnitDefinition? other) =>
         other is not null
         && BuildSpeed.Equals(other.BuildSpeed) && BuildRange.Equals(other.BuildRange) && Speed.Equals(other.Speed)
-        && MineRate.Equals(other.MineRate) && HoldCapacity == other.HoldCapacity
+        && MineRate.Equals(other.MineRate) && HoldCapacity == other.HoldCapacity && MineRatePercent == other.MineRatePercent
         && MineItems.SequenceEqual(other.MineItems, StringComparer.Ordinal);
 
     public override int GetHashCode() => HashCode.Combine(BuildSpeed, BuildRange, Speed, MineRate, HoldCapacity, MineItems.Count);

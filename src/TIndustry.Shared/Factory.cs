@@ -107,6 +107,9 @@ public sealed class Factory : IGameView
         spec.Kind == BuildingKind.BridgeLong ? BridgeLongDefinition : BridgeDefinition;
     public IReadOnlySet<GridPosition> CoreTiles => State.CoreTiles;
     public int CoreTier => State.CoreTier;
+
+    /// <summary>The builder drone of the Core's tier with the research upgrades (<see cref="GameState.EffectiveUnit"/>).</summary>
+    public UnitDefinition EffectiveUnit => State.EffectiveUnit;
     public int CoreCapacity(string itemId) => State.Storage.Capacity(itemId);
     public EconomyWallet Wallet => State.Wallet;
     public ResearchState Research => State.Research;
@@ -799,13 +802,14 @@ public sealed class Factory : IGameView
 
     /// <summary>
     /// True when <paramref name="plan"/> is within <paramref name="builder"/>'s build range (the unit of the Core's
-    /// tier): the distance from the drone's centre to <see cref="PlanWorkCentre"/> is at most its <c>BuildRange</c>.
+    /// tier with the research upgrades, <see cref="GameState.EffectiveUnit"/>): the distance from the drone's centre to
+    /// <see cref="PlanWorkCentre"/> is at most its <c>BuildRange</c>.
     /// </summary>
     public bool IsPlanInRange(BuilderUnit builder, BuildPlan plan)
     {
         ArgumentNullException.ThrowIfNull(builder);
         var (x, y) = PlanWorkCentre(plan);
-        return BuilderSystem.Distance(builder, x, y) <= Content.UnitForTier(State.CoreTier).BuildRange;
+        return BuilderSystem.Distance(builder, x, y) <= State.EffectiveUnit.BuildRange;
     }
 
     /// <summary>
@@ -825,7 +829,7 @@ public sealed class Factory : IGameView
     public bool IsMiningNow(BuilderUnit builder)
     {
         ArgumentNullException.ThrowIfNull(builder);
-        var unit = Content.UnitForTier(State.CoreTier);
+        var unit = State.EffectiveUnit;
         return builder.MiningTile is { } tile && builder.CurrentSiteId is null && builder.HoldCount < unit.HoldCapacity
             && HandMiningSystem.InRange(builder, tile, unit.BuildRange);
     }
@@ -1501,11 +1505,13 @@ public sealed class Factory : IGameView
                 MiningTile = b.MiningTile is { } mining ? new GridPosition(mining.X, mining.Y) : null,
                 MiningProgress = Math.Clamp(b.MiningProgress, 0, UnitDefinition.MineProgressPerPiece - 1)
             };
-            if (b.HoldCount > 0 && content.IsKnownItem(b.HoldItemId) && content.UnitForTier(data.CoreTier).HoldCapacity > 0)
+            // The research and the tier are restored above: the hold of a save with the hold upgrade is not cut.
+            var hold = factory.State.EffectiveUnit.HoldCapacity;
+            if (b.HoldCount > 0 && content.IsKnownItem(b.HoldItemId) && hold > 0)
             {
                 // Never more than the hold of the Core's tier: a hand-edited save cannot create items out of nothing.
                 builder.HoldItemId = b.HoldItemId;
-                builder.HoldCount = Math.Min(b.HoldCount, content.UnitForTier(data.CoreTier).HoldCapacity);
+                builder.HoldCount = Math.Min(b.HoldCount, hold);
             }
 
             builder.PlanQueue.AddRange(b.Plans.Select(p => new BuildPlan(RestoreSpec(p.Spec), p.Breaking)));
@@ -4041,13 +4047,16 @@ public sealed class Factory : IGameView
         return true;
     }
 
-    /// <summary>A storage block of <paramref name="kind"/> with the capacity of its structure in the content.</summary>
+    /// <summary>
+    /// A storage block of <paramref name="kind"/> with the capacity of its structure in the content and the game's research
+    /// (its storage upgrade raises the standalone capacity).
+    /// </summary>
     private StorageBlock NewStorage(BuildingKind kind, GridPosition origin, long id)
     {
         var structureId = BuildSpec.StructureIdFor(kind)!;
         var capacity = Content.FindStructure(structureId)?.ItemCapacity
             ?? throw new InvalidDataException($"content.json: struttura {structureId} mancante.");
-        return new StorageBlock(id, kind, origin, StorageBlock.SizeOf(kind), capacity);
+        return new StorageBlock(id, kind, origin, StorageBlock.SizeOf(kind), capacity, Research);
     }
 
     /// <summary>

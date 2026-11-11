@@ -43,6 +43,10 @@ CELLE = {
     "container": 2, "vault": 3, "core-shard": 3, "core-foundation": 4, "core-nucleus": 5, "market-screen": 2,
     # Finance modules: research nodes only, their sprite is the one-cell Research icon.
     "finance-forecast": 1, "finance-percent": 1, "finance-odds": 1,
+    # Upgrades (Ricerca allargata, plan 3): research nodes only, their sprite is the one-cell Research icon.
+    "upgrade-drone-build": 1, "upgrade-drone-hold": 1, "upgrade-drone-range": 1, "upgrade-drone-mine": 1,
+    "drone-boost": 1, "upgrade-miners-1": 1, "upgrade-miners-2": 1, "upgrade-machines-1": 1, "upgrade-machines-2": 1,
+    "upgrade-storage-1": 1, "upgrade-storage-2": 1,
 }
 # Core tiers of the game (FactoryContent.CoreTiers): sprite name -> side in cells. Each has its body
 # and its nucleus light strip; the client draws the Core from the tier.

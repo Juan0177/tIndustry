@@ -23,7 +23,7 @@ public sealed class BuilderSystem : ISimulationSystem
         }
 
         Factory? factory = null;
-        var unit = state.Content.UnitForTier(state.CoreTier);
+        var unit = state.EffectiveUnit;
         foreach (var builder in state.Builders)
         {
             Move(state, builder, unit.Speed * ctx.Dt);

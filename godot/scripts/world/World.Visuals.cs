@@ -813,7 +813,7 @@ public partial class World
             stored,
             capacity);
         var drone = LocalDrone;
-        _hud.UpdateHold(drone?.HoldItemId, drone?.HoldCount ?? 0, _view.Content.UnitForTier(_view.CoreTier).HoldCapacity);
+        _hud.UpdateHold(drone?.HoldItemId, drone?.HoldCount ?? 0, _view.EffectiveUnit.HoldCapacity);
         SyncWorldTime();
         _hud.SetDirectionLabel(_placeDir);
         _hud.SyncBuildQueue(_view);

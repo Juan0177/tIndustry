@@ -70,7 +70,7 @@ public partial class World
             return;
         }
 
-        var radius = _view!.Content.UnitForTier(_view.CoreTier).BuildRange * TileSize;
+        var radius = _view!.EffectiveUnit.BuildRange * TileSize;
         canvas.DrawCircle(centre, radius, UiColors.RaggioDrone with { A = 0.04f });
         var under = UiColors.SottoSegno;
         for (var i = 0; i < DroneRangeSegments; i += 2)

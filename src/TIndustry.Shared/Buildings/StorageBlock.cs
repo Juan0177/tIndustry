@@ -2,9 +2,9 @@ namespace TIndustry.Shared;
 
 /// <summary>
 /// Container or vault: a square storage block. Linked (touching the Core edge to edge) it has no contents of its own
-/// and adds <see cref="Capacity"/> to every item's maximum in the Core (<see cref="CoreStorage.RecomputeLinks"/>);
-/// standalone it keeps up to <see cref="Capacity"/> pieces of each item. Contents are kept by ordinal item id, so
-/// every pass over them is deterministic; counts are integers.
+/// and adds <see cref="BaseCapacity"/> to every item's maximum in the Core (<see cref="CoreStorage.RecomputeLinks"/>,
+/// which applies the storage upgrade to the whole); standalone it keeps up to <see cref="Capacity"/> pieces of each
+/// item. Contents are kept by ordinal item id, so every pass over them is deterministic; counts are integers.
 /// </summary>
 public sealed class StorageBlock
 {
@@ -21,7 +21,8 @@ public sealed class StorageBlock
         _ => 0
     };
 
-    public StorageBlock(long id, BuildingKind kind, GridPosition origin, int size, int capacity)
+    /// <param name="research">The game's research, for the storage upgrade (<see cref="Upgrades.StoragePercent"/>); null = none.</param>
+    public StorageBlock(long id, BuildingKind kind, GridPosition origin, int size, int capacity, IResearchView? research = null)
     {
         if (size < 1)
         {
@@ -32,8 +33,11 @@ public sealed class StorageBlock
         Kind = kind;
         Origin = origin;
         Size = size;
-        Capacity = Math.Max(0, capacity);
+        BaseCapacity = Math.Max(0, capacity);
+        this.research = research;
     }
+
+    private readonly IResearchView? research;
 
     /// <summary>Stable entity id assigned by <see cref="Factory"/> at creation (saved).</summary>
     public long Id { get; }
@@ -47,8 +51,14 @@ public sealed class StorageBlock
     /// <summary>Edge of the square footprint.</summary>
     public int Size { get; }
 
-    /// <summary>Pieces per item: its own space when standalone, the space it adds to the Core when linked.</summary>
-    public int Capacity { get; }
+    /// <summary>Pieces per item of its structure in the content (<c>itemCapacity</c>): what it adds to the Core when linked.</summary>
+    public int BaseCapacity { get; }
+
+    /// <summary>
+    /// Pieces per item it keeps when standalone: <see cref="BaseCapacity"/> with the research's storage upgrade
+    /// (<see cref="Upgrades.Scale(int, int)"/>, rounded down: 300 → 375 → 450). Read when asked, so it follows the research.
+    /// </summary>
+    public int Capacity => research is null ? BaseCapacity : Upgrades.Scale(BaseCapacity, Upgrades.StoragePercent(research));
 
     /// <summary>True when the block touches the Core (set by <see cref="CoreStorage.RecomputeLinks"/>).</summary>
     public bool IsLinked { get; internal set; }

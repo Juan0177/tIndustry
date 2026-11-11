@@ -105,6 +105,12 @@ public sealed class Miner
 
     public float MiningSpeed => SpeedOf(DefinitionId);
 
+    /// <summary>
+    /// Percent of its speed the miner digs at: 100, plus the research's miner upgrade (<see cref="Upgrades.MinerPercent"/>),
+    /// set by <see cref="MiningSystem"/> every tick. The speed is multiplied by <c>RatePercent / 100f</c>: exactly 1 at 100.
+    /// </summary>
+    public int RatePercent { get; internal set; } = 100;
+
     /// <summary>The T2 and the drill are power blocks; the T1 is not.</summary>
     public bool CanReceivePower => DefinitionId is AdvancedId or ImpactDrillId;
 
@@ -248,7 +254,7 @@ public sealed class Miner
 
         Progress = Math.Min(
             1f,
-            Progress + deltaSeconds * Efficiency * MiningSpeed * powerMul / MiningDurationSeconds);
+            Progress + deltaSeconds * Efficiency * MiningSpeed * (RatePercent / 100f) * powerMul / MiningDurationSeconds);
         return Progress >= 1f;
     }
 

@@ -127,7 +127,7 @@ public partial class World
 
         DeselectBlock(toast: false);
         var home = new GridPosition((int)MathF.Floor(start.X), (int)MathF.Floor(start.Y));
-        var unit = _view.Content.UnitForTier(_view.CoreTier);
+        var unit = _view.EffectiveUnit;
 
         // A belt plan 35 cells from the drone (range 27.5): it waits, drawn out of range.
         GridPosition? far = null;
