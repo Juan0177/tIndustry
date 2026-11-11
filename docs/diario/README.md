@@ -35,3 +35,4 @@ I collegamenti a specifiche e piani sono link relativi Markdown, validi sia in O
 - [2026-11-04 — Schermo di borsa, moduli della Finanza e bilanciamento (specifica 2a)](2026-11-04-schermo-borsa.md)
 - [2026-11-04 — Sequenza del tentativo di jackpot (specifica 2b)](2026-11-04-sequenza-jackpot.md)
 - [2026-11-11 — Ricerca allargata, piano 1: oggetti, ricette e macchine](2026-11-11-ricerca-allargata-1.md)
+- [2026-11-11 — Ricerca allargata, piano 2: logistica ed energia](2026-11-11-ricerca-allargata-2.md)

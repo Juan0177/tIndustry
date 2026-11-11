@@ -9,7 +9,7 @@
 ## A che punto siamo
 
 <!-- barra-stato:inizio -->
-<img src="https://raw.githubusercontent.com/Juan0177/tIndustry/main/docs/img/stato/totale.svg" alt="Avanzamento del gioco: 70%, 60 passi fatti su 86" width="100%">
+<img src="https://raw.githubusercontent.com/Juan0177/tIndustry/main/docs/img/stato/totale.svg" alt="Avanzamento del gioco: 71%, 61 passi fatti su 86" width="100%">
 
 | # | Aspetto | Avanzamento | % |
 | --- | --- | --- | --- |
@@ -20,7 +20,7 @@
 | 5 | [Energia](Energia) | <img src="https://raw.githubusercontent.com/Juan0177/tIndustry/main/docs/img/stato/5.svg" alt="100%" width="160"> | 100% (5/5) |
 | 6 | [Mercato ed economia](Mercato-come-una-borsa) | <img src="https://raw.githubusercontent.com/Juan0177/tIndustry/main/docs/img/stato/6.svg" alt="100%" width="160"> | 100% (7/7) |
 | 7 | [Mappe e terreno](Mappe-e-terreno) | <img src="https://raw.githubusercontent.com/Juan0177/tIndustry/main/docs/img/stato/7.svg" alt="33%" width="160"> | 33% (2/6) |
-| 8 | [Campagna](Campagna-e-mappe) | <img src="https://raw.githubusercontent.com/Juan0177/tIndustry/main/docs/img/stato/8.svg" alt="50%" width="160"> | 50% (4/8) |
+| 8 | [Campagna](Campagna-e-mappe) | <img src="https://raw.githubusercontent.com/Juan0177/tIndustry/main/docs/img/stato/8.svg" alt="63%" width="160"> | 63% (5/8) |
 | 9 | [Grafica ed effetti](Arte-generata) | <img src="https://raw.githubusercontent.com/Juan0177/tIndustry/main/docs/img/stato/9.svg" alt="67%" width="160"> | 67% (2/3) |
 | 10 | [Interfaccia](Interfaccia-e-lingue) | <img src="https://raw.githubusercontent.com/Juan0177/tIndustry/main/docs/img/stato/10.svg" alt="80%" width="160"> | 80% (4/5) |
 | 11 | [Drone e tier](https://github.com/Juan0177/tIndustry#stato-e-roadmap) | <img src="https://raw.githubusercontent.com/Juan0177/tIndustry/main/docs/img/stato/11.svg" alt="100%" width="160"> | 100% (4/4) |
@@ -45,8 +45,8 @@ Per chi vuole imparare il gioco: comandi, blocchi, ricette, numeri.
 | [Comandi](Comandi) | Mouse e tastiera |
 | [Risorse e oggetti](Risorse-e-oggetti) | Minerali, oggetti e ricette |
 | [Produzione](Produzione) | Minatori, forni, assemblatori, estrattori |
-| [Logistica](Logistica) | Nastri, ponti, incroci, router, selezionatore |
-| [Energia](Energia) | Generatori, nodi, lampade |
+| [Logistica](Logistica) | Nastri (anche a pacchi), ponti, incroci, router, selezionatore, gate |
+| [Energia](Energia) | Generatori, pannelli solari, nodi, batterie, lampade |
 | [Costruzione](Costruzione) | Piani, drone e cantieri |
 | [Economia e Ricerca](Economia-e-Ricerca) | Core, Mercato, albero della Ricerca |
 | [Campagna e mappe](Campagna-e-mappe) | Livelli, biomi, partita libera |

@@ -118,6 +118,8 @@ Sbloccare costa **soldi e materiali**, presi dal CORE; poi il blocco compare nel
 | Nastro T1 (`conveyor-basic`) | Logistica | — | iniziale |
 | Incrocio (`junction`) | Logistica | Nastro T1 | $6.900, 26 Ferro grezzo |
 | Router (`router`) | Logistica | Incrocio | $9.700, 26 Ferro grezzo |
+| Overflow gate (`overflow-gate`) | Logistica | Router | $11.000, 12 Lastre di piombo, 6 Fili di rame |
+| Underflow gate (`underflow-gate`) | Logistica | Overflow gate | $15.000, 12 Lastre di piombo, 6 Fili di rame |
 | Selezionatore (`sorter`) | Logistica | Incrocio | $73.000, 30 Ferro grezzo, 30 Piombo grezzo |
 | Selezionatore invertito (`sorter-inverted`) | Logistica | Selezionatore | $73.000, 30 Ferro grezzo, 30 Piombo grezzo |
 | Nastro ponte (`conveyor-bridge`) | Logistica | Incrocio | $91.000, 63 Ferro grezzo, 63 Piombo grezzo |
@@ -159,7 +161,7 @@ La **Ricetta dei circuiti** è un nodo di tipo ricetta: non dà un blocco da pia
 
 ### Quanto costa tutto: circa 6 ore
 
-I costi di sblocco non si scelgono a mano: li calcola il foglio «Bilanciamento» di `tools/dev/genera_finanza.py`, che li scrive in `data/content.json` (`--scrivi-costi`) e controlla che siano ancora quelli (`--controlla`). L'idea è che sbloccare **tutta la Ricerca** (in tutto **$25.395.700**) richieda **circa 6 ore** di partita ben giocata senza jackpot, vendendo il prodotto migliore di ogni fase e non il ferro grezzo. Il foglio dà **6,38 ore** senza jackpot, 5,92 con un jackpot e 5,71 con due. I sei nodi della Ricerca allargata (piano 1) hanno alzato il conto da 5,86 ore: il riequilibrio vero è del piano 3 (potenziamenti, premi e bilanciamento).
+I costi di sblocco non si scelgono a mano: li calcola il foglio «Bilanciamento» di `tools/dev/genera_finanza.py`, che li scrive in `data/content.json` (`--scrivi-costi`) e controlla che siano ancora quelli (`--controlla`). L'idea è che sbloccare **tutta la Ricerca** (in tutto **$26.737.500**) richieda **circa 6 ore** di partita ben giocata senza jackpot, vendendo il prodotto migliore di ogni fase e non il ferro grezzo. Il foglio dà **6,50 ore** senza jackpot, 6,03 con un jackpot e 5,69 con due. I quattordici nodi della Ricerca allargata hanno alzato il conto da 5,86 ore: i sei del piano 1 (macchine e ricetta dei circuiti) a 6,38, gli otto del piano 2 (logistica ed energia) a 6,50, il tetto messo per ora. Per restarci sotto il piano 2 ha accorciato due nodi della fase Avanzata, il Nastro T3 da 25 a 22 minuti ($1.500.000 → $1.300.000) e il Deposito da 24 a 23 ($1.500.000 → $1.400.000). Il riequilibrio vero è del piano 3 (potenziamenti, premi e bilanciamento).
 
 | Fase | Orario | Prodotti venduti (al secondo) | Incasso a B |
 |---|---|---|---|
@@ -168,12 +170,12 @@ I costi di sblocco non si scelgono a mano: li calcola il foglio «Bilanciamento�
 | Avanzata | 2–4 h | 12 Lastre di titanio, 12 Silicio | $1.008/s |
 | Fine | 4–6 h | 36 Lastre di titanio, 35 Silicio | $2.992/s |
 
-Il costo in soldi di un nodo è l'incasso della sua fase per i minuti di lavoro che gli dà il foglio, arrotondato a due cifre; i materiali sono quelli di prima moltiplicati per la fase (×2, ×3, ×4, ×6), così una fase non si salta vendendo. I nodi: **Inizio** estrattore, forno, incrocio, router, generatore, Nodo T1, lampada; **Metà** assemblatore, pressa grande, selezionatori, ponte, Nastro T2, batteria, contenitore, Minatore T2, schermo di borsa; **Avanzata** Nodo T2, fonderia avanzata, separatore, plastificatore, ricetta dei circuiti, deposito, nastri rinforzato e T3, CORE foundation, previsione, percentuale; **Fine** trapano a impatto, CORE nucleus, probabilità.
+Il costo in soldi di un nodo è l'incasso della sua fase per i minuti di lavoro che gli dà il foglio, arrotondato a due cifre; i materiali sono quelli di prima moltiplicati per la fase (×2, ×3, ×4, ×6), così una fase non si salta vendendo. I nodi: **Inizio** estrattore, forno, incrocio, router, generatore, Nodo T1, lampada; **Metà** assemblatore, pressa grande, selezionatori, overflow e underflow gate, ponte, Nastro T2, batteria, pannello solare, generatore a combustione, contenitore, Minatore T2, schermo di borsa; **Avanzata** ponte lungo, pannello solare grande, batteria grande, Nodo T2, fonderia avanzata, separatore, plastificatore, ricetta dei circuiti, deposito, nastri rinforzato e T3, CORE foundation, previsione, percentuale; **Fine** trapano a impatto, nastro a pacchi, CORE nucleus, probabilità.
 
 Due conti a parte:
 
 - Il **jackpot** sul testa o croce di 10.000 Lastre di titanio alla soglia del picco vale **$5.500.000** (la stessa vendita a B ne darebbe 520.000): quasi un CORE nucleus.
-- Le fasi non partono sempre all'orario: una fase comincia solo quando la Ricerca di quelle prima è tutta comprata. Senza jackpot la Ricerca dell'Avanzata finisce verso **5 h 18 min**, e lì parte la fase Fine. Con le fasi all'orario in 6 ore si incasserebbero $30.524.400; nella partita del foglio si incassa un po' meno.
+- Le fasi non partono sempre all'orario: una fase comincia solo quando la Ricerca di quelle prima è tutta comprata. Senza jackpot la Ricerca dell'Avanzata finisce verso **5 h 16 min**, e lì parte la fase Fine. Con le fasi all'orario in 6 ore si incasserebbero $30.524.400; nella partita del foglio si incassa un po' meno.
 
 Costi di costruzione dei blocchi: invariati. Il foglio ha già una riga «Difesa (aspetto 13)», oggi a zero, per la spesa di torrette e difese quando arriveranno.
 

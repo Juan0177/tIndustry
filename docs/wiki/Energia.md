@@ -53,7 +53,7 @@ Un generatore è **acceso** finché ha carbone da bruciare: il rotore gira e, di
 | Consumo | 1 Carbone ogni 2 secondi oppure 1 Grafite ogni 4 secondi |
 | Produzione | **90 unità al secondo** mentre brucia |
 
-Brucia sempre **prima il carbone**: la grafite solo quando di carbone non ne ha. La scorta tiene 8 pezzi fra carbone e grafite insieme. In `data/content.json` ogni generatore elenca i suoi combustibili (`fuels`: oggetto e secondi per pezzo, il primo bruciato per primo); il Generatore ha solo il carbone da 8 secondi.
+Brucia sempre **prima il carbone**: la grafite solo quando di carbone non ne ha. La scorta tiene 8 pezzi fra carbone e grafite insieme. In `data/content.json` ogni generatore elenca i suoi combustibili (`fuels`: oggetto e secondi per pezzo, il primo bruciato per primo); il Generatore ha solo il carbone da 8 secondi. Nel mondo il focolare del generatore a combustione si accende solo mentre brucia e di notte fa una luce arancione; il pannello del blocco e la Ricerca dicono combustibili, tempi e produzione.
 
 ## Pannelli solari
 
@@ -64,7 +64,7 @@ Brucia sempre **prima il carbone**: la grafite solo quando di carbone non ne ha.
 | Sblocco | $9.100, 18 Fili di rame, 12 Silicio (dopo il Nodo T1) | $12.000, 120 Lastre di piombo, 100 Silicio, 40 Lastre di titanio (dopo il Pannello solare) |
 | Produzione | **3 unità al secondo** in pieno giorno | **36 unità al secondo** in pieno giorno |
 
-I pannelli non bruciano niente: producono la loro corrente per la **luce del mondo** (da 0 a 1000: il ciclo del tempo è in [Campagna e mappe](Campagna-e-mappe#partita-libera)), in millesimi interi arrotondati per difetto: `produzione × luce / 1000`. Di giorno tutta, di notte niente, al tramonto e all'alba in proporzione (a metà tramonto 1,5 il pannello piccolo, 18 il grande). Prima del primo blocco è giorno; con «Solo giorno (Pacifica)» producono sempre tutto, con «Solo notte» mai. Si collegano come il generatore, per contatto o col laser di un nodo, e caricano le batterie della loro rete.
+I pannelli non bruciano niente: producono la loro corrente per la **luce del mondo** (da 0 a 1000: il ciclo del tempo è in [Campagna e mappe](Campagna-e-mappe#partita-libera)), in millesimi interi arrotondati per difetto: `produzione × luce / 1000`. Di giorno tutta, di notte niente, al tramonto e all'alba in proporzione (a metà tramonto 1,5 il pannello piccolo, 18 il grande). Prima del primo blocco è giorno; con «Solo giorno (Pacifica)» producono sempre tutto, con «Solo notte» mai. Si collegano come il generatore, per contatto o col laser di un nodo, e caricano le batterie della loro rete. Nel mondo un pannello si scurisce quanto meno produce: di notte è spento.
 
 ## La rete
 

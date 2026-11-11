@@ -60,9 +60,9 @@ Con un blocco scelto, il clic sinistro piazza. Il drone costruisce solo i piani 
 | `Ctrl` durante il trascinamento (nastri) | Segue la catena di nastri esistente o fa un percorso a scalini attorno agli ostacoli |
 | `Esc` o destro durante il trascinamento | Annulla la linea (il blocco resta in mano) |
 
-Sono orientabili: nastri, ponte, assemblatore. Incrocio, router, selezionatori ed estrattore non hanno direzione: `R` e la rotellina non li girano. Il filtro non si sceglie con un tasto ma col clic sul blocco già piazzato, senza blocco in mano.
+Sono orientabili: nastri (anche a pacchi), ponti, assemblatore. Incrocio, router, selezionatori, gate ed estrattore non hanno direzione: `R` e la rotellina non li girano. Il filtro non si sceglie con un tasto ma col clic sul blocco già piazzato, senza blocco in mano.
 
-**Come si comporta il trascinamento.** Nastri, incroci, router e selezionatori fanno una retta lungo l'asse più lungo fra orizzontale e verticale; ogni altro blocco è uno solo, sull'ancora, girato verso il cursore. Ogni nastro guarda il successivo; l'ultimo prende la direzione del nastro su cui finisce e, accanto al CORE, guarda il CORE. Le sagome rosse sono celle rifiutate: non partono. Anche un pannello che si apre, la finestra che perde il fuoco o un rilascio fuori dalla finestra annullano la linea senza piazzare nulla.
+**Come si comporta il trascinamento.** Nastri (anche a pacchi), incroci, router, selezionatori e gate fanno una retta lungo l'asse più lungo fra orizzontale e verticale; ogni altro blocco è uno solo, sull'ancora, girato verso il cursore. Ogni nastro guarda il successivo; l'ultimo prende la direzione del nastro su cui finisce e, accanto al CORE, guarda il CORE. Le sagome rosse sono celle rifiutate: non partono. Anche un pannello che si apre, la finestra che perde il fuoco o un rilascio fuori dalla finestra annullano la linea senza piazzare nulla.
 
 ## Smontare e annullare
 
