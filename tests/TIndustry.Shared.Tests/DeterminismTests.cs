@@ -786,4 +786,38 @@ public sealed class DeterminismTests
 
         return factory;
     }
+
+    /// <summary>
+    /// The eight blocks of the second plan over ten minutes of play (the whole day, into dusk and night): two identical runs
+    /// end on the same checksum, and a game saved and loaded half-way goes on exactly like one that never saved.
+    /// </summary>
+    [Fact]
+    public void PlanTwoBlocksStayDeterministicOverTenMinutesAcrossDayAndNight()
+    {
+        var content = LoadContent();
+        const long total = 37_200; // 10 minutes of day (36 000 ticks) and into the first night
+        var first = PlanTwoScenario.Build(content);
+        PlanTwoScenario.RunTo(first, total);
+        var second = PlanTwoScenario.Build(content);
+        PlanTwoScenario.RunTo(second, total);
+
+        // The light really changed: the panels worked by day and stopped at night.
+        Assert.Equal(DayNightPhase.Night, DayNightClock.PhaseAt(DayNightMode.Cycle, first.FirstBuildTick ?? 0, total));
+        Assert.Equal(0, DayNightClock.LightAt(DayNightMode.Cycle, first.FirstBuildTick ?? 0, total));
+        Assert.Contains(first.Belts.Cells.Values, c => c.Definition.Id == "conveyor-stack");
+        Assert.True(first.Generators.Single(g => g.DefinitionId == "combustion-generator").FuelConsumed > 0);
+        Assert.True(first.Batteries.Sum(b => b.Charge) > 0);
+        Assert.True(first.CoreDeliveredItems > 0, "the stack line must deliver into the Core");
+        var expected = Snapshot.Checksum(Snapshot.Write(first.State));
+        Assert.Equal(expected, Snapshot.Checksum(Snapshot.Write(second.State)));
+
+        foreach (var saveAt in new long[] { 18_001, 35_500 })
+        {
+            var run = PlanTwoScenario.Build(content);
+            PlanTwoScenario.RunTo(run, saveAt);
+            var loaded = Factory.Restore(content, run.Capture());
+            PlanTwoScenario.RunTo(loaded, total);
+            Assert.True(expected == Snapshot.Checksum(Snapshot.Write(loaded.State)), $"saved at tick {saveAt}");
+        }
+    }
 }

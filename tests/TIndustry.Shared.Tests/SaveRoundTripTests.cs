@@ -703,4 +703,39 @@ public sealed class SaveRoundTripTests
         Assert.Contains(current, json);
         File.WriteAllText(path, json.Replace(current, $"\"version\": {version}"));
     }
+
+    [Fact]
+    public void AllEightPlanTwoBlocksRoundTripAndGoOnTheSame()
+    {
+        var content = LoadContent();
+        var factory = PlanTwoScenario.Build(content);
+        // Tick 808: a pack in transit and one being formed at once, an item on the powered long bridge.
+        PlanTwoScenario.RunTo(factory, 808);
+
+        var data = factory.Capture();
+        // Every block has live state now: this is what the round trip has to keep.
+        Assert.Contains(data.Belts, b => b.DefinitionId == "overflow-gate" && b.SorterTurns is > 0);
+        Assert.Contains(data.Belts, b => b.DefinitionId == "underflow-gate" && b.SorterTurns is > 0);
+        Assert.Contains(data.Belts, b => b.DefinitionId == "conveyor-stack" && b.StackWaitTicks is > 0);
+        Assert.Contains(data.Belts, b => b.DefinitionId == "conveyor-stack" && b.X > 53 && b.Items!.Count > 0);
+        Assert.Contains(data.Belts, b => b.DefinitionId == "bridge-long" && b.Items!.Count > 0);
+        Assert.Contains(data.Belts, b => b.DefinitionId == "bridge-long" && b.PowerSatisfactionBp is > 0);
+        Assert.Equal(2, data.SolarPanels!.Count);
+        var generator = Assert.Single(data.Generators, g => g.DefinitionId == "combustion-generator");
+        Assert.Contains(generator.Fuels!, f => f.ItemId == "coal" && f.Count > 0);
+        Assert.Contains(generator.Fuels!, f => f.ItemId == "graphite" && f.Count > 0);
+        Assert.Equal(2, data.Batteries!.Count);
+        Assert.All(data.Batteries, b => Assert.True(b.Charge > 0));
+
+        FactorySaveStore.Save("v22-piano-2", new SimHost(factory));
+        Assert.True(FactorySaveStore.TryLoad(content, "v22-piano-2", out var host, out _));
+        var loaded = (Factory)host!.State;
+        Assert.Equal(Checksum(factory), Checksum(loaded));
+
+        PlanTwoScenario.RunTo(factory, 1408);
+        PlanTwoScenario.RunTo(loaded, 1408);
+        Assert.Equal(Checksum(factory), Checksum(loaded));
+    }
+
+    private static ulong Checksum(Factory factory) => Snapshot.Checksum(Snapshot.Write(factory.State));
 }

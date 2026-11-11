@@ -28,8 +28,9 @@ public sealed class BridgePower
     public bool PowerRequested { get; internal set; }
 
     /// <summary>
-    /// Share of its power use the bridge got in the last balance, 0–10 000 basis points (not saved: the next tick sets it;
-    /// a loaded game waits one balance, the same for every copy).
+    /// Share of its power use the bridge got in the last balance, 0–10 000 basis points. Saved
+    /// (<see cref="BeltSaveDto.PowerSatisfactionBp"/>) so that a loaded game's first tick moves items exactly like the one
+    /// that never saved; the next balance sets it again.
     /// </summary>
     public int SatisfactionBp { get; internal set; }
 

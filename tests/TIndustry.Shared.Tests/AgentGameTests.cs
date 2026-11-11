@@ -635,6 +635,56 @@ public sealed class AgentGameTests
     }
 
     [Fact]
+    public void PiazzaPlacesEachOfTheEightPlanTwoBlocks()
+    {
+        var factory = NewFactory();
+        factory.UnlockAllForDemo();
+        factory.EnsureDemoBuildStock();
+        foreach (var id in new[] { "overflow-gate", "underflow-gate", "conveyor-stack", "bridge-long", "solar", "solar-large",
+                     "combustion-generator", "battery-large" })
+        {
+            factory.Research.ForceUnlock(id);
+        }
+
+        foreach (var (item, amount) in new[] { ("plastic", 50), ("silicon", 200), ("graphite", 50), ("lead-plate", 300),
+                     ("titanium-plate", 200), ("iron-plate", 100), ("copper-wire", 100) })
+        {
+            factory.Wallet.AddMaterial(item, amount);
+        }
+
+        var game = new AgentGame(new SimHost(factory), Content);
+        Call(game, "piazza", """{"tipo":"overflow-gate","cella":{"x":30,"y":30}}""");
+        Call(game, "piazza", """{"tipo":"underflow-gate","cella":{"x":32,"y":30}}""");
+        Call(game, "piazza", """{"tipo":"conveyor-stack","da":{"x":30,"y":34},"a":{"x":32,"y":34}}""");
+        Call(game, "piazza", """{"tipo":"bridge-long","cella":{"x":30,"y":38},"direzione":"est"}""");
+        Call(game, "piazza", """{"tipo":"solar","cella":{"x":30,"y":42}}""");
+        Call(game, "piazza", """{"tipo":"solar-large","cella":{"x":34,"y":42}}""");
+        Call(game, "piazza", """{"tipo":"combustion-generator","cella":{"x":30,"y":46}}""");
+        Call(game, "piazza", """{"tipo":"battery-large","cella":{"x":34,"y":46}}""");
+
+        Assert.Equal("overflow-gate", factory.Belts.Cells[new GridPosition(30, 30)].Definition.Id);
+        Assert.Equal("underflow-gate", factory.Belts.Cells[new GridPosition(32, 30)].Definition.Id);
+        Assert.All(Enumerable.Range(30, 3), x =>
+            Assert.Equal("conveyor-stack", factory.Belts.Cells[new GridPosition(x, 34)].Definition.Id));
+        var entry = factory.Belts.Cells[new GridPosition(30, 38)];
+        Assert.Equal("bridge-long", entry.Definition.Id);
+        Assert.NotNull(entry.BridgePartner);
+        Assert.Equal(2, factory.SolarPanels.Count);
+        Assert.Equal(Generator.CombustionId, factory.Generators.Single(g => g.Position == new GridPosition(30, 46)).DefinitionId);
+        Assert.Equal(Battery.LargeId, factory.Batteries.Single(b => b.Position == new GridPosition(34, 46)).DefinitionId);
+
+        var area = Call(game, "area", """{"da":{"x":30,"y":30},"a":{"x":37,"y":49}}""");
+        var rows = area.GetProperty("righe").EnumerateArray().Select(r => r.GetString()!).ToArray();
+        Assert.Equal('O', rows[0][0]);
+        Assert.Equal('U', rows[0][2]);
+        Assert.Equal('Z', rows[8][0]);
+        Assert.Equal('D', rows[12][0]);
+        Assert.Equal('J', rows[12][4]);
+        Assert.Equal('%', rows[16][0]);
+        Assert.Equal('&', rows[16][4]);
+    }
+
+    [Fact]
     public void PiazzaReportsLineRefusals()
     {
         // The classic generator has no walls: the biome one does.

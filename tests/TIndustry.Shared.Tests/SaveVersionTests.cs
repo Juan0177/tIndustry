@@ -163,6 +163,27 @@ public sealed class SaveVersionTests
     }
 
     [Fact]
+    public void Version21_Refused_OlderVersion()
+    {
+        var content = LoadContent();
+        var host = new SimHost(NewGame.Demo(content));
+        FactorySaveStore.Save("v21-rifiutato", host);
+        var path = FactorySaveStore.SlotPath("v21-rifiutato");
+        var json = File.ReadAllText(path);
+        Assert.Contains(Current, json);
+        File.WriteAllText(path, json.Replace(Current, "\"version\": 21"));
+
+        Assert.False(FactorySaveStore.TryLoadSlot(content, "v21-rifiutato", out var loaded, out var failure));
+        Assert.Null(loaded);
+        Assert.Equal(SaveLoadError.OlderVersion, failure!.Code);
+
+        // A v21 snapshot (before the gates, packs, long bridge, solar panels, combustion and large battery) is not read.
+        var snapshot = System.Text.Encoding.UTF8.GetString(host.CreateSnapshot())
+            .Replace($"\"version\":{FactorySaveData.CurrentVersion}", "\"version\":21");
+        Assert.Throws<InvalidDataException>(() => Snapshot.Read(content, System.Text.Encoding.UTF8.GetBytes(snapshot)));
+    }
+
+    [Fact]
     public void Version20_Refused_OlderVersion()
     {
         var content = LoadContent();
