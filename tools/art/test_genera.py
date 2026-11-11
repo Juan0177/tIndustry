@@ -717,6 +717,19 @@ class TestGenera(unittest.TestCase):
             x0, y0, x1, y1 = fotogrammi_di(SPRITE[anim]())[0].getbbox()
             self.assertLessEqual(max(x1 - x0, y1 - y0), massimo, anim)
 
+    def test_macchine_animate(self):
+        # The machines of the «Ricerca allargata» (MachineVisual): a 4-frame working overlay over their base, the
+        # size of the block, transparent somewhere (the base shows through) and changing at every frame.
+        for macchina in ("smelter-advanced", "graphite-press", "separator", "plasticizer"):
+            with self.subTest(macchina=macchina):
+                fotogrammi = fotogrammi_di(SPRITE[macchina + "-anim"]())
+                self.assertEqual(4, len(fotogrammi))
+                self.assertEqual({(2 * T, 2 * T)}, {f.size for f in fotogrammi})
+                for f in fotogrammi:
+                    self.assertIn(0, set(f.getchannel("A").tobytes()))
+                for a, b in zip(fotogrammi, fotogrammi[1:] + fotogrammi[:1]):
+                    self.assertNotEqual(a.tobytes(), b.tobytes())
+
     def test_schermo_di_borsa(self):
         # Stock-exchange screen: an opaque 2x2 plate; the lit strip covers exactly the yellow bands of the base and
         # the lit corners are four 3x3 lamps, both transparent elsewhere; the icon is the base with a line on the glass.

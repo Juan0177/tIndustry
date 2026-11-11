@@ -294,18 +294,12 @@ public partial class BlockInfoPanel : Control
             return "";
         }
 
-        var recipeId = structureId switch
-        {
-            "smelter" => "smelt-iron",
-            "assembler" => "craft-copper-wire",
-            "generator" => null,
-            _ => null
-        };
-        if (recipeId is null)
+        var recipe = DefaultRecipe(structureId, _content);
+        if (recipe is null)
         {
             return structureId switch
             {
-                "miner" => Testi.T("blocco.io.minatore"),
+                "miner" or Miner.ImpactDrillId => Testi.T("blocco.io.minatore"),
                 "generator" => Testi.T("blocco.io.generatore"),
                 "conveyor-basic" or "junction" or "router" or "sorter" or "conveyor-bridge"
                     => Testi.T("blocco.io.trasporto"),
@@ -313,16 +307,61 @@ public partial class BlockInfoPanel : Control
             };
         }
 
-        var recipe = _content.FindRecipe(recipeId);
-        if (recipe is null)
-        {
-            return "";
-        }
-
         string Fmt(IReadOnlyList<ResourceAmount> list) =>
             string.Join("+", list.Select(a =>
                 $"{a.Amount}×{Testi.Oggetto(a.ItemId, _content)}"));
 
-        return $"I/O · {Fmt(recipe.Inputs)} → {Fmt(recipe.Outputs)} ({Testi.Secondi(recipe.DurationSeconds)})";
+        var outputs = recipe.RandomOutput ? RandomOutputs(recipe, _content, "/") : Fmt(recipe.Outputs);
+        return $"I/O · {Fmt(recipe.Inputs)} → {outputs} ({Testi.Secondi(RecipeSeconds(recipe, structureId, _content))})";
+    }
+
+    /// <summary>
+    /// The recipe whose I/O the block info and the research tree show for <paramref name="structureId"/>: the one a
+    /// new machine starts on (the forno's iron, the assembler's copper wire, the first recipe of any other craft
+    /// machine, as <c>Factory.PlaceCrafter</c> picks it), the recipe a recipe node unlocks (the circuit); null for
+    /// a block that crafts nothing.
+    /// </summary>
+    internal static RecipeDefinition? DefaultRecipe(string structureId, FactoryContent content)
+    {
+        if (structureId == Crafter.SmelterBuildingId)
+        {
+            return content.FindRecipe("smelt-iron");
+        }
+
+        if (structureId == Crafter.AssemblerBuildingId)
+        {
+            return content.FindRecipe("craft-copper-wire");
+        }
+
+        if (content.FindBuilding(structureId) is { IsCrafter: true })
+        {
+            return content.RecipesFor(structureId).FirstOrDefault();
+        }
+
+        // A research node of kind "recipe" (no block): the recipe it gates.
+        return content.FindStructure(structureId)?.Kind == FactoryContent.RecipeKind
+            ? content.Recipes.FirstOrDefault(r => r.Research == structureId)
+            : null;
+    }
+
+    /// <summary>
+    /// Seconds per craft of <paramref name="recipe"/> in <paramref name="structureId"/> at its own speed
+    /// (<see cref="BuildingDefinition.CraftSpeedPercent"/>: the advanced smelter takes half the forno's time).
+    /// </summary>
+    internal static double RecipeSeconds(RecipeDefinition recipe, string structureId, FactoryContent content)
+    {
+        var speed = content.FindBuilding(structureId) is { IsCrafter: true } building ? building.CraftSpeedPercent : 100;
+        return recipe.DurationSeconds * 100.0 / Math.Max(1, speed);
+    }
+
+    /// <summary>
+    /// The outputs of a recipe that makes one piece at random (the separator): each item with its chance
+    /// (<c>blocco.io.caso</c>), from the weights of the content, joined by <paramref name="separator"/>.
+    /// </summary>
+    internal static string RandomOutputs(RecipeDefinition recipe, FactoryContent content, string separator)
+    {
+        var total = Math.Max(1, recipe.Outputs.Sum(o => o.Amount));
+        return string.Join(separator, recipe.Outputs.Select(o =>
+            Testi.F("blocco.io.caso", Testi.Oggetto(o.ItemId, content), o.Amount * 100 / total)));
     }
 }

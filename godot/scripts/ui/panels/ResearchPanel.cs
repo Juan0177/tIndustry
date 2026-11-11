@@ -524,13 +524,7 @@ public partial class ResearchPanel : Control
             ? Testi.T("ricerca.uso.generico")
             : Testi.F(key, Testi.Scava(content, structureId));
 
-        var recipeId = structureId switch
-        {
-            "smelter" => "smelt-iron",
-            "assembler" => "craft-copper-wire",
-            _ => null
-        };
-        var recipe = recipeId is null ? null : content.FindRecipe(recipeId);
+        var recipe = BlockInfoPanel.DefaultRecipe(structureId, content);
         if (recipe is null)
         {
             return Testi.F("ricerca.uso", hint);
@@ -539,8 +533,10 @@ public partial class ResearchPanel : Control
         string Fmt(IReadOnlyList<ResourceAmount> list) =>
             string.Join(" + ", list.Select(a => $"{a.Amount}× {Testi.Oggetto(a.ItemId, content)}"));
 
+        var outputs = recipe.RandomOutput ? BlockInfoPanel.RandomOutputs(recipe, content, " / ") : Fmt(recipe.Outputs);
+        var seconds = BlockInfoPanel.RecipeSeconds(recipe, structureId, content);
         return Testi.F("ricerca.uso", hint)
-            + $"\nI/O: {Fmt(recipe.Inputs)} → {Fmt(recipe.Outputs)} ({Testi.Secondi(recipe.DurationSeconds)})";
+            + $"\nI/O: {Fmt(recipe.Inputs)} → {outputs} ({Testi.Secondi(seconds)})";
     }
 
     private static string FormatBuildCost(string structureId, FactoryContent content)

@@ -36,7 +36,12 @@ public partial class BuildPalette : PanelContainer
         new(ToolKind.MinerAdvanced, "miner-advanced", ""),
         new(ToolKind.Smelter, "smelter", "3"),
         new(ToolKind.Assembler, "assembler", "4"),
-        new(ToolKind.Extractor, "extractor", "")
+        new(ToolKind.Extractor, "extractor", ""),
+        new(ToolKind.SmelterAdvanced, Crafter.SmelterAdvancedId, ""),
+        new(ToolKind.GraphitePress, Crafter.GraphitePressId, ""),
+        new(ToolKind.Separator, Crafter.SeparatorId, ""),
+        new(ToolKind.Plasticizer, Crafter.PlasticizerId, ""),
+        new(ToolKind.ImpactDrill, Miner.ImpactDrillId, "")
     ];
 
     private static readonly PaletteEntry[] PowerEntries =
@@ -222,7 +227,7 @@ public partial class BuildPalette : PanelContainer
     /// </summary>
     internal static string Hint(PaletteEntry entry, FactoryContent? content) => entry.Tool switch
     {
-        ToolKind.Miner or ToolKind.MinerAdvanced =>
+        ToolKind.Miner or ToolKind.MinerAdvanced or ToolKind.ImpactDrill =>
             Testi.F($"struttura.{entry.StructureId}.suggerimento", Testi.Scava(content, entry.StructureId)),
         _ => Testi.T($"struttura.{entry.StructureId}.suggerimento")
     };
@@ -518,6 +523,8 @@ public partial class BuildPalette : PanelContainer
             or ToolKind.Sorter or ToolKind.SorterInverted or ToolKind.Bridge
             => BuildCategory.Logistics,
         ToolKind.Miner or ToolKind.MinerAdvanced or ToolKind.Smelter or ToolKind.Assembler or ToolKind.Extractor
+            or ToolKind.SmelterAdvanced or ToolKind.GraphitePress or ToolKind.Separator or ToolKind.Plasticizer
+            or ToolKind.ImpactDrill
             => BuildCategory.Production,
         ToolKind.Generator or ToolKind.PowerNode or ToolKind.PowerNodeT2 or ToolKind.Lamp or ToolKind.Battery
             => BuildCategory.Power,

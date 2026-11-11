@@ -304,4 +304,17 @@ public sealed class ImpactDrillTests
         Assert.Empty(factory.Miners);
         Assert.True(factory.CanPlace(DrillSpec(10, 10), out _));
     }
+
+    [Fact]
+    public void ToolKeysNameTheNewBlocks()
+    {
+        foreach (var id in new[]
+                 {
+                     Miner.ImpactDrillId, Crafter.SmelterAdvancedId, Crafter.GraphitePressId, Crafter.SeparatorId,
+                     Crafter.PlasticizerId
+                 })
+        {
+            Assert.Equal(id, Factory.StructureIdForTool(id));
+        }
+    }
 }

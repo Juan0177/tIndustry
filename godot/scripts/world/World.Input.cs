@@ -96,6 +96,11 @@ public partial class World
         BuildTool.CoreFoundation => Hud.ToolKind.CoreFoundation,
         BuildTool.CoreNucleus => Hud.ToolKind.CoreNucleus,
         BuildTool.MarketScreen => Hud.ToolKind.MarketScreen,
+        BuildTool.SmelterAdvanced => Hud.ToolKind.SmelterAdvanced,
+        BuildTool.GraphitePress => Hud.ToolKind.GraphitePress,
+        BuildTool.Separator => Hud.ToolKind.Separator,
+        BuildTool.Plasticizer => Hud.ToolKind.Plasticizer,
+        BuildTool.ImpactDrill => Hud.ToolKind.ImpactDrill,
         _ => Hud.ToolKind.None
     };
 
@@ -126,6 +131,11 @@ public partial class World
         Hud.ToolKind.CoreFoundation => BuildTool.CoreFoundation,
         Hud.ToolKind.CoreNucleus => BuildTool.CoreNucleus,
         Hud.ToolKind.MarketScreen => BuildTool.MarketScreen,
+        Hud.ToolKind.SmelterAdvanced => BuildTool.SmelterAdvanced,
+        Hud.ToolKind.GraphitePress => BuildTool.GraphitePress,
+        Hud.ToolKind.Separator => BuildTool.Separator,
+        Hud.ToolKind.Plasticizer => BuildTool.Plasticizer,
+        Hud.ToolKind.ImpactDrill => BuildTool.ImpactDrill,
         _ => BuildTool.None
     };
 

@@ -216,8 +216,8 @@ public partial class World
     }
 
     private readonly HashSet<GridPosition> _buildingTiles = [];
-    private readonly long[] _buildingTilesKey = new long[18];
-    private readonly long[] _structureKey = new long[18];
+    private readonly long[] _buildingTilesKey = new long[20];
+    private readonly long[] _structureKey = new long[20];
     private IGameView? _buildingTilesView;
 
     /// <summary>
@@ -247,7 +247,7 @@ public partial class World
             _buildingTiles.UnionWith(miner.OccupiedTiles());
         }
 
-        foreach (var crafter in view.Smelters.Concat(view.Assemblers))
+        foreach (var crafter in view.Smelters.Concat(view.Assemblers).Concat(view.Machines))
         {
             _buildingTiles.UnionWith(crafter.OccupiedTiles());
         }
@@ -317,6 +317,13 @@ public partial class World
         }
 
         Add(view.Assemblers.Count, max);
+        max = 0;
+        foreach (var c in view.Machines)
+        {
+            max = Math.Max(max, c.Id);
+        }
+
+        Add(view.Machines.Count, max);
         max = 0;
         foreach (var g in view.Generators)
         {
@@ -471,6 +478,11 @@ public partial class World
         BuildTool.CoreFoundation => BuildingKind.CoreFoundation,
         BuildTool.CoreNucleus => BuildingKind.CoreNucleus,
         BuildTool.MarketScreen => BuildingKind.MarketScreen,
+        BuildTool.SmelterAdvanced => BuildingKind.SmelterAdvanced,
+        BuildTool.GraphitePress => BuildingKind.GraphitePress,
+        BuildTool.Separator => BuildingKind.Separator,
+        BuildTool.Plasticizer => BuildingKind.Plasticizer,
+        BuildTool.ImpactDrill => BuildingKind.ImpactDrill,
         _ => null
     };
 
@@ -480,6 +492,8 @@ public partial class World
         BuildTool.Miner or BuildTool.MinerAdvanced => Miner.T1Size,
         BuildTool.Smelter => Crafter.Size,
         BuildTool.Assembler => Crafter.Size,
+        BuildTool.SmelterAdvanced or BuildTool.GraphitePress or BuildTool.Separator or BuildTool.Plasticizer => Crafter.Size,
+        BuildTool.ImpactDrill => Miner.ImpactDrillSize,
         BuildTool.Generator => Generator.Size,
         BuildTool.PowerNode => 1,
         BuildTool.PowerNodeT2 => 2,

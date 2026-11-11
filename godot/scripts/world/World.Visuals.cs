@@ -295,6 +295,13 @@ public partial class World
             _buildingsLayer.AddChild(node);
         }
 
+        foreach (var machine in _view.Machines)
+        {
+            var node = MachineVisual.Create(machine, TileSize);
+            node.Position = FootprintCenter(machine.Position, Crafter.Size);
+            _buildingsLayer.AddChild(node);
+        }
+
         foreach (var gen in _view.Generators)
         {
             var node = GeneratorVisual.Create(gen, TileSize);
@@ -461,6 +468,17 @@ public partial class World
                         if (asm.Position.Equals(asmVis.Origin))
                         {
                             asmVis.Sync(asm, delta, _effects);
+                            break;
+                        }
+                    }
+
+                    break;
+                case MachineVisual machineVis:
+                    foreach (var machine in _view.Machines)
+                    {
+                        if (machine.Position.Equals(machineVis.Origin))
+                        {
+                            machineVis.Sync(machine, delta, _effects);
                             break;
                         }
                     }

@@ -128,6 +128,15 @@ public partial class NightLayer : Node2D
             }
         }
 
+        // The advanced smelter is a furnace too; the other machines have no fire.
+        foreach (var machine in view.Machines)
+        {
+            if (machine.IsWorking && machine.DefinitionId == Crafter.SmelterAdvancedId)
+            {
+                Add(Center(machine.Position, Crafter.Size), SmelterLight);
+            }
+        }
+
         foreach (var gen in view.Generators)
         {
             if (gen.IsGenerating)

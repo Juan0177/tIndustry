@@ -562,7 +562,12 @@ public partial class World
             Hud.ToolKind.Vault,
             Hud.ToolKind.CoreFoundation,
             Hud.ToolKind.CoreNucleus,
-            Hud.ToolKind.MarketScreen
+            Hud.ToolKind.MarketScreen,
+            Hud.ToolKind.SmelterAdvanced,
+            Hud.ToolKind.GraphitePress,
+            Hud.ToolKind.Separator,
+            Hud.ToolKind.Plasticizer,
+            Hud.ToolKind.ImpactDrill
         };
         // A Core block shows only while it is the next tier: the one built and the one after next stay out.
         _locksCoreTier = _view.CoreTier;

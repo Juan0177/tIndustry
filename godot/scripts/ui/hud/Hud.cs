@@ -38,7 +38,12 @@ public partial class Hud : Control
         Vault,
         CoreFoundation,
         CoreNucleus,
-        MarketScreen
+        MarketScreen,
+        SmelterAdvanced,
+        GraphitePress,
+        Separator,
+        Plasticizer,
+        ImpactDrill
     }
 
     internal enum BuildCategory
@@ -435,6 +440,11 @@ public partial class Hud : Control
         ToolKind.CoreFoundation => "core-foundation",
         ToolKind.CoreNucleus => "core-nucleus",
         ToolKind.MarketScreen => "market-screen",
+        ToolKind.SmelterAdvanced => Crafter.SmelterAdvancedId,
+        ToolKind.GraphitePress => Crafter.GraphitePressId,
+        ToolKind.Separator => Crafter.SeparatorId,
+        ToolKind.Plasticizer => Crafter.PlasticizerId,
+        ToolKind.ImpactDrill => Miner.ImpactDrillId,
         _ => "conveyor-basic"
     };
 

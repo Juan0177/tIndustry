@@ -2487,6 +2487,7 @@ public sealed class Factory : IGameView
         Crafter.GraphitePressId => Crafter.GraphitePressId,
         Crafter.SeparatorId => Crafter.SeparatorId,
         Crafter.PlasticizerId => Crafter.PlasticizerId,
+        Miner.ImpactDrillId => Miner.ImpactDrillId,
         "junction" => "junction",
         "router" => "router",
         "generator" => "generator",

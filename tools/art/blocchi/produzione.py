@@ -7,7 +7,9 @@ stacks them centred on the block:
 - impact drill (3x3, 96 px): `-base` and `-drill-anim`, like the miner, with a bigger bit;
 - smelter: `-base`, `-glow-anim` (4 frames of the glowing mouth);
 - assembler: `-base`, `-arm` (left arm, mirrored by the client for the right one, moved by code);
-- advanced smelter, graphite press, separator, plasticizer: `-base` and the icon (still, for now).
+- advanced smelter, graphite press, separator, plasticizer: `-base` and `-anim`, 4 frames of an overlay drawn over
+  the base while the machine works (MachineVisual): flames in both mouths, the ram going down, the drum turning,
+  bubbles in the vat.
 `<id>.png` is the composed icon (palette, research, plans, construction sites).
 The bases differ on purpose: chamfered grey plate (miner), red-trimmed plate with a lamp
 (advanced miner), graphite deck with four titanium hammers around a wide pit (impact drill), sooty brick-red furnace with round rivets (smelter), blue steel bed on rails
@@ -407,6 +409,7 @@ def _angoli(im, rampa):
         forme.bullone(im, bx, by, METALLO)
 
 
+MACCHINA_FOTOGRAMMI = 4  # frames of the working overlay of each machine (`<id>-anim`)
 BOCCHE_AVANZATE = ((12, 22, 27, 41), (36, 22, 51, 41))  # the two mouths of the advanced smelter (inclusive)
 
 
@@ -441,7 +444,24 @@ def _bocche_accese():
     return im
 
 
+def _fiamme_avanzate(k):
+    """Working frame k of the advanced smelter: flame tongues in both mouths shift every frame, grates over them."""
+    im = forme.nuova(L, L)
+    for i, (x0, y0, x1, y1) in enumerate(BOCCHE_AVANZATE):
+        for x in range(x0, x1 + 1):
+            h = 10 + 3 * math.sin(x * 0.9 + (k + 2 * i) * math.pi / 2) + 2 * math.sin(x * 0.41 - k * math.pi / 2 * 3)
+            for y in range(y0, y1 + 1):
+                alto = y1 - y  # height above the floor
+                c = (BAGLIORE[0] if alto > h + 4 else BAGLIORE[1] if alto > h else BAGLIORE[2] if alto > h * 0.55
+                     else BAGLIORE[3] if alto > h * 0.2 else BAGLIORE[4])
+                forme.pixel(im, x, y, c)
+        for x in range(x0 + 3, x1, 5):
+            forme.rett(im, x, y0, x, y1, OUT)
+    return im
+
+
 sprite("smelter-advanced-base")(_base_fonderia)
+sprite("smelter-advanced-anim")(lambda: forme.striscia([_fiamme_avanzate(k) for k in range(MACCHINA_FOTOGRAMMI)]))
 sprite("smelter-advanced")(lambda: forme.componi(_base_fonderia(), _bocche_accese()))
 
 
@@ -467,7 +487,29 @@ def _base_pressa():
     return forme.basamento(im, FERRO)
 
 
+CORSA_PRESSA = (0, 2, 4, 2)  # how far down the ram is in each working frame (px)
+
+
+def _pressa_al_lavoro(k):
+    """Working frame k of the graphite press: the ram lowered by CORSA_PRESSA[k] (the slot it leaves under the
+    crosshead dark, the rod in the middle) and coal dust squeezed out at the sides when it is down (transparent
+    elsewhere). Frame 0 matches the base, so the press starts from rest."""
+    im = forme.nuova(L, L)
+    giu = CORSA_PRESSA[k]
+    if giu:
+        forme.rett(im, 18, 15, L - 19, 14 + giu, OUT)
+        forme.rett(im, 30, 15, 33, 14 + giu, GRAFITE[1])
+    forme.pannello(im, 18, 15 + giu, L - 19, 33 + giu, GRAFITE)
+    forme.rett(im, 21, 18 + giu, L - 22, 18 + giu, GRAFITE[4])
+    forme.rett(im, 30, 15 + giu, 33, 33 + giu, GRAFITE[1])
+    if giu == max(CORSA_PRESSA):
+        for x, y in ((15, 35), (16, 34), (L - 16, 35), (L - 17, 34)):
+            forme.pixel(im, x, y, CARBONE[3])
+    return im
+
+
 sprite("graphite-press-base")(_base_pressa)
+sprite("graphite-press-anim")(lambda: forme.striscia([_pressa_al_lavoro(k) for k in range(MACCHINA_FOTOGRAMMI)]))
 sprite("graphite-press")(_base_pressa)
 
 
@@ -489,7 +531,24 @@ def _base_separatore():
     return forme.basamento(im, PIOMBO)
 
 
+def _tamburo(k):
+    """Working frame k of the separator: the sand drum turned by a sixteenth of a turn per frame, four spokes and
+    grains riding on it (the spokes are 4-fold symmetric, so 4 frames close the loop)."""
+    im = forme.nuova(L, L)
+    forme.cerchio(im, C, C, 14, SABBIA_GRANI)
+    angolo = k * (math.pi / 2) / MACCHINA_FOTOGRAMMI
+    for raggio in range(4):
+        a = angolo + raggio * math.pi / 2
+        for t in range(5, 13):
+            forme.pixel(im, int(C + t * math.cos(a)), int(C + t * math.sin(a)), SABBIA_GRANI[0])
+        for t, scarto in ((8, 0.45), (11, 0.3)):
+            forme.pixel(im, int(C + t * math.cos(a + scarto)), int(C + t * math.sin(a + scarto)), SABBIA_GRANI[4])
+    forme.cerchio(im, C, C, 4, METALLO)
+    return im
+
+
 sprite("separator-base")(_base_separatore)
+sprite("separator-anim")(lambda: forme.striscia([_tamburo(k) for k in range(MACCHINA_FOTOGRAMMI)]))
 sprite("separator")(_base_separatore)
 
 
@@ -508,5 +567,28 @@ def _base_plastificatore():
     return forme.basamento(im, METALLO)
 
 
+BOLLE = ((-6, 6), (5, 9), (2, -2), (-3, 13), (8, 2))  # bubble spots in the vat, from its centre (px)
+
+
+def _bolle(k):
+    """Working frame k of the plasticizer: bubbles rising and bursting in the vat, each one a frame behind the
+    last (transparent elsewhere)."""
+    im = forme.nuova(L, L)
+    for i, (dx, dy) in enumerate(BOLLE):
+        fase = (k + i) % MACCHINA_FOTOGRAMMI
+        x, y = int(C + dx), int(C + 4 + dy - fase)
+        if fase == MACCHINA_FOTOGRAMMI - 1:
+            # Burst: four specks around where the bubble was.
+            for ax, ay in ((-1, -1), (1, -1), (-1, 1), (1, 1)):
+                forme.pixel(im, x + ax, y + ay, PLASTICA[4])
+        else:
+            # A light bubble (the vat's top tones) growing as it rises, with a white-pink glint.
+            r = 1 + fase
+            forme.cerchio(im, x + 0.5, y + 0.5, r, PLASTICA[2:], pieno=r < 2)
+            forme.pixel(im, x - r // 2, y - r // 2, PLASTICA[4])
+    return im
+
+
 sprite("plasticizer-base")(_base_plastificatore)
+sprite("plasticizer-anim")(lambda: forme.striscia([_bolle(k) for k in range(MACCHINA_FOTOGRAMMI)]))
 sprite("plasticizer")(_base_plastificatore)
