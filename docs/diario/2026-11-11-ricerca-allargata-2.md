@@ -89,4 +89,4 @@ Ultimo stato riportato dai task: build Release 0 errori e 0 avvisi (progetto God
 
 ## Revisione finale
 
-Revisione finale dell'intero ramo: in corso.
+Revisione finale dell'intero ramo: **pronto al merge dopo correzioni piccole**. Nessun problema Critical o Important; i problemi minori sono stati corretti nel commit `e849ac1` (solare giusto dopo un caricamento, cicli `for` e conteggio dei generatori con i pannelli nell'HUD, separatore delle migliaia della batteria grande, wiki della Logistica, orologio giorno/notte e controllo del solare nel test di determinismo, commento sul tick 808). Il resto è rinviato (elenco in «Problemi rinviati»).
