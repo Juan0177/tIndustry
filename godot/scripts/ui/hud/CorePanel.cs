@@ -14,7 +14,8 @@ public partial class CorePanel : VBoxContainer
     private static readonly string[] StockOrder =
     [
         "iron-ore", "copper-ore", "coal", "lead-ore", "titanium-ore",
-        "iron-plate", "copper-wire", "lead-plate", "titanium-plate", "graphite", "silicon"
+        "iron-plate", "copper-wire", "lead-plate", "titanium-plate", "graphite", "silicon",
+        "sand", "glass", "plastic", "circuit"
     ];
 
     private readonly Dictionary<string, (Control Cell, Label Count)> _stockCells = [];

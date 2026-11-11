@@ -2,13 +2,26 @@ namespace TIndustry.Shared;
 
 /// <summary>
 /// Placeable logistics grid: belts, junctions (four queues, as Mindustry's Junction), routers (as Mindustry's Router),
-/// sorters and inverted sorters (as Mindustry's Sorter), bridges.
+/// sorters and inverted sorters (as Mindustry's Sorter), overflow and underflow gates (as Mindustry's OverflowGate), bridges,
+/// stack conveyors (as Mindustry's plastanium conveyor: <see cref="StackPackSize"/>).
 /// Bridge mid-span is empty (ends only).
 /// Cells are kept in canonical (Y, X) order: every pass over the grid (advance, handoff,
 /// core drain, save) visits them the same way regardless of placement history.
 /// </summary>
 public sealed class BeltGrid
 {
+    /// <summary>
+    /// Most pieces in a pack of a stack conveyor (<see cref="LogisticsKind.Stack"/>, Mindustry's plastanium conveyor).
+    /// The loading cell of a line (<see cref="BeltGridCell.IsStackLoader"/>) packs single pieces of one item; the pack
+    /// leaves when it has this many or <see cref="StackWaitTicks"/> ticks after its last piece came in, then travels the
+    /// line one pack per cell; the unloading cell (<see cref="BeltGridCell.IsStackUnloader"/>) hands its pieces one by one
+    /// to the building or the Core ahead (<see cref="BuildingReceives"/>), never to a belt or another logistics block.
+    /// </summary>
+    public const int StackPackSize = 10;
+
+    /// <summary>Ticks a partial pack waits on the loading cell after its last piece came in before it leaves.</summary>
+    public const int StackWaitTicks = 60;
+
     private readonly SortedDictionary<GridPosition, BeltGridCell> cells = new(CanonicalOrder.Instance);
 
     public IReadOnlyDictionary<GridPosition, BeltGridCell> Cells => cells;
@@ -49,7 +62,7 @@ public sealed class BeltGrid
                 && existing.Definition.Id != definition.Id)
             {
                 cells[position] = new BeltGridCell(position, direction, definition);
-                Version++;
+                Changed(position);
                 return true;
             }
 
@@ -58,17 +71,58 @@ public sealed class BeltGrid
                 existing.Direction = direction;
             }
 
-            Version++;
+            Changed(position);
             return true;
         }
 
         cells[position] = new BeltGridCell(position, direction, definition);
-        Version++;
+        Changed(position);
         return true;
     }
 
     /// <summary>
-    /// Place paired bridge ends (span 2–4). Mid tiles stay empty so belts can cross.
+    /// The layout changed on <paramref name="position"/>: bumps <see cref="Version"/> and works out again the stack
+    /// roles of that cell and of its neighbours (the only cells whose feeders or front it can change).
+    /// </summary>
+    private void Changed(GridPosition position)
+    {
+        Version++;
+        RefreshStackRole(position);
+        foreach (var dir in DirectionMath.All)
+        {
+            RefreshStackRole(position.Step(dir));
+        }
+    }
+
+    /// <summary>
+    /// The stack conveyor's roles of the cell on <paramref name="position"/>: loading cell when no stack cell feeds it
+    /// (none beside it, but the one ahead, faces it), unloading cell when the cell ahead is not a stack cell.
+    /// </summary>
+    private void RefreshStackRole(GridPosition position)
+    {
+        if (!cells.TryGetValue(position, out var cell) || cell.Kind != LogisticsKind.Stack)
+        {
+            return;
+        }
+
+        var fed = false;
+        foreach (var dir in DirectionMath.All)
+        {
+            fed |= dir != cell.Direction && FeedsAsStack(position.Step(dir), position);
+        }
+
+        cell.SetStackRoles(
+            loader: !fed,
+            unloader: !(cells.TryGetValue(cell.OutputPosition, out var front) && front.Kind == LogisticsKind.Stack));
+    }
+
+    /// <summary>Whether a stack cell on <paramref name="source"/> faces <paramref name="target"/> (hands its packs there).</summary>
+    private bool FeedsAsStack(GridPosition source, GridPosition target) =>
+        cells.TryGetValue(source, out var feeder) && feeder.Kind == LogisticsKind.Stack && feeder.OutputPosition == target;
+
+    /// <summary>
+    /// Place paired bridge ends (span <see cref="BeltGridCell.MinBridgeSpan"/> to the definition's
+    /// <see cref="ConveyorDefinition.MaxSpan"/>): both ends have <paramref name="definition"/>. Mid tiles stay empty so belts can cross.
     /// </summary>
     public bool TryPlaceBridge(
         GridPosition entry,
@@ -84,7 +138,7 @@ public sealed class BeltGrid
         }
 
         GridPosition? exit = null;
-        for (var span = BeltGridCell.MinBridgeSpan; span <= BeltGridCell.MaxBridgeSpan; span++)
+        for (var span = BeltGridCell.MinBridgeSpan; span <= definition.MaxSpan; span++)
         {
             var candidate = entry.Step(direction, span);
             if (cells.ContainsKey(candidate))
@@ -108,7 +162,8 @@ public sealed class BeltGrid
 
         cells[entry] = new BeltGridCell(entry, direction, definition, bridgePartner: exit);
         cells[exit.Value] = new BeltGridCell(exit.Value, direction, definition, bridgePartner: entry);
-        Version++;
+        Changed(entry);
+        Changed(exit.Value);
         return true;
     }
 
@@ -123,12 +178,14 @@ public sealed class BeltGrid
         {
             cells.Remove(position);
             cells.Remove(partner);
-            Version++;
+            Changed(position);
+            Changed(partner);
             return true;
         }
 
-        Version++;
-        return cells.Remove(position);
+        var removed = cells.Remove(position);
+        Changed(position);
+        return removed;
     }
 
     public void Clear()
@@ -155,7 +212,7 @@ public sealed class BeltGrid
         var cell = new BeltGridCell(position, direction, definition, bridgePartner, filterItemId);
         cell.RestoreState(items, bridgePartner, filterItemId);
         cells[position] = cell;
-        Version++;
+        Changed(position);
         return true;
     }
 
@@ -179,6 +236,18 @@ public sealed class BeltGrid
     /// </summary>
     public Func<GridPosition, string, bool>? BuildingWouldReceive { get; set; }
 
+    /// <summary>
+    /// Whether the powered bridge (<see cref="ConveyorDefinition.IsPoweredBridge"/>, the long bridge) whose entry is on a
+    /// tile has power now: its entry hands items to its exit only then (any satisfaction above 0; partial power is
+    /// enough), else they wait on the entry. The simulation state sets it (<see cref="GameState"/>); a bare grid has
+    /// none, so every bridge passes. A bridge without a power use never asks. Not saved.
+    /// </summary>
+    public Func<GridPosition, bool>? BridgePowered { get; set; }
+
+    /// <summary>Whether the entry <paramref name="cell"/> may hand items to its exit now (<see cref="BridgePowered"/>).</summary>
+    private bool BridgeCanPass(BeltGridCell cell) =>
+        !cell.Definition.IsPoweredBridge || BridgePowered?.Invoke(cell.Position) != false;
+
     /// <summary>Whether a logistics cell or a building that takes items is on <paramref name="tile"/>.</summary>
     public bool TakesItemsAt(GridPosition tile) => cells.ContainsKey(tile) || BuildingTakesAt?.Invoke(tile) == true;
 
@@ -195,7 +264,7 @@ public sealed class BeltGrid
         }
 
         cell.Direction = direction;
-        Version++;
+        Changed(position);
         return true;
     }
 
@@ -216,6 +285,18 @@ public sealed class BeltGrid
             return false;
         }
 
+        // Stack conveyor: a pack from the stack cell that feeds it; single pieces only on the loading cell, from behind or
+        // a side (never from ahead, as a belt).
+        if (cell.Kind == LogisticsKind.Stack)
+        {
+            if (origin is { } packFrom && packFrom != cell.OutputPosition && FeedsAsStack(packFrom, position))
+            {
+                return cell.TryInsert(item, fromDirection);
+            }
+
+            return cell.IsStackLoader && origin != cell.OutputPosition && cell.TryLoad(item);
+        }
+
         // Junction: the item travels away from where it comes from (a cell or a building's tile beside it).
         // Like Mindustry's Junction.acceptItem, only toward a block on the far side that could take it.
         if (cell.Kind == LogisticsKind.Junction)
@@ -229,13 +310,18 @@ public sealed class BeltGrid
             return TakesItemsAt(position.Step(travel)) && cell.TryInsert(item, travel);
         }
 
-        // Sorter: instantaneous with no queue, from any side but never from another sorter.
-        if (cell.Kind == LogisticsKind.Sorter)
+        // Sorter and gate: instantaneous with no queue, from any side but never from a sorter or a gate.
+        if (cell.Kind is LogisticsKind.Sorter or LogisticsKind.Gate)
         {
-            return origin is { } entry
-                && IsAdjacent(entry, position)
-                && !(cells.TryGetValue(entry, out var feeder) && feeder.Kind == LogisticsKind.Sorter)
-                && PassSorter(cell, item, BeltLane.DirectionBetween(entry, position));
+            if (origin is not { } entry
+                || !IsAdjacent(entry, position)
+                || (cells.TryGetValue(entry, out var feeder) && feeder.PassesThrough))
+            {
+                return false;
+            }
+
+            var travel = BeltLane.DirectionBetween(entry, position);
+            return cell.Kind == LogisticsKind.Sorter ? PassSorter(cell, item, travel) : PassGate(cell, travel, item);
         }
 
         // Router: one item at a time, from any side; it remembers the side the item came from (never handed back there).
@@ -257,7 +343,8 @@ public sealed class BeltGrid
                 return false;
             }
 
-            if (cells.TryGetValue(partner, out var exitCell)
+            if (BridgeCanPass(cell)
+                && cells.TryGetValue(partner, out var exitCell)
                 && exitCell.TryInsert(item, cell.Direction))
             {
                 // Instantaneous start→end; ready to leave end immediately.
@@ -265,7 +352,7 @@ public sealed class BeltGrid
                 return true;
             }
 
-            // End blocked: hold on start, already ready to teleport next handoff.
+            // End blocked (or no power): hold on start, already ready to teleport next handoff.
             if (!cell.TryInsert(item, fromDirection))
             {
                 return false;
@@ -385,9 +472,15 @@ public sealed class BeltGrid
             return;
         }
 
-        if (cell.Kind == LogisticsKind.Sorter)
+        if (cell.Kind == LogisticsKind.Stack)
         {
-            return; // it holds nothing: an item passes through it inside TryInsert
+            TryStackHandoff(cell);
+            return;
+        }
+
+        if (cell.PassesThrough)
+        {
+            return; // a sorter or a gate holds nothing: an item passes through it inside TryInsert
         }
 
         var item = cell.PeekOutput();
@@ -399,6 +492,7 @@ public sealed class BeltGrid
         if (cell.Kind == LogisticsKind.Bridge && cell.BridgePartner is { } partner)
         {
             if (IsBridgeEntry(cell, partner)
+                && BridgeCanPass(cell)
                 && cells.TryGetValue(partner, out var exitCell)
                 && exitCell.TryInsert(item, cell.Direction))
             {
@@ -423,6 +517,41 @@ public sealed class BeltGrid
 
         // Belt / bridge exit: facing neighbor.
         TryHandoffTo(cell, cell.Direction, item);
+    }
+
+    /// <summary>
+    /// Stack conveyor: a pack at the end of its cell goes on to the stack cell ahead; on the unloading cell its pieces go
+    /// one at a time into the building or the Core ahead (<see cref="BuildingReceives"/>), as many as it takes this tick,
+    /// and the pack stays until it is empty. Never into a belt or another logistics block: the pack waits.
+    /// </summary>
+    private void TryStackHandoff(BeltGridCell cell)
+    {
+        if (cell.PeekOutput() is not { } pack)
+        {
+            return;
+        }
+
+        if (!cell.IsStackUnloader)
+        {
+            TryHandoffTo(cell, cell.Direction, pack);
+            return;
+        }
+
+        var front = cell.OutputPosition;
+        if (cells.ContainsKey(front))
+        {
+            return;
+        }
+
+        while (pack.Count > 0 && BuildingReceives?.Invoke(front, pack.ItemId) == true)
+        {
+            pack.Count--;
+        }
+
+        if (pack.Count == 0)
+        {
+            cell.RemoveOutput();
+        }
     }
 
     /// <summary>
@@ -468,13 +597,28 @@ public sealed class BeltGrid
     /// refused. True when a logistics cell or a building took it in this same call; false leaves the item where it was
     /// (it never waits on the sorter).
     /// </summary>
-    private bool PassSorter(BeltGridCell cell, TransportedItem item, Direction travel)
-    {
-        if (cell.SendsStraight(item.ItemId))
-        {
-            return SorterHandsTo(cell, travel, item);
-        }
+    private bool PassSorter(BeltGridCell cell, TransportedItem item, Direction travel) =>
+        cell.SendsStraight(item.ItemId) ? SorterHandsTo(cell, travel, item) : PassAside(cell, item, travel);
 
+    /// <summary>
+    /// Mindustry's OverflowGate (<c>OverflowGate.getTileTarget</c>): the overflow gate hands an item travelling
+    /// <paramref name="travel"/> straight on when the block ahead takes it, else aside like the sorter (the per-travel turn
+    /// bit of <see cref="BeltGridCell.SorterTurns"/>, flipped only when both sides would take it); the underflow gate
+    /// (<see cref="ConveyorDefinition.Inverted"/>) tries the sides first and goes straight only when neither takes it.
+    /// True when a logistics cell or a building took it in this same call; false leaves the item where it was (it waits
+    /// on the belt that brings it). Never into a sorter or a gate: they refuse items from a gate.
+    /// </summary>
+    private bool PassGate(BeltGridCell cell, Direction travel, TransportedItem item) =>
+        cell.Definition.Inverted
+            ? PassAside(cell, item, travel) || SorterHandsTo(cell, travel, item)
+            : SorterHandsTo(cell, travel, item) || PassAside(cell, item, travel);
+
+    /// <summary>
+    /// The sides of a sorter or a gate for an item travelling <paramref name="travel"/>: when both would take it, the
+    /// side of the turn bit and the bit flips; when one would, that side and the bit stays; when none, refused.
+    /// </summary>
+    private bool PassAside(BeltGridCell cell, TransportedItem item, Direction travel)
+    {
         var first = cell.SorterTurnsRight(travel) ? DirectionMath.Right(travel) : DirectionMath.Left(travel);
         var second = DirectionMath.Opposite(first);
         // Probed before the hand-over, as Mindustry checks both sides before choosing.
@@ -494,8 +638,8 @@ public sealed class BeltGrid
 
     /// <summary>
     /// Whether the cell or the building on <paramref name="position"/> would take <paramref name="item"/> coming from
-    /// the sorter beside it (moving <paramref name="fromDirection"/>), by the rules of <see cref="TryInsert"/>, without
-    /// changing anything. Only a sorter asks: a sorter beside it never takes from it.
+    /// the sorter or the gate beside it (moving <paramref name="fromDirection"/>), by the rules of <see cref="TryInsert"/>,
+    /// without changing anything. Only a sorter or a gate asks: a sorter or a gate beside it never takes from it.
     /// </summary>
     private bool WouldAccept(GridPosition position, TransportedItem item, Direction fromDirection)
     {
@@ -516,11 +660,14 @@ public sealed class BeltGrid
                 return TakesItemsAt(position.Step(fromDirection)) && cell.CanInsert(fromDirection);
             case LogisticsKind.Router:
                 return cell.Items.Count == 0;
-            case LogisticsKind.Sorter:
+            case LogisticsKind.Sorter or LogisticsKind.Gate:
                 return false;
+            case LogisticsKind.Stack:
+                // A sorter or a gate is never a stack cell: only the loading cell takes its piece.
+                return cell.IsStackLoader && origin != cell.OutputPosition && cell.CanLoad(item);
             case LogisticsKind.Bridge when cell.BridgePartner is { } partner && IsBridgeEntry(cell, partner):
                 return fromDirection != DirectionMath.Opposite(cell.Direction)
-                    && ((cells.TryGetValue(partner, out var exitCell) && exitCell.CanInsert(cell.Direction))
+                    && ((BridgeCanPass(cell) && cells.TryGetValue(partner, out var exitCell) && exitCell.CanInsert(cell.Direction))
                         || cell.CanInsert(fromDirection));
             case LogisticsKind.Bridge when cell.BridgePartner is not null && fromDirection == cell.Direction:
                 return false;
@@ -529,7 +676,7 @@ public sealed class BeltGrid
         }
     }
 
-    /// <summary>Hands <paramref name="item"/> to the logistics cell or the building on the sorter's <paramref name="exit"/> side.</summary>
+    /// <summary>Hands <paramref name="item"/> to the logistics cell or the building on the sorter's (or gate's) <paramref name="exit"/> side.</summary>
     private bool SorterHandsTo(BeltGridCell cell, Direction exit, TransportedItem item)
     {
         var target = cell.Position.Step(exit);
@@ -549,36 +696,46 @@ public sealed class BeltGrid
                 || (cells.TryGetValue(from, out var feeder) && feeder.Kind == LogisticsKind.Belt)));
 
     /// <summary>
-    /// Mindustry's conveyor: a belt never takes from the belt, the junction, the router or the sorter it faces (two belts
-    /// head-on, a junction between two belts facing into it, or a router or a sorter handing back to its feeder would
-    /// bounce items); nor from any building (miner, extractor, crafter) in front of it.
+    /// Mindustry's conveyor: a belt never takes from the belt, the junction, the router, the sorter or the gate it faces
+    /// (two belts head-on, a junction between two belts facing into it, or a router, a sorter or a gate handing back to
+    /// its feeder would bounce items); nor from any building (miner, extractor, crafter) in front of it.
     /// </summary>
     private bool HeadOn(BeltGridCell cell, GridPosition? source) =>
         cell.Kind == LogisticsKind.Belt && source == cell.OutputPosition
         && (!cells.TryGetValue(cell.OutputPosition, out var feeder)
-            || feeder.Kind is LogisticsKind.Belt or LogisticsKind.Junction or LogisticsKind.Router or LogisticsKind.Sorter);
+            || feeder.Kind is LogisticsKind.Belt or LogisticsKind.Junction or LogisticsKind.Router or LogisticsKind.Sorter
+                or LogisticsKind.Gate);
 
     private static bool IsAdjacent(GridPosition a, GridPosition b) => Math.Abs(a.X - b.X) + Math.Abs(a.Y - b.Y) == 1;
 
-    /// <summary>Whether two bridge ends can be partners: same row or column, 2–4 cells apart.</summary>
-    public static bool IsBridgeSpan(GridPosition a, GridPosition b)
+    /// <summary>
+    /// Whether two bridge ends can be partners: same row or column, <see cref="BeltGridCell.MinBridgeSpan"/> to
+    /// <paramref name="maxSpan"/> (the definition's <see cref="ConveyorDefinition.MaxSpan"/>) cells apart.
+    /// </summary>
+    public static bool IsBridgeSpan(GridPosition a, GridPosition b, int maxSpan)
     {
         var dx = Math.Abs(b.X - a.X);
         var dy = Math.Abs(b.Y - a.Y);
-        return (dx == 0 || dy == 0) && dx + dy >= BeltGridCell.MinBridgeSpan && dx + dy <= BeltGridCell.MaxBridgeSpan;
+        return (dx == 0 || dy == 0) && dx + dy >= BeltGridCell.MinBridgeSpan && dx + dy <= maxSpan;
     }
 
-    private static bool IsBridgeEntry(BeltGridCell cell, GridPosition partner)
+    private static bool IsBridgeEntry(BeltGridCell cell, GridPosition partner) =>
+        IsBridgeEntry(cell.Position, cell.Direction, partner, cell.Definition.MaxSpan);
+
+    /// <summary>
+    /// Whether the bridge end on <paramref name="position"/> facing <paramref name="direction"/> is the entry of its pair
+    /// with <paramref name="partner"/> (the partner stands ahead, within <paramref name="maxSpan"/>); else it is the exit.
+    /// </summary>
+    public static bool IsBridgeEntry(GridPosition position, Direction direction, GridPosition partner, int maxSpan)
     {
-        var dx = partner.X - cell.Position.X;
-        var dy = partner.Y - cell.Position.Y;
-        var span = Math.Abs(dx) + Math.Abs(dy);
-        if (span < BeltGridCell.MinBridgeSpan || span > BeltGridCell.MaxBridgeSpan)
+        var dx = partner.X - position.X;
+        var dy = partner.Y - position.Y;
+        if (!IsBridgeSpan(position, partner, maxSpan))
         {
             return false;
         }
 
-        return cell.Direction switch
+        return direction switch
         {
             Direction.North => dx == 0 && dy < 0,
             Direction.East => dy == 0 && dx > 0,
@@ -800,8 +957,8 @@ public sealed class BeltGrid
         return cell.Kind switch
         {
             LogisticsKind.Belt => cell.Direction == flow,
-            // A router and a sorter hand items to every side (but the one an item came from, which a view cannot know).
-            LogisticsKind.Router or LogisticsKind.Sorter => true,
+            // A router, a sorter and a gate hand items to every side (but the one an item came from, which a view cannot know).
+            LogisticsKind.Router or LogisticsKind.Sorter or LogisticsKind.Gate => true,
             LogisticsKind.Bridge when cell.BridgePartner is { } partner =>
                 !IsBridgeEntry(cell, partner) && flow != back,
             LogisticsKind.Bridge => cell.Direction == flow,
@@ -834,8 +991,8 @@ public sealed class BeltGrid
 
 public sealed class BeltGridCell
 {
+    /// <summary>Shortest bridge: its ends 2 cells apart (one cell crossed). The longest is the definition's <see cref="ConveyorDefinition.MaxSpan"/>.</summary>
     public const int MinBridgeSpan = 2;
-    public const int MaxBridgeSpan = 4; // Mindustry's bridge conveyor: ends at most 4 cells apart
 
     /// <summary>Items a junction holds per direction of travel (Mindustry's Junction capacity).</summary>
     public const int JunctionQueueLength = 6;
@@ -874,25 +1031,62 @@ public sealed class BeltGridCell
     public GridPosition? BridgePartner { get; private set; }
     public string? FilterItemId => filterItemId;
 
-    /// <summary>False for a router, a sorter and a junction: they have no direction (kept North, rotating them does nothing).</summary>
-    public bool HasDirection => Kind is not (LogisticsKind.Router or LogisticsKind.Sorter or LogisticsKind.Junction);
+    /// <summary>False for a router, a sorter, a gate and a junction: they have no direction (kept North, rotating them does nothing).</summary>
+    public bool HasDirection =>
+        Kind is not (LogisticsKind.Router or LogisticsKind.Sorter or LogisticsKind.Gate or LogisticsKind.Junction);
 
     /// <summary>
-    /// Sorter: one turn bit per direction of travel (bit <c>(int)direction</c>, as Mindustry's <c>rotation</c> bits): set
-    /// = an item travelling that way goes right when both sides take it, clear = left. 0–15.
+    /// A sorter or a gate: it holds nothing, an item passes through it inside <see cref="BeltGrid.TryInsert"/> (or stays
+    /// where it was); it never takes from, nor hands to, another one.
+    /// </summary>
+    public bool PassesThrough => Kind is LogisticsKind.Sorter or LogisticsKind.Gate;
+
+    /// <summary>
+    /// Stack conveyor: the loading cell of its line (no stack cell faces it), which packs single pieces. The grid works
+    /// it out from the line on every change of the layout; false on other cells.
+    /// </summary>
+    public bool IsStackLoader { get; private set; }
+
+    /// <summary>
+    /// Stack conveyor: the unloading cell of its line (the cell ahead is not a stack cell), which hands its pack's pieces
+    /// to the building or the Core ahead. A lone stack cell is both. False on other cells.
+    /// </summary>
+    public bool IsStackUnloader { get; private set; }
+
+    /// <summary>Stack conveyor: ticks the pack being formed on the loading cell has waited (<see cref="BeltCell.StackWaitTicks"/>).</summary>
+    public int StackWaitTicks => inner.StackWaitTicks;
+
+    internal void SetStackRoles(bool loader, bool unloader)
+    {
+        IsStackLoader = loader;
+        IsStackUnloader = unloader;
+    }
+
+    /// <summary>Stack conveyor's loading cell: see <see cref="BeltCell.CanLoad"/>.</summary>
+    internal bool CanLoad(TransportedItem item) => inner.CanLoad(item);
+
+    /// <summary>Stack conveyor's loading cell: see <see cref="BeltCell.TryLoad"/>.</summary>
+    internal bool TryLoad(TransportedItem item) => inner.TryLoad(item);
+
+    /// <summary>Stack conveyor state for save/load: see <see cref="BeltCell.RestoreStackWait"/>.</summary>
+    public void RestoreStackWait(int ticks) => inner.RestoreStackWait(ticks);
+
+    /// <summary>
+    /// Sorter or gate: one turn bit per direction of travel (bit <c>(int)direction</c>, as Mindustry's <c>rotation</c>
+    /// bits): set = an item travelling that way goes right when both sides take it, clear = left. 0–15.
     /// </summary>
     public int SorterTurns { get; private set; }
 
-    /// <summary>Sorter: whether the turn bit of <paramref name="travel"/> says right.</summary>
+    /// <summary>Sorter or gate: whether the turn bit of <paramref name="travel"/> says right.</summary>
     public bool SorterTurnsRight(Direction travel) => (SorterTurns & (1 << (int)travel)) != 0;
 
-    /// <summary>Sorter: both sides took an item travelling <paramref name="travel"/>; the next one goes to the other.</summary>
+    /// <summary>Sorter or gate: both sides took an item travelling <paramref name="travel"/>; the next one goes to the other.</summary>
     internal void FlipSorter(Direction travel) => SorterTurns ^= 1 << (int)travel;
 
-    /// <summary>Sorter state for save/load: the four turn bits.</summary>
+    /// <summary>Sorter or gate state for save/load: the four turn bits.</summary>
     public void RestoreSorter(int turns)
     {
-        if (Kind == LogisticsKind.Sorter)
+        if (PassesThrough)
         {
             SorterTurns = turns & 0b1111;
         }
@@ -1004,15 +1198,17 @@ public sealed class BeltGridCell
             SetFilterItem(filter);
         }
 
-        // A sorter holds nothing (an item passes through it at once).
+        // A sorter or a gate holds nothing (an item passes through it at once).
         inner.RestoreItems(
             Kind == LogisticsKind.Router ? restoredItems.Take(1)
-            : Kind == LogisticsKind.Sorter ? []
+            : PassesThrough ? []
             : restoredItems);
         if (Kind == LogisticsKind.Router)
         {
             RestoreRouter(RouterTurn, RouterWaitTicks, RouterFrom);
         }
+
+        inner.RestoreStackWait(inner.StackWaitTicks);
     }
 
     public bool TryInsert(TransportedItem item, Direction? fromDirection = null) =>
@@ -1024,12 +1220,13 @@ public sealed class BeltGridCell
     /// <summary>
     /// How many tiles this cell hands its ready items to (buildings pull them with <see cref="PeekOutputToward"/>):
     /// one for a belt or a bridge (<see cref="OutputPosition"/>), four for a junction (one per queue), none for a router
-    /// (it hands its item on itself, to cells and buildings in turn) or a sorter (it holds nothing).
+    /// (it hands its item on itself, to cells and buildings in turn), a sorter or a gate (they hold nothing) and a stack
+    /// cell (the grid unloads its packs itself, <see cref="BeltGrid.BuildingReceives"/>).
     /// </summary>
     public int OutputTargetCount => Kind switch
     {
         LogisticsKind.Junction => DirectionMath.All.Length,
-        LogisticsKind.Router or LogisticsKind.Sorter => 0,
+        LogisticsKind.Router or LogisticsKind.Sorter or LogisticsKind.Gate or LogisticsKind.Stack => 0,
         _ => 1
     };
 
@@ -1040,7 +1237,7 @@ public sealed class BeltGridCell
     /// <summary>The item ready to leave toward <paramref name="target"/> (one of the output targets), or null.</summary>
     public TransportedItem? PeekOutputToward(GridPosition target)
     {
-        if (Kind is LogisticsKind.Router or LogisticsKind.Sorter)
+        if (Kind is LogisticsKind.Router or LogisticsKind.Stack || PassesThrough)
         {
             return null;
         }
@@ -1080,7 +1277,7 @@ public sealed class BeltGridCell
     {
         if (Kind != LogisticsKind.Router)
         {
-            inner.Advance(deltaSeconds);
+            inner.Advance(deltaSeconds, stackLoader: IsStackLoader);
             return;
         }
 
@@ -1092,8 +1289,8 @@ public sealed class BeltGridCell
         }
     }
 
-    /// <summary>The head of a belt once at the end of the cell; null on a junction and a router (they hand items on themselves) and a sorter (it holds nothing).</summary>
-    public TransportedItem? PeekOutput() => Kind is LogisticsKind.Router or LogisticsKind.Sorter ? null : inner.PeekOutput();
+    /// <summary>The head of a belt once at the end of the cell; null on a junction and a router (they hand items on themselves) and a sorter or a gate (they hold nothing).</summary>
+    public TransportedItem? PeekOutput() => Kind == LogisticsKind.Router || PassesThrough ? null : inner.PeekOutput();
     public void RemoveOutput() => inner.RemoveOutput();
     public bool TryRemoveItem(TransportedItem item)
     {

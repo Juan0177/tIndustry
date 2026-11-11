@@ -102,10 +102,10 @@ public sealed class MarketInsightTests
             Assert.Null(Content.FindConveyor(id));
         }
 
-        Assert.Equal(2_000_000, Content.FindStructure(MarketInsight.ForecastNodeId)!.Unlock!.Money);
+        Assert.Equal(1_400_000, Content.FindStructure(MarketInsight.ForecastNodeId)!.Unlock!.Money);
         Assert.Equal([new ResourceAmount("lead-plate", 240), new ResourceAmount("copper-wire", 120)],
             Content.FindStructure(MarketInsight.ForecastNodeId)!.Unlock!.Materials);
-        Assert.Equal(2_400_000, Content.FindStructure(MarketInsight.PercentNodeId)!.Unlock!.Money);
+        Assert.Equal(1_700_000, Content.FindStructure(MarketInsight.PercentNodeId)!.Unlock!.Money);
         Assert.Equal([new ResourceAmount("titanium-plate", 320)], Content.FindStructure(MarketInsight.PercentNodeId)!.Unlock!.Materials);
         Assert.Equal(4_000_000, Content.FindStructure(MarketInsight.OddsNodeId)!.Unlock!.Money);
         Assert.Equal([new ResourceAmount("silicon", 720), new ResourceAmount("graphite", 480)],

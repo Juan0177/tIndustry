@@ -5,7 +5,8 @@ namespace TIndustry.Shared.Tests;
 
 /// <summary>
 /// The bridge reaches like Mindustry's bridge conveyor: its two ends stand 2 to 4 cells apart, so it crosses 1 to 3
-/// cells. A save with a longer bridge (older rule, 2–5) loads without it: neither end is placed.
+/// cells (<see cref="ConveyorDefinition.MaxSpan"/> of <c>conveyor-bridge</c>; the long bridge reaches 8, see
+/// <see cref="LongBridgeTests"/>). A save with a longer bridge (older rule, 2–5) loads without it: neither end is placed.
 /// </summary>
 public sealed class BridgeSpanTests
 {
@@ -19,7 +20,7 @@ public sealed class BridgeSpanTests
     public void EndsStandTwoToFourCellsApart()
     {
         Assert.Equal(2, BeltGridCell.MinBridgeSpan);
-        Assert.Equal(4, BeltGridCell.MaxBridgeSpan);
+        Assert.Equal(4, Bridge.MaxSpan);
 
         // Cells 2 and 3 ahead taken: the exit lands 4 ahead.
         var four = new BeltGrid();

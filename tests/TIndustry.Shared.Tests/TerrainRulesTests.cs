@@ -57,12 +57,8 @@ public sealed class TerrainRulesTests
         // The Core blocks stand only over the Core (CoreUpgradeTests).
         foreach (var kind in Enum.GetValues<BuildingKind>().Where(k => !BuildSpec.IsCoreUpgrade(k)))
         {
-            var recipe = kind switch
-            {
-                BuildingKind.Smelter => Content.SmelterRecipes()[0].Id,
-                BuildingKind.Assembler => Content.AssemblerRecipes()[0].Id,
-                _ => null
-            };
+            // Every craft machine (forno, assembler and the machines of the «Ricerca allargata») with its first recipe.
+            var recipe = Content.RecipesFor(BuildSpec.StructureIdFor(kind)!).FirstOrDefault()?.Id;
             yield return new BuildSpec(BuildSpec.StructureIdFor(kind)!, kind, origin, Direction.East, recipe);
         }
     }

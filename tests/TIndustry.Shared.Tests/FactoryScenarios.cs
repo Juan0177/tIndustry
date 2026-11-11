@@ -540,7 +540,7 @@ internal static class FactoryScenarios
         Assert(factory.TryPlaceSmelter(new GridPosition(4, 4), Direction.East, recipe), "forno");
         SeedSmelterFuel(factory);
         Assert(BuildingIo.FootprintsAdjacent(
-            factory.Miners[0].Position, Miner.Size,
+            factory.Miners[0].Position, Miner.T1Size,
             factory.Smelters[0].Position, Crafter.Size), "touch");
 
         var gotOre = false;
@@ -603,7 +603,7 @@ internal static class FactoryScenarios
         Assert(hot.TryPlaceMiner(new GridPosition(4, 4), Direction.East, definitionId: Miner.AdvancedId),
             "T2 miner");
         Assert(hot.TryPlaceGenerator(new GridPosition(4, 2), Direction.East), "gen north of miner");
-        Assert(hot.Generators[0].IsAdjacentTo(hot.Miners[0].Position, Miner.Size), "adjacent");
+        Assert(hot.Generators[0].IsAdjacentTo(hot.Miners[0].Position, Miner.T1Size), "adjacent");
         Assert(hot.Generators[0].TryAcceptFuel("coal") && hot.Generators[0].TryAcceptFuel("coal"), "fuel");
 
         var t2 = hot.Miners[0];
@@ -857,7 +857,7 @@ internal static class FactoryScenarios
         span4.TryPlaceFree(new GridPosition(3, 2), Direction.South, belt);
         Assert(span4.TryPlaceBridge(new GridPosition(0, 2), Direction.East, bridge), "span4 place");
         Assert(span4.Contains(new GridPosition(0, 2)) && span4.Contains(new GridPosition(4, 2)), "span4 ends");
-        Assert(BeltGridCell.MaxBridgeSpan == 4, "max span 4");
+        Assert(bridge.MaxSpan == 4, "max span 4");
         // End outputs to side (North) when facing East — 3-side I/O.
         var ioGrid = new BeltGrid();
         ioGrid.TryPlaceFree(new GridPosition(0, 1), Direction.East, belt);

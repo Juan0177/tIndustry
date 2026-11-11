@@ -23,6 +23,7 @@ public partial class BlockInfoPanel : Control
     private Label? _detailBody;
     private FactoryContent? _content;
     private IWalletView? _wallet;
+    private IResearchView? _research;
     private ToolKind? _detailFocus;
     private (ToolKind? Focus, bool Locked) _shown;
 
@@ -93,11 +94,15 @@ public partial class BlockInfoPanel : Control
         infoRoot.AddChild(_infoCostRow);
     }
 
-    /// <summary>Bind content (names, recipes, costs) and wallet (have / missing materials).</summary>
-    public void Bind(FactoryContent? content, IWalletView? wallet)
+    /// <summary>
+    /// Bind content (names, recipes, costs), wallet (have / missing materials) and research (the upgrades on the rates
+    /// and capacities of the I/O line).
+    /// </summary>
+    public void Bind(FactoryContent? content, IWalletView? wallet, IResearchView? research = null)
     {
         _content = content;
         _wallet = wallet;
+        _research = research;
     }
 
     /// <summary>Fill the strip for <paramref name="focus"/>, or empty it when null / not a palette block.</summary>
@@ -294,35 +299,149 @@ public partial class BlockInfoPanel : Control
             return "";
         }
 
-        var recipeId = structureId switch
+        var recipe = DefaultRecipe(structureId, _content);
+        if (recipe is null)
         {
-            "smelter" => "smelt-iron",
-            "assembler" => "craft-copper-wire",
-            "generator" => null,
-            _ => null
-        };
-        if (recipeId is null)
-        {
+            if (BlockIoLine(structureId, _content, _research) is { Length: > 0 } line)
+            {
+                return line;
+            }
+
             return structureId switch
             {
-                "miner" => Testi.T("blocco.io.minatore"),
-                "generator" => Testi.T("blocco.io.generatore"),
                 "conveyor-basic" or "junction" or "router" or "sorter" or "conveyor-bridge"
                     => Testi.T("blocco.io.trasporto"),
                 _ => ""
             };
         }
 
-        var recipe = _content.FindRecipe(recipeId);
-        if (recipe is null)
-        {
-            return "";
-        }
-
         string Fmt(IReadOnlyList<ResourceAmount> list) =>
             string.Join("+", list.Select(a =>
                 $"{a.Amount}×{Testi.Oggetto(a.ItemId, _content)}"));
 
-        return $"I/O · {Fmt(recipe.Inputs)} → {Fmt(recipe.Outputs)} ({Testi.Secondi(recipe.DurationSeconds)})";
+        var outputs = recipe.RandomOutput ? RandomOutputs(recipe, _content, "/") : Fmt(recipe.Outputs);
+        return $"I/O · {Fmt(recipe.Inputs)} → {outputs} ({Testi.Secondi(RecipeSeconds(recipe, structureId, _content, _research))})";
+    }
+
+    /// <summary>
+    /// The I/O line of a block that crafts nothing but has numbers of its own (the block info and the research tree
+    /// show it): what the gates do, the stack conveyor's pack and speed, the long bridge's reach and power, the solar
+    /// panels' output by day, what the generators burn and make, the batteries' capacity; all from the content. The
+    /// miners' pieces per second and the pieces per item of the storage blocks and of the CORE tiers come with the
+    /// upgrades of <paramref name="research"/> (<see cref="Upgrades"/>), as the simulation uses them; without research,
+    /// the numbers of the content. Empty for any other block.
+    /// </summary>
+    internal static string BlockIoLine(string structureId, FactoryContent content, IResearchView? research = null)
+    {
+        static string Number(double value) =>
+            Testi.Decimale(value.ToString("0.#", System.Globalization.CultureInfo.InvariantCulture));
+
+        if (structureId is Miner.BasicId or Miner.AdvancedId or Miner.ImpactDrillId)
+        {
+            // Pieces per second at full efficiency, before the T2's power bonus (the drill needs its power).
+            var percent = 100 + (research is null ? 0 : Upgrades.MinerPercent(research));
+            var perSecond = Miner.SpeedOf(structureId) * percent / 100.0 / Miner.MiningDurationSeconds;
+            return Testi.F("blocco.io.minatore",
+                Testi.Decimale(perSecond.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture)));
+        }
+
+        var storagePercent = research is null ? 0 : Upgrades.StoragePercent(research);
+        if (content.FindStructure(structureId) is { ItemCapacity: > 0 } storage)
+        {
+            return Testi.F("blocco.io.deposito", Upgrades.Scale(storage.ItemCapacity, storagePercent));
+        }
+
+        if (content.CoreTiers.FirstOrDefault(t => t.Id == structureId) is { } tier)
+        {
+            return Testi.F("blocco.io.core", Upgrades.Scale(tier.ItemCapacity, storagePercent));
+        }
+
+        if (content.FindConveyor(structureId) is { } conveyor)
+        {
+            return conveyor.Kind switch
+            {
+                LogisticsKind.Gate => Testi.T(conveyor.Inverted ? "blocco.io.gate.underflow" : "blocco.io.gate.overflow"),
+                LogisticsKind.Stack => Testi.F(
+                    "blocco.io.pacchi", BeltGrid.StackPackSize, Number(conveyor.RateItemsPerSecond)),
+                LogisticsKind.Bridge when conveyor.IsPoweredBridge => Testi.F(
+                    "blocco.io.ponte", conveyor.MaxSpan, Number(conveyor.PowerUse)),
+                _ => ""
+            };
+        }
+
+        if (Generator.IsGeneratorId(structureId))
+        {
+            var fuels = string.Join(" / ", Generator.FuelsOf(content, structureId).Select(f =>
+                Testi.F("blocco.io.carburante", Testi.Oggetto(f.ItemId, content), Testi.Secondi(f.Seconds))));
+            return Testi.F("blocco.io.generatore", fuels, Number(Generator.OutputRateOf(content, structureId) / 1000.0));
+        }
+
+        if (SolarPanel.IsSolarId(structureId) && content.FindBuilding(structureId) is { } panel)
+        {
+            return Testi.F("blocco.io.solare", Number(panel.PowerOutput));
+        }
+
+        if (Battery.IsBatteryId(structureId))
+        {
+            return Testi.F(
+                "blocco.io.batteria",
+                Testi.Migliaia(Battery.CapacityOf(content, structureId) / BuildingDefinition.ChargePerUnit));
+        }
+
+        return "";
+    }
+
+    /// <summary>
+    /// The recipe whose I/O the block info and the research tree show for <paramref name="structureId"/>: the one a
+    /// new machine starts on (the forno's iron, the assembler's copper wire, the first recipe of any other craft
+    /// machine, as <c>Factory.PlaceCrafter</c> picks it), the recipe a recipe node unlocks (the circuit); null for
+    /// a block that crafts nothing.
+    /// </summary>
+    internal static RecipeDefinition? DefaultRecipe(string structureId, FactoryContent content)
+    {
+        if (structureId == Crafter.SmelterBuildingId)
+        {
+            return content.FindRecipe("smelt-iron");
+        }
+
+        if (structureId == Crafter.AssemblerBuildingId)
+        {
+            return content.FindRecipe("craft-copper-wire");
+        }
+
+        if (content.FindBuilding(structureId) is { IsCrafter: true })
+        {
+            return content.RecipesFor(structureId).FirstOrDefault();
+        }
+
+        // A research node of kind "recipe" (no block): the recipe it gates.
+        return content.FindStructure(structureId)?.Kind == FactoryContent.RecipeKind
+            ? content.Recipes.FirstOrDefault(r => r.Research == structureId)
+            : null;
+    }
+
+    /// <summary>
+    /// Seconds per craft of <paramref name="recipe"/> in <paramref name="structureId"/> at its own speed
+    /// (<see cref="BuildingDefinition.CraftSpeedPercent"/>: the advanced smelter takes half the forno's time), with the
+    /// machine upgrade of <paramref name="research"/> for the forno, the advanced smelter and the assembler
+    /// (<see cref="Upgrades.MachinePercent"/>, as <see cref="Crafter.BonusPercent"/>); before the power bonus.
+    /// </summary>
+    internal static double RecipeSeconds(
+        RecipeDefinition recipe, string structureId, FactoryContent content, IResearchView? research = null)
+    {
+        var speed = content.FindBuilding(structureId) is { IsCrafter: true } building ? building.CraftSpeedPercent : 100;
+        var bonus = research is not null && Upgrades.GetsMachineBonus(structureId) ? Upgrades.MachinePercent(research) : 0;
+        return recipe.DurationSeconds * 100.0 / Math.Max(1, speed) / Upgrades.Factor(bonus);
+    }
+
+    /// <summary>
+    /// The outputs of a recipe that makes one piece at random (the separator): each item with its chance
+    /// (<c>blocco.io.caso</c>), from the weights of the content, joined by <paramref name="separator"/>.
+    /// </summary>
+    internal static string RandomOutputs(RecipeDefinition recipe, FactoryContent content, string separator)
+    {
+        var total = Math.Max(1, recipe.Outputs.Sum(o => o.Amount));
+        return string.Join(separator, recipe.Outputs.Select(o =>
+            Testi.F("blocco.io.caso", Testi.Oggetto(o.ItemId, content), o.Amount * 100 / total)));
     }
 }

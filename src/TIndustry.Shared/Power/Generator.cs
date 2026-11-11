@@ -1,13 +1,17 @@
 namespace TIndustry.Shared;
 
 /// <summary>
-/// 2×2 generator that burns coal from belts; while burning it gives its network
-/// <see cref="BuildingDefinition.PowerOutput"/> (spec «Rete di corrente», balance in <see cref="PowerSystem"/>).
+/// 2×2 generator that burns fuel from belts; while burning it gives its network
+/// <see cref="BuildingDefinition.PowerOutput"/> (spec «Rete di corrente», balance in <see cref="PowerSystem"/>). Its
+/// definition (<see cref="DefinitionId"/>: <see cref="BuildingId"/> or <see cref="CombustionId"/>) gives what it burns
+/// (<see cref="BuildingDefinition.Fuels"/>, each piece for its own seconds) and its output. It holds at most
+/// <see cref="FuelBufferCapacity"/> pieces of all its fuels together and burns the fuel listed first first.
 /// </summary>
 public sealed class Generator
 {
     public const int Size = 2;
     public const string BuildingId = "generator";
+    public const string CombustionId = "combustion-generator";
     public const string FuelItemId = "coal";
     public const int FuelBufferCapacity = 8;
     public const float SecondsPerFuel = 8f;
@@ -15,26 +19,107 @@ public sealed class Generator
     /// <summary>The spec's output in units per second, used when the content (built in code) does not give one.</summary>
     public const int DefaultPowerOutput = 30;
 
-    /// <summary>Output of a burning generator in thousandths of a unit per second (content, or <see cref="DefaultPowerOutput"/>).</summary>
-    public static long OutputRateOf(FactoryContent content) =>
-        content.FindBuilding(BuildingId)?.PowerOutputRate is > 0 and var rate ? rate : DefaultPowerOutput * 1000L;
+    /// <summary>The spec's output of the combustion generator, used when the content (built in code) does not give one.</summary>
+    public const int DefaultCombustionOutput = 90;
 
-    public Generator(GridPosition position, Direction direction = Direction.East, long id = 0)
+    /// <summary>True for the ids of the generators that burn fuel.</summary>
+    public static bool IsGeneratorId(string? id) => id is BuildingId or CombustionId;
+
+    /// <summary>
+    /// Output of a burning generator <paramref name="definitionId"/> in thousandths of a unit per second (content, or the
+    /// spec's when the content built in code has none).
+    /// </summary>
+    public static long OutputRateOf(FactoryContent content, string definitionId = BuildingId) =>
+        content.FindBuilding(definitionId)?.PowerOutputRate is > 0 and var rate
+            ? rate
+            : definitionId switch
+            {
+                BuildingId => DefaultPowerOutput * 1000L,
+                CombustionId => DefaultCombustionOutput * 1000L,
+                _ => 0
+            };
+
+    /// <summary>
+    /// What a generator <paramref name="definitionId"/> burns: the content's fuels, or the spec's when the content built
+    /// in code has none (the generator 1 coal / 8 s; the combustion generator 1 coal / 2 s or 1 graphite / 4 s).
+    /// </summary>
+    public static IReadOnlyList<FuelDefinition> FuelsOf(FactoryContent? content, string definitionId = BuildingId) =>
+        content?.FindBuilding(definitionId)?.Fuels is { Count: > 0 } fuels ? fuels : DefaultFuels(definitionId);
+
+    private static readonly FuelDefinition[] GeneratorFuels = [new(FuelItemId, SecondsPerFuel)];
+    private static readonly FuelDefinition[] CombustionFuels = [new(FuelItemId, 2f), new("graphite", 4f)];
+
+    private static IReadOnlyList<FuelDefinition> DefaultFuels(string definitionId) =>
+        definitionId == CombustionId ? CombustionFuels : GeneratorFuels;
+
+    public Generator(
+        GridPosition position,
+        Direction direction = Direction.East,
+        long id = 0,
+        string definitionId = BuildingId,
+        IReadOnlyList<FuelDefinition>? fuels = null)
     {
         Id = id;
         Position = position;
         Direction = direction;
+        DefinitionId = definitionId;
+        Fuels = fuels is { Count: > 0 } ? fuels : DefaultFuels(definitionId);
+        fuelCounts = new int[Fuels.Count];
     }
 
     /// <summary>Stable entity id assigned by <see cref="Factory"/> at creation (saved).</summary>
     public long Id { get; }
 
+    /// <summary><see cref="BuildingId"/> or <see cref="CombustionId"/> (saved).</summary>
+    public string DefinitionId { get; }
+
+    /// <summary>What it burns, in content order: the first fuel with stock burns first.</summary>
+    public IReadOnlyList<FuelDefinition> Fuels { get; }
+
+    // Pieces held of each fuel of Fuels (same order); their sum is at most FuelBufferCapacity.
+    private readonly int[] fuelCounts;
+
     public GridPosition Position { get; private set; }
     public Direction Direction { get; private set; }
-    public int FuelBuffer { get; private set; }
+
+    /// <summary>Pieces held, of all its fuels together (at most <see cref="FuelBufferCapacity"/>).</summary>
+    public int FuelBuffer
+    {
+        get
+        {
+            var total = 0;
+            foreach (var count in fuelCounts)
+            {
+                total += count;
+            }
+
+            return total;
+        }
+    }
+
     public float BurnRemaining { get; private set; }
     public bool IsGenerating => BurnRemaining > 0f;
     public long FuelConsumed { get; private set; }
+
+    /// <summary>Pieces of <paramref name="itemId"/> held (0 for an item it does not burn).</summary>
+    public int FuelCount(string itemId)
+    {
+        var index = FuelIndex(itemId);
+        return index < 0 ? 0 : fuelCounts[index];
+    }
+
+    private int FuelIndex(string itemId)
+    {
+        for (var i = 0; i < Fuels.Count; i++)
+        {
+            if (string.Equals(Fuels[i].ItemId, itemId, StringComparison.Ordinal))
+            {
+                return i;
+            }
+        }
+
+        return -1;
+    }
 
     public void Relocate(GridPosition position, Direction direction)
     {
@@ -42,12 +127,55 @@ public sealed class Generator
         Direction = direction;
     }
 
+    /// <summary>Restores <paramref name="fuelBuffer"/> pieces of its first fuel (none of the others) and the burn.</summary>
     public void RestoreFuel(int fuelBuffer, float burnRemaining, long fuelConsumed = 0)
     {
-        FuelBuffer = Math.Clamp(fuelBuffer, 0, FuelBufferCapacity);
+        Array.Clear(fuelCounts);
+        fuelCounts[0] = Math.Clamp(fuelBuffer, 0, FuelBufferCapacity);
         BurnRemaining = Math.Max(0f, burnRemaining);
         FuelConsumed = Math.Max(0, fuelConsumed);
     }
+
+    /// <summary>
+    /// Restores the pieces of each fuel (<paramref name="counts"/>: item id and pieces; an item it does not burn is
+    /// dropped, and the total stops at <see cref="FuelBufferCapacity"/> in content order) and the burn.
+    /// </summary>
+    public void RestoreFuels(IEnumerable<(string ItemId, int Count)> counts, float burnRemaining, long fuelConsumed = 0)
+    {
+        Array.Clear(fuelCounts);
+        foreach (var (itemId, count) in counts)
+        {
+            if (FuelIndex(itemId) is var index and >= 0)
+            {
+                fuelCounts[index] = Math.Max(0, count);
+            }
+        }
+
+        var room = FuelBufferCapacity;
+        for (var i = 0; i < fuelCounts.Length; i++)
+        {
+            fuelCounts[i] = Math.Min(fuelCounts[i], room);
+            room -= fuelCounts[i];
+        }
+
+        BurnRemaining = Math.Max(0f, burnRemaining);
+        FuelConsumed = Math.Max(0, fuelConsumed);
+    }
+
+    /// <summary>Pieces held of each fuel with stock, in content order (for the save).</summary>
+    public IEnumerable<(string ItemId, int Count)> FuelCounts()
+    {
+        for (var i = 0; i < Fuels.Count; i++)
+        {
+            if (fuelCounts[i] > 0)
+            {
+                yield return (Fuels[i].ItemId, fuelCounts[i]);
+            }
+        }
+    }
+
+    /// <summary>True when every piece held is of its first fuel (the save then needs no list per fuel).</summary>
+    public bool HoldsOnlyFirstFuel => FuelBuffer == fuelCounts[0];
 
     public IEnumerable<GridPosition> OccupiedTiles()
     {
@@ -74,16 +202,17 @@ public sealed class Generator
     }
 
     /// <summary>Whether <see cref="TryAcceptFuel"/> would take one <paramref name="itemId"/> (changes nothing).</summary>
-    public bool CanAcceptFuel(string itemId) => itemId == FuelItemId && FuelBuffer < FuelBufferCapacity;
+    public bool CanAcceptFuel(string itemId) => FuelIndex(itemId) >= 0 && FuelBuffer < FuelBufferCapacity;
 
     public bool TryAcceptFuel(string itemId)
     {
-        if (!CanAcceptFuel(itemId))
+        var index = FuelIndex(itemId);
+        if (index < 0 || FuelBuffer >= FuelBufferCapacity)
         {
             return false;
         }
 
-        FuelBuffer++;
+        fuelCounts[index]++;
         return true;
     }
 
@@ -123,14 +252,16 @@ public sealed class Generator
         AcceptFromBelts(belts);
         if (BurnRemaining <= 0f)
         {
-            if (FuelBuffer <= 0)
+            // The first fuel (content order) with stock burns, for its own time.
+            var index = Array.FindIndex(fuelCounts, count => count > 0);
+            if (index < 0)
             {
                 return false;
             }
 
-            FuelBuffer--;
+            fuelCounts[index]--;
             FuelConsumed++;
-            BurnRemaining = SecondsPerFuel;
+            BurnRemaining = Fuels[index].Seconds;
         }
 
         BurnRemaining = Math.Max(0f, BurnRemaining - deltaSeconds);

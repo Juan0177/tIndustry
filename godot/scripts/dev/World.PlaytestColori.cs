@@ -61,7 +61,7 @@ public partial class World
 
                 // The miner ghost on free ground and on the Core (refused: red outline and X), both in view.
                 await PlaytestKey(Key.Key2);
-                if (PlaytestFreeFootprint(Miner.Size) is not { } free)
+                if (PlaytestFreeFootprint(Miner.T1Size) is not { } free)
                 {
                     return Fail("varianti di colore: nessuna cella libera per il fantasma");
                 }
@@ -138,14 +138,14 @@ public partial class World
         GridPosition? found = null;
         var best = long.MaxValue;
         const int margin = 8;
-        for (var y = margin; y + Miner.Size + margin <= terrain.Height; y++)
+        for (var y = margin; y + Miner.T1Size + margin <= terrain.Height; y++)
         {
-            for (var x = margin; x + Miner.Size + margin <= terrain.Width; x++)
+            for (var x = margin; x + Miner.T1Size + margin <= terrain.Width; x++)
             {
                 var at = new GridPosition(x, y);
                 var d = (long)(x - core.X) * (x - core.X) + (long)(y - core.Y) * (y - core.Y);
                 if (d < best
-                    && terrain.CountDepositTiles(at, Miner.Size, DepositKind.Titanium) == Miner.Size * Miner.Size
+                    && terrain.CountDepositTiles(at, Miner.T1Size, DepositKind.Titanium) == Miner.T1Size * Miner.T1Size
                     && !_view.CanPlace(new BuildSpec(Miner.BasicId, BuildingKind.Miner, at, Direction.East), out var why)
                     && why == RefusalCode.NeedsAdvancedMiner)
                 {

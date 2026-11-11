@@ -305,6 +305,40 @@ public sealed class AgentGameTests
         Assert.Equal("iron-ore", factory.Belts.Cells[sorter].FilterItemId);
     }
 
+    [Fact]
+    public void PiazzaDragsAStackConveyorAndAreaCountsThePiecesOfAPack()
+    {
+        var factory = NewFactory();
+        factory.UnlockAllForDemo();
+        factory.Research.ForceUnlock("conveyor-stack");
+        foreach (var id in new[] { "plastic", "silicon", "graphite" })
+        {
+            factory.Wallet.AddMaterial(id, 10);
+        }
+
+        var game = new AgentGame(new SimHost(factory), Content);
+        var line = Call(game, "piazza", """{"tipo":"conveyor-stack","da":{"x":40,"y":50},"a":{"x":43,"y":50}}""");
+        Assert.Equal(4, line.GetProperty("celle").GetArrayLength());
+        Assert.All(Enumerable.Range(40, 4), x =>
+            Assert.Equal("conveyor-stack", factory.Belts.Cells[new GridPosition(x, 50)].Definition.Id));
+        // tier names plain belts only: the stack conveyor (tier 4) is asked by tipo.
+        Assert.Equal(AgentCodes.ParametriNonValidi, Refused(game, "piazza", """{"tier":4,"cella":{"x":40,"y":52}}""").Code);
+
+        for (var i = 0; i < 7; i++)
+        {
+            Assert.True(factory.Belts.TryInsert(new GridPosition(40, 50), new TransportedItem(9000 + i, "iron-ore"), Direction.East));
+        }
+
+        var area = Call(game, "area", """{"da":{"x":40,"y":50},"a":{"x":43,"y":50},"oggetti":true}""");
+        Assert.Equal("6666", area.GetProperty("righe")[0].GetString());
+        Assert.Equal("nastro a pacchi verso est", area.GetProperty("legenda").GetProperty("6").GetString());
+        var pack = Assert.Single(area.GetProperty("oggetti").EnumerateArray());
+        Assert.Equal(7, pack.GetProperty("n").GetInt32());
+        var stato = Call(game, "stato");
+        Assert.Equal(4, stato.GetProperty("edifici").GetProperty("nastriAPacchi").GetInt32());
+        Assert.Equal(0, stato.GetProperty("edifici").GetProperty("nastri").GetInt32());
+    }
+
     /// <summary>Right of the shard (cells 60..62): a screen there touches the Core.</summary>
     private static readonly GridPosition ScreenCell = new(63, 60);
 
@@ -598,6 +632,56 @@ public sealed class AgentGameTests
         var bridge = result.GetProperty("celle").EnumerateArray().Single(c => c.TryGetProperty("ponte", out _));
         Assert.Equal(41, bridge.GetProperty("x").GetInt32());
         Assert.Equal(new GridPosition(44, 50), host.State.Belts[new GridPosition(41, 50)].BridgePartner);
+    }
+
+    [Fact]
+    public void PiazzaPlacesEachOfTheEightPlanTwoBlocks()
+    {
+        var factory = NewFactory();
+        factory.UnlockAllForDemo();
+        factory.EnsureDemoBuildStock();
+        foreach (var id in new[] { "overflow-gate", "underflow-gate", "conveyor-stack", "bridge-long", "solar", "solar-large",
+                     "combustion-generator", "battery-large" })
+        {
+            factory.Research.ForceUnlock(id);
+        }
+
+        foreach (var (item, amount) in new[] { ("plastic", 50), ("silicon", 200), ("graphite", 50), ("lead-plate", 300),
+                     ("titanium-plate", 200), ("iron-plate", 100), ("copper-wire", 100) })
+        {
+            factory.Wallet.AddMaterial(item, amount);
+        }
+
+        var game = new AgentGame(new SimHost(factory), Content);
+        Call(game, "piazza", """{"tipo":"overflow-gate","cella":{"x":30,"y":30}}""");
+        Call(game, "piazza", """{"tipo":"underflow-gate","cella":{"x":32,"y":30}}""");
+        Call(game, "piazza", """{"tipo":"conveyor-stack","da":{"x":30,"y":34},"a":{"x":32,"y":34}}""");
+        Call(game, "piazza", """{"tipo":"bridge-long","cella":{"x":30,"y":38},"direzione":"est"}""");
+        Call(game, "piazza", """{"tipo":"solar","cella":{"x":30,"y":42}}""");
+        Call(game, "piazza", """{"tipo":"solar-large","cella":{"x":34,"y":42}}""");
+        Call(game, "piazza", """{"tipo":"combustion-generator","cella":{"x":30,"y":46}}""");
+        Call(game, "piazza", """{"tipo":"battery-large","cella":{"x":34,"y":46}}""");
+
+        Assert.Equal("overflow-gate", factory.Belts.Cells[new GridPosition(30, 30)].Definition.Id);
+        Assert.Equal("underflow-gate", factory.Belts.Cells[new GridPosition(32, 30)].Definition.Id);
+        Assert.All(Enumerable.Range(30, 3), x =>
+            Assert.Equal("conveyor-stack", factory.Belts.Cells[new GridPosition(x, 34)].Definition.Id));
+        var entry = factory.Belts.Cells[new GridPosition(30, 38)];
+        Assert.Equal("bridge-long", entry.Definition.Id);
+        Assert.NotNull(entry.BridgePartner);
+        Assert.Equal(2, factory.SolarPanels.Count);
+        Assert.Equal(Generator.CombustionId, factory.Generators.Single(g => g.Position == new GridPosition(30, 46)).DefinitionId);
+        Assert.Equal(Battery.LargeId, factory.Batteries.Single(b => b.Position == new GridPosition(34, 46)).DefinitionId);
+
+        var area = Call(game, "area", """{"da":{"x":30,"y":30},"a":{"x":37,"y":49}}""");
+        var rows = area.GetProperty("righe").EnumerateArray().Select(r => r.GetString()!).ToArray();
+        Assert.Equal('O', rows[0][0]);
+        Assert.Equal('U', rows[0][2]);
+        Assert.Equal('Z', rows[8][0]);
+        Assert.Equal('D', rows[12][0]);
+        Assert.Equal('J', rows[12][4]);
+        Assert.Equal('%', rows[16][0]);
+        Assert.Equal('&', rows[16][4]);
     }
 
     [Fact]
@@ -1010,9 +1094,11 @@ public sealed class AgentGameTests
             // Journals recorded before the 3×3 shard played on another map, those before the world's time had a night
             // flag, those before the Mindustry logistics (save v18) ran other blocks, those before the drone flown by
             // its player (save v19) had it fly to the plans on its own, those before the market screen (save v20) had
-            // no screen to place or filter: refused, never replayed.
-            Assert.Equal(6, AgentJournal.CurrentVersion);
-            foreach (var old in new[] { 1, 2, 3, 4, 5 })
+            // no screen to place or filter, those before the wider research (save v21) had miners on sand dig nothing,
+            // those before the stack conveyor (save v22) may start from a snapshot no longer readable: refused, never
+            // replayed.
+            Assert.Equal(8, AgentJournal.CurrentVersion);
+            foreach (var old in new[] { 1, 2, 3, 4, 5, 6, 7 })
             {
                 File.WriteAllText(broken, $$"""{"versione":{{old}},"voci":[]}""");
                 Assert.Equal(AgentCodes.ParametriNonValidi, Assert.Throws<AgentException>(() => AgentJournal.Load(broken)).Code);
@@ -1103,6 +1189,30 @@ public sealed class AgentGameTests
     }
 
     [Fact]
+    public void AreaShowsSandFloorWithoutDeposit()
+    {
+        var factory = NewFactory();
+        var tiles = new TerrainTile[120, 120];
+        for (var x = 0; x < 120; x++)
+        {
+            for (var y = 0; y < 120; y++)
+            {
+                tiles[x, y] = new TerrainTile(FloorKind.Stone, WallKind.None, DepositKind.None);
+            }
+        }
+
+        tiles[10, 10] = new TerrainTile(FloorKind.Sand, WallKind.None, DepositKind.None);
+        tiles[11, 10] = new TerrainTile(FloorKind.DarkSand, WallKind.None, DepositKind.None);
+        tiles[12, 10] = new TerrainTile(FloorKind.Sand, WallKind.None, DepositKind.Iron);
+        factory.Terrain = TerrainMap.FromTiles(tiles);
+        using var game = new AgentGame(new SimHost(factory), Content);
+
+        var area = Call(game, "area", """{"da":{"x":9,"y":10},"a":{"x":12,"y":10}}""");
+        Assert.Equal(".ssi", area.GetProperty("righe")[0].GetString());
+        Assert.Equal("pavimento di sabbia", area.GetProperty("legenda").GetProperty("s").GetString());
+    }
+
+    [Fact]
     public void AreaCountsTheItemsOnBelts()
     {
         var factory = NewGame.Sandbox(Content, CoreOrigin, mapWidth: 120, mapHeight: 120, rules: new GameRules(InstantBuild: true));
@@ -1144,6 +1254,58 @@ public sealed class AgentGameTests
         }
 
         Assert.Equal("CoreMaxTier", Refused(game, "potenzia_core", "{}").Code);
+    }
+
+    [Theory]
+    [InlineData("smelter-advanced", 2, 'W')]
+    [InlineData("graphite-press", 2, 'H')]
+    [InlineData("separator", 2, 'X')]
+    [InlineData("plasticizer", 2, 'Y')]
+    [InlineData("impact-drill", 3, 'T')]
+    public void PiazzaPlacesEachNewBlock(string id, int size, char symbol)
+    {
+        var factory = NewFactory();
+        factory.Research.ForceUnlock(id);
+        var kind = BuildSpec.KindFor(id)!.Value;
+        // First free spot (row by row) with a free ring around it, away from the Core.
+        var cell = Enumerable.Range(2, 40).SelectMany(y => Enumerable.Range(2, 40).Select(x => new GridPosition(x, y)))
+            .First(c => factory.CanOccupyFootprint(new GridPosition(c.X - 1, c.Y - 1), size + 2)
+                && factory.CanPlace(new BuildSpec(id, kind, c, Direction.East), out _));
+        foreach (var entry in factory.CostOf(new BuildSpec(id, kind, cell, Direction.East)))
+        {
+            if (entry.ItemId is { } itemId)
+            {
+                factory.Wallet.AddMaterial(itemId, entry.Amount);
+            }
+        }
+
+        var game = new AgentGame(new SimHost(factory), Content);
+        var placed = Call(game, "piazza", $$$"""{"tipo":"{{{id}}}","cella":{"x":{{{cell.X}}},"y":{{{cell.Y}}}}}""");
+
+        Assert.Equal(1, placed.GetProperty("celle").GetArrayLength());
+        Assert.Equal(0, placed.GetProperty("rifiuti").GetArrayLength());
+        Assert.True(factory.TryGetSpecAt(cell, out var spec, out _));
+        Assert.Equal((id, kind, cell), (spec.StructureId, spec.Kind!.Value, spec.Origin));
+        var stato = Call(game, "stato").GetProperty("edifici");
+        Assert.Equal(kind == BuildingKind.ImpactDrill ? 0 : 1, stato.GetProperty("macchine").GetInt32());
+        Assert.Equal(kind == BuildingKind.ImpactDrill ? 1 : 0, stato.GetProperty("minatori").GetInt32());
+
+        // The map shows its whole footprint with its symbol, and nothing past it.
+        var area = Call(game, "area",
+            $$$"""{"da":{"x":{{{cell.X - 1}}},"y":{{{cell.Y - 1}}}},"a":{"x":{{{cell.X + size}}},"y":{{{cell.Y + size}}}}}""");
+        var rows = area.GetProperty("righe").EnumerateArray().Select(r => r.GetString()!).ToArray();
+        for (var y = 0; y < size + 2; y++)
+        {
+            for (var x = 0; x < size + 2; x++)
+            {
+                var inside = x is > 0 && x <= size && y is > 0 && y <= size;
+                Assert.Equal(inside, rows[y][x] == symbol);
+            }
+        }
+
+        Assert.True(area.GetProperty("legenda").TryGetProperty(symbol.ToString(), out _));
+        var found = Call(game, "trova", $$$"""{"cosa":"{{{id}}}","cella":{"x":0,"y":0}}""");
+        Assert.Equal(1, found.GetProperty("trovati").GetInt32());
     }
 
     [Fact]

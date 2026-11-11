@@ -543,6 +543,7 @@ public partial class World
             Hud.ToolKind.BeltFast,
             Hud.ToolKind.BeltExpress,
             Hud.ToolKind.BeltArmored,
+            Hud.ToolKind.BeltStack,
             Hud.ToolKind.Miner,
             Hud.ToolKind.MinerAdvanced,
             Hud.ToolKind.Smelter,
@@ -562,7 +563,19 @@ public partial class World
             Hud.ToolKind.Vault,
             Hud.ToolKind.CoreFoundation,
             Hud.ToolKind.CoreNucleus,
-            Hud.ToolKind.MarketScreen
+            Hud.ToolKind.MarketScreen,
+            Hud.ToolKind.SmelterAdvanced,
+            Hud.ToolKind.GraphitePress,
+            Hud.ToolKind.Separator,
+            Hud.ToolKind.Plasticizer,
+            Hud.ToolKind.ImpactDrill,
+            Hud.ToolKind.OverflowGate,
+            Hud.ToolKind.UnderflowGate,
+            Hud.ToolKind.BridgeLong,
+            Hud.ToolKind.Solar,
+            Hud.ToolKind.SolarLarge,
+            Hud.ToolKind.CombustionGenerator,
+            Hud.ToolKind.BatteryLarge
         };
         // A Core block shows only while it is the next tier: the one built and the one after next stay out.
         _locksCoreTier = _view.CoreTier;

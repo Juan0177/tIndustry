@@ -528,6 +528,77 @@ public sealed class DeterminismTests
         Assert.Equal(a.State.PowerLinks, b.State.PowerLinks);
     }
 
+    /// <summary>
+    /// Keeps the new machines' layout busy the same way on every copy: coal in the generators, the inputs of each
+    /// machine's recipe, and its outputs taken away (counted per machine id).
+    /// </summary>
+    private static void KeepMachinesBusy(SimHost host, Dictionary<long, int> taken)
+    {
+        var factory = (Factory)host.State;
+        foreach (var generator in factory.Generators)
+        {
+            while (generator.TryAcceptFuel(Generator.FuelItemId))
+            {
+            }
+        }
+
+        foreach (var craft in factory.Machines.Concat(factory.Assemblers))
+        {
+            foreach (var input in craft.Recipe.Inputs)
+            {
+                while (craft.TryAccept(input.ItemId))
+                {
+                }
+            }
+
+            foreach (var piece in craft.OutputQueue.ToList())
+            {
+                Assert.True(craft.TryTakeOutput(piece));
+                taken[craft.Id] = taken.GetValueOrDefault(craft.Id) + 1;
+            }
+        }
+    }
+
+    [Fact]
+    public void Determinism_NewMachinesTenMinutes()
+    {
+        const int minute = 60 * SimulationClock.TickRate;
+        var content = LoadContent();
+        var a = new SimHost(SaveRoundTripTests.NewMachinesLayout(content));
+        var b = new SimHost(SaveRoundTripTests.NewMachinesLayout(content));
+        var takenA = new Dictionary<long, int>();
+        var takenB = new Dictionary<long, int>();
+        var checksums = new List<(ulong A, ulong B)>();
+        // Ten minutes, checksums every minute; at five B is replaced by a copy read from its own snapshot.
+        for (var tick = 0L; tick < 10 * minute; tick++)
+        {
+            if (tick == 5 * minute)
+            {
+                b = new SimHost(new Factory(Snapshot.Read(content, b.CreateSnapshot())));
+                Assert.Equal(a.Checksum(), b.Checksum());
+            }
+
+            KeepMachinesBusy(a, takenA);
+            KeepMachinesBusy(b, takenB);
+            a.AdvanceTicks(1);
+            b.AdvanceTicks(1);
+            if ((tick + 1) % minute == 0)
+            {
+                checksums.Add((a.Checksum(), b.Checksum()));
+            }
+        }
+
+        Assert.Equal(10, checksums.Count);
+        Assert.All(checksums, c => Assert.Equal(c.A, c.B));
+        Assert.Equal(10, checksums.Select(c => c.A).Distinct().Count());
+        Assert.Equal(takenA.OrderBy(kv => kv.Key), takenB.OrderBy(kv => kv.Key));
+        // Every new machine and the circuit assembler worked the whole time.
+        var factory = (Factory)a.State;
+        Assert.All(factory.Machines.Concat(factory.Assemblers), craft => Assert.True(takenA.GetValueOrDefault(craft.Id) > 50, $"{craft.DefinitionId}: {takenA.GetValueOrDefault(craft.Id)}"));
+        Assert.Equal(factory.Machines.Select(m => m.ItemsCrafted), ((Factory)b.State).Machines.Select(m => m.ItemsCrafted));
+        Assert.True(factory.Miners.Single(m => m.DefinitionId == Miner.ImpactDrillId).IsPowered);
+    }
+
     [Fact]
     public void GameplayRatesMatchWallClock()
     {
@@ -714,5 +785,47 @@ public sealed class DeterminismTests
         }
 
         return factory;
+    }
+
+    /// <summary>
+    /// The eight blocks of the second plan over ten minutes of play (the whole day, into dusk and night): two identical runs
+    /// end on the same checksum, and a game saved and loaded half-way goes on exactly like one that never saved.
+    /// </summary>
+    [Fact]
+    public void PlanTwoBlocksStayDeterministicOverTenMinutesAcrossDayAndNight()
+    {
+        var content = LoadContent();
+        const long total = 37_200; // 10 minutes of day (36 000 ticks) and into the first night
+        var first = PlanTwoScenario.Build(content);
+        PlanTwoScenario.RunTo(first, total);
+        var second = PlanTwoScenario.Build(content);
+        PlanTwoScenario.RunTo(second, total);
+
+        // The light really changed: the panels worked by day and stopped at night.
+        Assert.Equal(DayNightPhase.Night, DayNightClock.PhaseAt(DayNightMode.Cycle, first.FirstBuildTick ?? 0, total));
+        Assert.Equal(0, DayNightClock.LightAt(DayNightMode.Cycle, first.FirstBuildTick ?? 0, total));
+        Assert.All(first.SolarPanels, panel => Assert.Equal(0, panel.CurrentRate));
+        Assert.Contains(first.Belts.Cells.Values, c => c.Definition.Id == "conveyor-stack");
+        Assert.True(first.Generators.Single(g => g.DefinitionId == "combustion-generator").FuelConsumed > 0);
+        Assert.True(first.Batteries.Sum(b => b.Charge) > 0);
+        Assert.True(first.CoreDeliveredItems > 0, "the stack line must deliver into the Core");
+        var expected = Snapshot.Checksum(Snapshot.Write(first.State));
+        Assert.Equal(expected, Snapshot.Checksum(Snapshot.Write(second.State)));
+
+        foreach (var saveAt in new long[] { 18_001, 35_500 })
+        {
+            var run = PlanTwoScenario.Build(content);
+            PlanTwoScenario.RunTo(run, saveAt);
+            if (saveAt == 18_001)
+            {
+                // By day the panels really produce.
+                Assert.NotEmpty(run.SolarPanels);
+                Assert.All(run.SolarPanels, panel => Assert.True(panel.CurrentRate > 0));
+            }
+
+            var loaded = Factory.Restore(content, run.Capture());
+            PlanTwoScenario.RunTo(loaded, total);
+            Assert.True(expected == Snapshot.Checksum(Snapshot.Write(loaded.State)), $"saved at tick {saveAt}");
+        }
     }
 }

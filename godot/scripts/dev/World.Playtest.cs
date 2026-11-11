@@ -157,7 +157,7 @@ public partial class World
         }
 
         var core = new GridPosition(_view!.CoreTiles.Min(t => t.X), _view.CoreTiles.Min(t => t.Y));
-        var minerCell = new GridPosition(Math.Max(0, core.X - Miner.Size - 2), core.Y);
+        var minerCell = new GridPosition(Math.Max(0, core.X - Miner.T1Size - 2), core.Y);
         // The cells the tutorial asks for (miner and the belt to the Core) must not be under the card or a HUD panel.
         var hudRects = PlaytestHudPanelRects();
         for (var x = minerCell.X; x < core.X; x++)
@@ -192,7 +192,7 @@ public partial class World
 
         // 4) Belt: key 1 then drag from the miner output to the Core; the drone builds the belts in order.
         await PlaytestKey(Key.Key1);
-        var firstBelt = minerCell.X + Miner.Size;
+        var firstBelt = minerCell.X + Miner.T1Size;
         var lastBelt = core.X - 1;
         var from = CellToScreen(new GridPosition(firstBelt, core.Y));
         var to = CellToScreen(new GridPosition(lastBelt, core.Y));
@@ -407,7 +407,7 @@ public partial class World
         await PlaytestKey(Key.Key2);
         await Shot("palette-info");
         // The placement preview (Minatore, 2×2): on free ground (accent outline) and on the Core (red).
-        if (PlaytestFreeFootprint(Miner.Size) is { } free)
+        if (PlaytestFreeFootprint(Miner.T1Size) is { } free)
         {
             PlaytestMove(CellToScreen(free), 0);
             await Shot("fantasma-valido");
@@ -1330,7 +1330,7 @@ public partial class World
     private async Task<bool> PlaytestRemoveRectangleAsync(Func<string, Task> shot)
     {
         var core = new GridPosition(_view!.CoreTiles.Min(t => t.X), _view.CoreTiles.Min(t => t.Y));
-        var minerCell = new GridPosition(Math.Max(0, core.X - Miner.Size - 2), core.Y);
+        var minerCell = new GridPosition(Math.Max(0, core.X - Miner.T1Size - 2), core.Y);
         var lastBelt = new GridPosition(core.X - 1, core.Y);
         PlaytestFlyDrone(new GridPosition(core.X - 2, core.Y)); // the drone takes the line apart only within its range
         if (GetNodeOrNull<Camera2D>("Camera") is { } cam)

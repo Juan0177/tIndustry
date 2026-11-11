@@ -1,10 +1,10 @@
 # Energia
 
-Come si produce e si porta la corrente: generatore, reti di nodi T1 e T2, Batteria, Lampada, e cosa cambia nei blocchi alimentati.
+Come si produce e si porta la corrente: generatori, pannelli solari, reti di nodi T1 e T2, batterie, Lampada, e cosa cambia nei blocchi alimentati.
 
 ## A cosa serve
 
-La corrente non è obbligatoria: il Forno può andare a carbone e l'Assemblatore lavora anche senza. Con la corrente però:
+La corrente non è obbligatoria per i blocchi di base: il Forno può andare a carbone e l'Assemblatore lavora anche senza. Con la corrente però:
 
 | Blocco | Con la corrente | Consumo |
 |---|---|---|
@@ -12,12 +12,22 @@ La corrente non è obbligatoria: il Forno può andare a carbone e l'Assemblatore
 | Assemblatore | Lavora fino al **20% più veloce** | 10 unità al secondo quando ha una ricetta da fare |
 | Minatore T2 | Estrae fino al **20% più veloce** | 0,5 unità al secondo mentre scava |
 | Lampada | Si accende e illumina la notte | 1 unità al secondo, solo di notte |
+| Ponte lungo (entrata) | Lascia passare gli oggetti | 1 unità al secondo, sempre |
 
-Il Minatore T1 e l'Estrattore non usano corrente. Un blocco che non ha niente da fare (un forno senza minerale) non chiede corrente.
+Alcuni blocchi della Ricerca invece **senza corrente sono fermi** e lavorano alla loro velocità per la soddisfazione della rete:
+
+| Blocco | Consumo |
+|---|---|
+| Fonderia avanzata | 20 unità al secondo quando ha qualcosa da fondere; non brucia carbone |
+| Separatore | 8 unità al secondo quando lavora |
+| Plastificatore | 6 unità al secondo quando lavora |
+| Trapano a impatto | 30 unità al secondo mentre scava (un generatore intero) |
+
+Il Minatore T1, la Pressa grande e l'Estrattore non usano corrente. Un blocco che non ha niente da fare (un forno senza minerale) non chiede corrente.
 
 ## Blocchi di corrente
 
-Fanno parte della rete il Generatore, i Nodi T1 e T2, la Batteria e ogni blocco che consuma corrente (Forno, Assemblatore, Minatore T2, Lampada). Nastri, Minatore T1, Estrattore, magazzini e **CORE** non ne fanno parte: il CORE non produce né conserva corrente.
+Fanno parte della rete il Generatore, il Generatore a combustione, i Pannelli solari, i Nodi T1 e T2, le Batterie e ogni blocco che consuma corrente (Forno, Assemblatore, Minatore T2, Lampada, Fonderia avanzata, Separatore, Plastificatore, Trapano a impatto, l'entrata del Ponte lungo). Gli altri nastri, Minatore T1, Pressa grande, Estrattore, magazzini e **CORE** non ne fanno parte: il CORE non produce né conserva corrente.
 
 ## Generatore
 
@@ -32,6 +42,30 @@ Fanno parte della rete il Generatore, i Nodi T1 e T2, la Batteria e ogni blocco 
 
 Un generatore è **acceso** finché ha carbone da bruciare: il rotore gira e, di notte, fa luce. Accetta solo carbone.
 
+## Generatore a combustione
+
+| Generatore a combustione (`combustion-generator`) | |
+|---|---|
+| Misura | 2×2 |
+| Costo | 20 Lastre di ferro, 10 Lastre di piombo, 6 Fili di rame |
+| Sblocco | $108.000, 180 Lastre di ferro, 90 Lastre di piombo, 54 Fili di rame (dopo il Generatore): è il premio del capitolo 1 della campagna, quindi in campagna non si compra e nella partita libera costa il triplo (vedi [Economia e Ricerca](Economia-e-Ricerca#i-premi-della-campagna)) |
+| Combustibile | Carbone o Grafite portati da un nastro; scorta di 8 pezzi in tutto |
+| Consumo | 1 Carbone ogni 2 secondi oppure 1 Grafite ogni 4 secondi |
+| Produzione | **90 unità al secondo** mentre brucia |
+
+Brucia sempre **prima il carbone**: la grafite solo quando di carbone non ne ha. La scorta tiene 8 pezzi fra carbone e grafite insieme. In `data/content.json` ogni generatore elenca i suoi combustibili (`fuels`: oggetto e secondi per pezzo, il primo bruciato per primo); il Generatore ha solo il carbone da 8 secondi. Nel mondo il focolare del generatore a combustione si accende solo mentre brucia e di notte fa una luce arancione; il pannello del blocco e la Ricerca dicono combustibili, tempi e produzione.
+
+## Pannelli solari
+
+| | Pannello solare (`solar`) | Pannello solare grande (`solar-large`) |
+|---|---|---|
+| Misura | 1×1 | 3×3 |
+| Costo | 6 Fili di rame, 4 Silicio | 30 Lastre di piombo, 25 Silicio, 10 Lastre di titanio |
+| Sblocco | $36.000, 18 Fili di rame, 12 Silicio (dopo il Nodo T1) | $200.000, 120 Lastre di piombo, 100 Silicio, 40 Lastre di titanio (dopo il Pannello solare) |
+| Produzione | **3 unità al secondo** in pieno giorno | **36 unità al secondo** in pieno giorno |
+
+I pannelli non bruciano niente: producono la loro corrente per la **luce del mondo** (da 0 a 1000: il ciclo del tempo è in [Campagna e mappe](Campagna-e-mappe#partita-libera)), in millesimi interi arrotondati per difetto: `produzione × luce / 1000`. Di giorno tutta, di notte niente, al tramonto e all'alba in proporzione (a metà tramonto 1,5 il pannello piccolo, 18 il grande). Prima del primo blocco è giorno; con «Solo giorno (Pacifica)» producono sempre tutto, con «Solo notte» mai. Si collegano come il generatore, per contatto o col laser di un nodo, e caricano le batterie della loro rete. Nel mondo un pannello si scurisce quanto meno produce: di notte è spento.
+
 ## La rete
 
 Una **rete** è l'insieme dei blocchi di corrente collegati fra loro. Ci sono due modi per collegare:
@@ -42,7 +76,7 @@ Una **rete** è l'insieme dei blocchi di corrente collegati fra loro. Ci sono du
 | Nodo | Misura | Raggio | Collegamenti massimi | Costo | Sblocco |
 |---|---|---|---|---|---|
 | Nodo T1 (`power-node`) | 1×1 | 6 celle | 6 | 2 Fili di rame | $8.300, 8 Lastre di ferro, 4 Fili di rame (dopo il Generatore) |
-| Nodo T2 (`power-node-t2`) | 2×2 | 10 celle | 10 | 6 Lastre di ferro, 4 Fili di rame | $910.000, 48 Lastre di ferro, 24 Fili di rame (dopo il Nodo T1) |
+| Nodo T2 (`power-node-t2`) | 2×2 | 10 celle | 10 | 6 Lastre di ferro, 4 Fili di rame | $340.000, 48 Lastre di ferro, 24 Fili di rame (dopo il Nodo T1) |
 
 Il raggio si misura **fra i bordi** dei due blocchi (non dal centro): un blocco grande è raggiungibile prima di uno piccolo alla stessa distanza dal centro. Un laser fra due nodi conta un collegamento su entrambi e vale se basta il raggio di uno dei due. Il contatto non consuma collegamenti.
 
@@ -63,7 +97,7 @@ Clicca un **nodo**: si mostrano il raggio e i collegamenti usati (per esempio *3
 
 Ogni rete fa il suo conto a ogni istante, senza aiutare le altre:
 
-- **Produzione** = 30 al secondo per ogni generatore acceso.
+- **Produzione** = 30 al secondo per ogni generatore acceso, 90 per ogni generatore a combustione acceso, più i pannelli solari.
 - **Richiesta** = somma dei consumi delle macchine che in quel momento vogliono lavorare.
 - Se la produzione basta, tutte le macchine ricevono il **100%** e quello che avanza riempie le batterie della rete.
 - Se non basta, le batterie danno la differenza finché hanno carica.
@@ -78,18 +112,20 @@ Con una soddisfazione `s` (da 0% a 100%):
 - **Assemblatore**: lavora sempre; velocità `1 + 0,2 × s`.
 - **Minatore T2**: velocità `1 + 0,2 × s`, oltre al suo doppio.
 - **Lampada**: luce proporzionale a `s`, spenta a 0.
+- **Ponte lungo**: con `s` sopra 0 gli oggetti passano subito (nessuna velocità ridotta), a 0 aspettano sull'entrata.
+- **Fonderia avanzata, Separatore, Plastificatore, Trapano a impatto**: velocità della macchina × `s`, ferme a 0.
 - **Forno**: con la corrente va a `1,2 × s`. Se ha carbone e `1,2 × s` è sotto 1, brucia il carbone e va a velocità 1, senza chiedere corrente in quel momento. Senza carbone e senza corrente è fermo.
 
-## Batteria
+## Batterie
 
-| Batteria (`battery`) | |
-|---|---|
-| Misura | 1×1 |
-| Costo | 10 Lastre di piombo, 4 Fili di rame |
-| Sblocco | $91.000, 30 Lastre di piombo, 15 Fili di rame (dopo il Nodo T1), in Ricerca |
-| Capacità | 1.000 unità |
+| | Batteria (`battery`) | Batteria grande (`battery-large`) |
+|---|---|---|
+| Misura | 1×1 | 3×3 |
+| Costo | 10 Lastre di piombo, 4 Fili di rame | 40 Lastre di piombo, 20 Lastre di titanio, 10 Silicio |
+| Sblocco | $91.000, 30 Lastre di piombo, 15 Fili di rame (dopo il Nodo T1), in Ricerca | $200.000, 160 Lastre di piombo, 80 Lastre di titanio, 40 Silicio (dopo la Batteria) |
+| Capacità | 1.000 unità | 20.000 unità |
 
-Si carica con la corrente che avanza e la rende quando i generatori non bastano, così la rete resta accesa anche quando il carbone finisce. La carica di una rete si divide fra le sue batterie in proporzione alla capacità; se la rete si spezza o si unisce, ogni batteria tiene la sua carica. Lo sprite mostra la carica con una barra. Passando il mouse su un blocco di corrente il suggerimento riassume la rete: blocchi, produzione, consumo, soddisfazione e batterie.
+Si carica con la corrente che avanza e la rende quando i generatori non bastano, così la rete resta accesa anche quando il carbone finisce. La carica di una rete si divide fra le sue batterie in proporzione alla capacità (una piccola e una grande: 1 parte su 21 alla piccola, 20 alla grande); se la rete si spezza o si unisce, ogni batteria tiene la sua carica. Lo sprite mostra la carica con una barra. Passando il mouse su un blocco di corrente il suggerimento riassume la rete: blocchi, produzione, consumo, soddisfazione e batterie.
 
 ## Lampada
 

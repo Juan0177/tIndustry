@@ -170,6 +170,71 @@
       "inverted": true
     },
     {
+      "id": "overflow-gate",
+      "tier": 1,
+      "rateItemsPerSecond": 8.0,
+      "capacity": 1,
+      "itemSpacing": 1.0,
+      "moneyCost": 0,
+      "buildCost": [
+        {
+          "itemId": "lead-plate",
+          "amount": 4
+        },
+        {
+          "itemId": "copper-wire",
+          "amount": 2
+        }
+      ],
+      "unlock": {
+        "money": 18000,
+        "materials": [
+          {
+            "itemId": "lead-plate",
+            "amount": 12
+          },
+          {
+            "itemId": "copper-wire",
+            "amount": 6
+          }
+        ]
+      },
+      "kind": "gate"
+    },
+    {
+      "id": "underflow-gate",
+      "tier": 1,
+      "rateItemsPerSecond": 8.0,
+      "capacity": 1,
+      "itemSpacing": 1.0,
+      "moneyCost": 0,
+      "buildCost": [
+        {
+          "itemId": "lead-plate",
+          "amount": 4
+        },
+        {
+          "itemId": "copper-wire",
+          "amount": 2
+        }
+      ],
+      "unlock": {
+        "money": 22000,
+        "materials": [
+          {
+            "itemId": "lead-plate",
+            "amount": 12
+          },
+          {
+            "itemId": "copper-wire",
+            "amount": 6
+          }
+        ]
+      },
+      "kind": "gate",
+      "inverted": true
+    },
+    {
       "id": "conveyor-bridge",
       "tier": 1,
       "rateItemsPerSecond": 5.25,
@@ -199,7 +264,50 @@
           }
         ]
       },
-      "kind": "bridge"
+      "kind": "bridge",
+      "maxSpan": 4
+    },
+    {
+      "id": "bridge-long",
+      "tier": 2,
+      "rateItemsPerSecond": 5.25,
+      "capacity": 1,
+      "itemSpacing": 1.0,
+      "moneyCost": 0,
+      "buildCost": [
+        {
+          "itemId": "titanium-plate",
+          "amount": 6
+        },
+        {
+          "itemId": "lead-plate",
+          "amount": 6
+        },
+        {
+          "itemId": "silicon",
+          "amount": 2
+        }
+      ],
+      "unlock": {
+        "money": 140000,
+        "materials": [
+          {
+            "itemId": "titanium-plate",
+            "amount": 24
+          },
+          {
+            "itemId": "lead-plate",
+            "amount": 24
+          },
+          {
+            "itemId": "silicon",
+            "amount": 8
+          }
+        ]
+      },
+      "kind": "bridge",
+      "maxSpan": 8,
+      "powerUse": 1
     },
     {
       "id": "conveyor-express",
@@ -223,7 +331,7 @@
         }
       ],
       "unlock": {
-        "money": 1500000,
+        "money": 740000,
         "materials": [
           {
             "itemId": "titanium-ore",
@@ -267,7 +375,7 @@
         }
       ],
       "unlock": {
-        "money": 1300000,
+        "money": 740000,
         "materials": [
           {
             "itemId": "iron-ore",
@@ -289,6 +397,46 @@
       },
       "kind": "belt",
       "armored": true
+    },
+    {
+      "id": "conveyor-stack",
+      "tier": 4,
+      "rateItemsPerSecond": 21.6,
+      "capacity": 1,
+      "itemSpacing": 1.0,
+      "moneyCost": 0,
+      "buildCost": [
+        {
+          "itemId": "plastic",
+          "amount": 1
+        },
+        {
+          "itemId": "silicon",
+          "amount": 1
+        },
+        {
+          "itemId": "graphite",
+          "amount": 1
+        }
+      ],
+      "unlock": {
+        "money": 2010000,
+        "materials": [
+          {
+            "itemId": "plastic",
+            "amount": 144
+          },
+          {
+            "itemId": "silicon",
+            "amount": 144
+          },
+          {
+            "itemId": "graphite",
+            "amount": 144
+          }
+        ]
+      },
+      "kind": "stack"
     }
   ],
   "recipes": [
@@ -392,6 +540,108 @@
       "outputs": [
         {
           "itemId": "silicon",
+          "amount": 1
+        }
+      ]
+    },
+    {
+      "id": "smelt-glass",
+      "durationSeconds": 2.0,
+      "inputs": [
+        {
+          "itemId": "sand",
+          "amount": 2
+        }
+      ],
+      "outputs": [
+        {
+          "itemId": "glass",
+          "amount": 1
+        }
+      ]
+    },
+    {
+      "id": "press-graphite",
+      "durationSeconds": 1.5,
+      "inputs": [
+        {
+          "itemId": "coal",
+          "amount": 3
+        }
+      ],
+      "outputs": [
+        {
+          "itemId": "graphite",
+          "amount": 2
+        }
+      ]
+    },
+    {
+      "id": "separate-sand",
+      "durationSeconds": 2.0,
+      "randomOutput": true,
+      "inputs": [
+        {
+          "itemId": "sand",
+          "amount": 2
+        }
+      ],
+      "outputs": [
+        {
+          "itemId": "iron-ore",
+          "amount": 30
+        },
+        {
+          "itemId": "copper-ore",
+          "amount": 30
+        },
+        {
+          "itemId": "lead-ore",
+          "amount": 30
+        },
+        {
+          "itemId": "titanium-ore",
+          "amount": 10
+        }
+      ]
+    },
+    {
+      "id": "plasticize-plastic",
+      "durationSeconds": 2.0,
+      "inputs": [
+        {
+          "itemId": "coal",
+          "amount": 2
+        }
+      ],
+      "outputs": [
+        {
+          "itemId": "plastic",
+          "amount": 1
+        }
+      ]
+    },
+    {
+      "id": "craft-circuit",
+      "durationSeconds": 3.0,
+      "research": "circuit",
+      "inputs": [
+        {
+          "itemId": "copper-wire",
+          "amount": 1
+        },
+        {
+          "itemId": "silicon",
+          "amount": 1
+        },
+        {
+          "itemId": "lead-plate",
+          "amount": 1
+        }
+      ],
+      "outputs": [
+        {
+          "itemId": "circuit",
           "amount": 1
         }
       ]
@@ -566,6 +816,52 @@
       ]
     },
     {
+      "id": "overflow-gate",
+      "displayName": "Overflow gate",
+      "kind": "conveyor",
+      "unlockedByDefault": false,
+      "unlock": {
+        "money": 18000,
+        "materials": [
+          {
+            "itemId": "lead-plate",
+            "amount": 12
+          },
+          {
+            "itemId": "copper-wire",
+            "amount": 6
+          }
+        ]
+      },
+      "isStub": false,
+      "prerequisites": [
+        "router"
+      ]
+    },
+    {
+      "id": "underflow-gate",
+      "displayName": "Underflow gate",
+      "kind": "conveyor",
+      "unlockedByDefault": false,
+      "unlock": {
+        "money": 22000,
+        "materials": [
+          {
+            "itemId": "lead-plate",
+            "amount": 12
+          },
+          {
+            "itemId": "copper-wire",
+            "amount": 6
+          }
+        ]
+      },
+      "isStub": false,
+      "prerequisites": [
+        "overflow-gate"
+      ]
+    },
+    {
       "id": "conveyor-bridge",
       "displayName": "Nastro ponte",
       "kind": "conveyor",
@@ -589,12 +885,39 @@
       ]
     },
     {
+      "id": "bridge-long",
+      "displayName": "Ponte lungo",
+      "kind": "conveyor",
+      "unlockedByDefault": false,
+      "unlock": {
+        "money": 140000,
+        "materials": [
+          {
+            "itemId": "titanium-plate",
+            "amount": 24
+          },
+          {
+            "itemId": "lead-plate",
+            "amount": 24
+          },
+          {
+            "itemId": "silicon",
+            "amount": 8
+          }
+        ]
+      },
+      "isStub": false,
+      "prerequisites": [
+        "conveyor-bridge"
+      ]
+    },
+    {
       "id": "conveyor-express",
       "displayName": "Nastro T3",
       "kind": "conveyor",
       "unlockedByDefault": false,
       "unlock": {
-        "money": 1500000,
+        "money": 740000,
         "materials": [
           {
             "itemId": "titanium-ore",
@@ -621,7 +944,7 @@
       "kind": "conveyor",
       "unlockedByDefault": false,
       "unlock": {
-        "money": 1300000,
+        "money": 740000,
         "materials": [
           {
             "itemId": "iron-ore",
@@ -644,6 +967,34 @@
       "isStub": false,
       "prerequisites": [
         "conveyor-fast"
+      ]
+    },
+    {
+      "id": "conveyor-stack",
+      "displayName": "Nastro a pacchi",
+      "kind": "conveyor",
+      "unlockedByDefault": false,
+      "campaignReward": 2,
+      "unlock": {
+        "money": 2010000,
+        "materials": [
+          {
+            "itemId": "plastic",
+            "amount": 144
+          },
+          {
+            "itemId": "silicon",
+            "amount": 144
+          },
+          {
+            "itemId": "graphite",
+            "amount": 144
+          }
+        ]
+      },
+      "isStub": false,
+      "prerequisites": [
+        "conveyor-express"
       ]
     },
     {
@@ -715,7 +1066,7 @@
       "kind": "building",
       "unlockedByDefault": false,
       "unlock": {
-        "money": 910000,
+        "money": 340000,
         "materials": [
           {
             "itemId": "iron-plate",
@@ -779,6 +1130,111 @@
       ]
     },
     {
+      "id": "solar",
+      "displayName": "Pannello solare",
+      "kind": "building",
+      "unlockedByDefault": false,
+      "unlock": {
+        "money": 36000,
+        "materials": [
+          {
+            "itemId": "copper-wire",
+            "amount": 18
+          },
+          {
+            "itemId": "silicon",
+            "amount": 12
+          }
+        ]
+      },
+      "isStub": false,
+      "prerequisites": [
+        "power-node"
+      ]
+    },
+    {
+      "id": "solar-large",
+      "displayName": "Pannello solare grande",
+      "kind": "building",
+      "unlockedByDefault": false,
+      "unlock": {
+        "money": 200000,
+        "materials": [
+          {
+            "itemId": "lead-plate",
+            "amount": 120
+          },
+          {
+            "itemId": "silicon",
+            "amount": 100
+          },
+          {
+            "itemId": "titanium-plate",
+            "amount": 40
+          }
+        ]
+      },
+      "isStub": false,
+      "prerequisites": [
+        "solar"
+      ]
+    },
+    {
+      "id": "combustion-generator",
+      "displayName": "Generatore a combustione",
+      "kind": "building",
+      "unlockedByDefault": false,
+      "campaignReward": 1,
+      "unlock": {
+        "money": 108000,
+        "materials": [
+          {
+            "itemId": "iron-plate",
+            "amount": 180
+          },
+          {
+            "itemId": "lead-plate",
+            "amount": 90
+          },
+          {
+            "itemId": "copper-wire",
+            "amount": 54
+          }
+        ]
+      },
+      "isStub": false,
+      "prerequisites": [
+        "generator"
+      ]
+    },
+    {
+      "id": "battery-large",
+      "displayName": "Batteria grande",
+      "kind": "building",
+      "unlockedByDefault": false,
+      "unlock": {
+        "money": 200000,
+        "materials": [
+          {
+            "itemId": "lead-plate",
+            "amount": 160
+          },
+          {
+            "itemId": "titanium-plate",
+            "amount": 80
+          },
+          {
+            "itemId": "silicon",
+            "amount": 40
+          }
+        ]
+      },
+      "isStub": false,
+      "prerequisites": [
+        "battery"
+      ]
+    },
+    {
       "id": "miner-advanced",
       "displayName": "Minatore T2",
       "kind": "building",
@@ -816,7 +1272,7 @@
       "displayName": "Deposito",
       "kind": "storage",
       "unlockedByDefault": false,
-      "unlock": { "money": 1500000, "materials": [ { "itemId": "titanium-plate", "amount": 80 } ] },
+      "unlock": { "money": 880000, "materials": [ { "itemId": "titanium-plate", "amount": 80 } ] },
       "isStub": false,
       "prerequisites": [ "container" ],
       "itemCapacity": 1000
@@ -835,7 +1291,7 @@
       "displayName": "Modulo previsione",
       "kind": "module",
       "unlockedByDefault": false,
-      "unlock": { "money": 2000000, "materials": [ { "itemId": "lead-plate", "amount": 240 }, { "itemId": "copper-wire", "amount": 120 } ] },
+      "unlock": { "money": 1400000, "materials": [ { "itemId": "lead-plate", "amount": 240 }, { "itemId": "copper-wire", "amount": 120 } ] },
       "isStub": false,
       "prerequisites": [ "market-screen" ]
     },
@@ -844,7 +1300,7 @@
       "displayName": "Modulo percentuale",
       "kind": "module",
       "unlockedByDefault": false,
-      "unlock": { "money": 2400000, "materials": [ { "itemId": "titanium-plate", "amount": 320 } ] },
+      "unlock": { "money": 1700000, "materials": [ { "itemId": "titanium-plate", "amount": 320 } ] },
       "isStub": false,
       "prerequisites": [ "finance-forecast" ]
     },
@@ -856,6 +1312,161 @@
       "unlock": { "money": 4000000, "materials": [ { "itemId": "silicon", "amount": 720 }, { "itemId": "graphite", "amount": 480 } ] },
       "isStub": false,
       "prerequisites": [ "finance-percent" ]
+    },
+    {
+      "id": "graphite-press",
+      "displayName": "Pressa grande",
+      "kind": "building",
+      "unlockedByDefault": false,
+      "unlock": { "money": 64000, "materials": [ { "itemId": "iron-plate", "amount": 60 }, { "itemId": "lead-plate", "amount": 30 } ] },
+      "isStub": false,
+      "prerequisites": [ "assembler" ]
+    },
+    {
+      "id": "smelter-advanced",
+      "displayName": "Fonderia avanzata",
+      "kind": "building",
+      "unlockedByDefault": false,
+      "unlock": { "money": 470000, "materials": [ { "itemId": "titanium-plate", "amount": 160 }, { "itemId": "copper-wire", "amount": 80 } ] },
+      "isStub": false,
+      "prerequisites": [ "smelter" ]
+    },
+    {
+      "id": "separator",
+      "displayName": "Separatore",
+      "kind": "building",
+      "unlockedByDefault": false,
+      "unlock": { "money": 540000, "materials": [ { "itemId": "titanium-plate", "amount": 160 }, { "itemId": "graphite", "amount": 80 } ] },
+      "isStub": false,
+      "prerequisites": [ "smelter-advanced" ]
+    },
+    {
+      "id": "plasticizer",
+      "displayName": "Plastificatore",
+      "kind": "building",
+      "unlockedByDefault": false,
+      "unlock": { "money": 410000, "materials": [ { "itemId": "silicon", "amount": 120 }, { "itemId": "graphite", "amount": 120 } ] },
+      "isStub": false,
+      "prerequisites": [ "graphite-press" ]
+    },
+    {
+      "id": "circuit",
+      "displayName": "Ricetta dei circuiti",
+      "kind": "recipe",
+      "unlockedByDefault": false,
+      "campaignReward": 3,
+      "unlock": { "money": 1020000, "materials": [ { "itemId": "silicon", "amount": 480 }, { "itemId": "lead-plate", "amount": 480 } ] },
+      "isStub": false,
+      "prerequisites": [ "assembler" ]
+    },
+    {
+      "id": "impact-drill",
+      "displayName": "Trapano a impatto",
+      "kind": "building",
+      "unlockedByDefault": false,
+      "unlock": { "money": 670000, "materials": [ { "itemId": "titanium-plate", "amount": 360 }, { "itemId": "silicon", "amount": 240 } ] },
+      "isStub": false,
+      "prerequisites": [ "miner-advanced" ]
+    },
+    {
+      "id": "upgrade-drone-build",
+      "displayName": "Drone: costruzione",
+      "kind": "upgrade",
+      "unlockedByDefault": false,
+      "unlock": { "money": 36000, "materials": [ { "itemId": "iron-plate", "amount": 30 }, { "itemId": "copper-wire", "amount": 15 } ] },
+      "isStub": false,
+      "prerequisites": []
+    },
+    {
+      "id": "upgrade-drone-hold",
+      "displayName": "Drone: stiva",
+      "kind": "upgrade",
+      "unlockedByDefault": false,
+      "unlock": { "money": 36000, "materials": [ { "itemId": "iron-plate", "amount": 30 }, { "itemId": "copper-wire", "amount": 15 } ] },
+      "isStub": false,
+      "prerequisites": []
+    },
+    {
+      "id": "upgrade-drone-range",
+      "displayName": "Drone: raggio",
+      "kind": "upgrade",
+      "unlockedByDefault": false,
+      "unlock": { "money": 36000, "materials": [ { "itemId": "iron-plate", "amount": 30 }, { "itemId": "copper-wire", "amount": 15 } ] },
+      "isStub": false,
+      "prerequisites": []
+    },
+    {
+      "id": "upgrade-drone-mine",
+      "displayName": "Drone: scavo",
+      "kind": "upgrade",
+      "unlockedByDefault": false,
+      "unlock": { "money": 36000, "materials": [ { "itemId": "iron-plate", "amount": 30 }, { "itemId": "copper-wire", "amount": 15 } ] },
+      "isStub": false,
+      "prerequisites": []
+    },
+    {
+      "id": "drone-boost",
+      "displayName": "Drone potenziato",
+      "kind": "upgrade",
+      "unlockedByDefault": false,
+      "campaignReward": 4,
+      "unlock": { "money": 1680000, "materials": [ { "itemId": "titanium-plate", "amount": 720 }, { "itemId": "silicon", "amount": 720 } ] },
+      "isStub": false,
+      "prerequisites": [ "upgrade-drone-build", "upgrade-drone-hold", "upgrade-drone-range", "upgrade-drone-mine" ]
+    },
+    {
+      "id": "upgrade-miners-1",
+      "displayName": "Minatori I",
+      "kind": "upgrade",
+      "unlockedByDefault": false,
+      "unlock": { "money": 180000, "materials": [ { "itemId": "iron-plate", "amount": 120 }, { "itemId": "copper-wire", "amount": 30 } ] },
+      "isStub": false,
+      "prerequisites": [ "miner-advanced" ]
+    },
+    {
+      "id": "upgrade-miners-2",
+      "displayName": "Minatori II",
+      "kind": "upgrade",
+      "unlockedByDefault": false,
+      "unlock": { "money": 340000, "materials": [ { "itemId": "titanium-plate", "amount": 120 }, { "itemId": "copper-wire", "amount": 80 } ] },
+      "isStub": false,
+      "prerequisites": [ "upgrade-miners-1" ]
+    },
+    {
+      "id": "upgrade-machines-1",
+      "displayName": "Macchine I",
+      "kind": "upgrade",
+      "unlockedByDefault": false,
+      "unlock": { "money": 270000, "materials": [ { "itemId": "lead-plate", "amount": 120 }, { "itemId": "copper-wire", "amount": 80 } ] },
+      "isStub": false,
+      "prerequisites": [ "assembler" ]
+    },
+    {
+      "id": "upgrade-machines-2",
+      "displayName": "Macchine II",
+      "kind": "upgrade",
+      "unlockedByDefault": false,
+      "unlock": { "money": 890000, "materials": [ { "itemId": "titanium-plate", "amount": 360 }, { "itemId": "silicon", "amount": 180 } ] },
+      "isStub": false,
+      "prerequisites": [ "upgrade-machines-1", "smelter-advanced" ]
+    },
+    {
+      "id": "upgrade-storage-1",
+      "displayName": "Magazzino I",
+      "kind": "upgrade",
+      "unlockedByDefault": false,
+      "unlock": { "money": 270000, "materials": [ { "itemId": "lead-plate", "amount": 120 }, { "itemId": "titanium-plate", "amount": 40 } ] },
+      "isStub": false,
+      "prerequisites": [ "container" ]
+    },
+    {
+      "id": "upgrade-storage-2",
+      "displayName": "Magazzino II",
+      "kind": "upgrade",
+      "unlockedByDefault": false,
+      "unlock": { "money": 1300000, "materials": [ { "itemId": "titanium-plate", "amount": 360 }, { "itemId": "graphite", "amount": 180 } ] },
+      "isStub": false,
+      "prerequisites": [ "upgrade-storage-1", "vault" ]
     },
     {
       "id": "core-foundation",
@@ -931,6 +1542,26 @@
       "itemId": "silicon",
       "displayName": "Silicio",
       "baseValue": 32
+    },
+    {
+      "itemId": "sand",
+      "displayName": "Sabbia",
+      "baseValue": 2
+    },
+    {
+      "itemId": "glass",
+      "displayName": "Vetro",
+      "baseValue": 9
+    },
+    {
+      "itemId": "plastic",
+      "displayName": "Plastica",
+      "baseValue": 20
+    },
+    {
+      "itemId": "circuit",
+      "displayName": "Circuito",
+      "baseValue": 90
     }
   ],
   "marketRules": {
@@ -1016,7 +1647,9 @@
         }
       ],
       "refundPercent": 100,
-      "powerUse": 8
+      "powerUse": 8,
+      "recipes": "smelt-",
+      "powerMode": "coal-or-power"
     },
     {
       "id": "assembler",
@@ -1032,7 +1665,9 @@
         }
       ],
       "refundPercent": 100,
-      "powerUse": 10
+      "powerUse": 10,
+      "recipes": "craft-",
+      "powerMode": "boost"
     },
     {
       "id": "generator",
@@ -1044,7 +1679,13 @@
         }
       ],
       "refundPercent": 100,
-      "powerOutput": 30
+      "powerOutput": 30,
+      "fuels": [
+        {
+          "itemId": "coal",
+          "seconds": 8
+        }
+      ]
     },
     {
       "id": "power-node",
@@ -1113,6 +1754,94 @@
       "powerCapacity": 1000
     },
     {
+      "id": "solar",
+      "moneyCost": 0,
+      "buildCost": [
+        {
+          "itemId": "copper-wire",
+          "amount": 6
+        },
+        {
+          "itemId": "silicon",
+          "amount": 4
+        }
+      ],
+      "refundPercent": 100,
+      "powerOutput": 3,
+      "solar": true
+    },
+    {
+      "id": "solar-large",
+      "moneyCost": 0,
+      "buildCost": [
+        {
+          "itemId": "lead-plate",
+          "amount": 30
+        },
+        {
+          "itemId": "silicon",
+          "amount": 25
+        },
+        {
+          "itemId": "titanium-plate",
+          "amount": 10
+        }
+      ],
+      "refundPercent": 100,
+      "powerOutput": 36,
+      "solar": true
+    },
+    {
+      "id": "combustion-generator",
+      "moneyCost": 0,
+      "buildCost": [
+        {
+          "itemId": "iron-plate",
+          "amount": 20
+        },
+        {
+          "itemId": "lead-plate",
+          "amount": 10
+        },
+        {
+          "itemId": "copper-wire",
+          "amount": 6
+        }
+      ],
+      "refundPercent": 100,
+      "powerOutput": 90,
+      "fuels": [
+        {
+          "itemId": "coal",
+          "seconds": 2
+        },
+        {
+          "itemId": "graphite",
+          "seconds": 4
+        }
+      ]
+    },
+    {
+      "id": "battery-large",
+      "moneyCost": 0,
+      "buildCost": [
+        {
+          "itemId": "lead-plate",
+          "amount": 40
+        },
+        {
+          "itemId": "titanium-plate",
+          "amount": 20
+        },
+        {
+          "itemId": "silicon",
+          "amount": 10
+        }
+      ],
+      "refundPercent": 100,
+      "powerCapacity": 20000
+    },
+    {
       "id": "extractor",
       "moneyCost": 0,
       "buildCost": [
@@ -1141,6 +1870,55 @@
       "buildCost": [ { "itemId": "iron-plate", "amount": 60 }, { "itemId": "copper-wire", "amount": 25 }, { "itemId": "lead-plate", "amount": 10 } ],
       "refundPercent": 100,
       "footprint": 2
+    },
+    {
+      "id": "smelter-advanced",
+      "moneyCost": 0,
+      "buildCost": [ { "itemId": "iron-plate", "amount": 30 }, { "itemId": "titanium-plate", "amount": 15 }, { "itemId": "copper-wire", "amount": 10 } ],
+      "refundPercent": 100,
+      "footprint": 2,
+      "powerUse": 20,
+      "recipes": "smelt-",
+      "powerMode": "required",
+      "craftSpeed": 2
+    },
+    {
+      "id": "graphite-press",
+      "moneyCost": 0,
+      "buildCost": [ { "itemId": "iron-plate", "amount": 20 }, { "itemId": "lead-plate", "amount": 10 } ],
+      "refundPercent": 100,
+      "footprint": 2,
+      "recipes": "press-",
+      "powerMode": "none"
+    },
+    {
+      "id": "separator",
+      "moneyCost": 0,
+      "buildCost": [ { "itemId": "iron-plate", "amount": 20 }, { "itemId": "titanium-plate", "amount": 10 }, { "itemId": "copper-wire", "amount": 10 } ],
+      "refundPercent": 100,
+      "footprint": 2,
+      "powerUse": 8,
+      "recipes": "separate-",
+      "powerMode": "required"
+    },
+    {
+      "id": "plasticizer",
+      "moneyCost": 0,
+      "buildCost": [ { "itemId": "titanium-plate", "amount": 20 }, { "itemId": "lead-plate", "amount": 20 }, { "itemId": "silicon", "amount": 10 } ],
+      "refundPercent": 100,
+      "footprint": 2,
+      "powerUse": 6,
+      "recipes": "plasticize-",
+      "powerMode": "required"
+    },
+    {
+      "id": "impact-drill",
+      "tier": 3,
+      "moneyCost": 0,
+      "buildCost": [ { "itemId": "titanium-plate", "amount": 40 }, { "itemId": "silicon", "amount": 20 }, { "itemId": "graphite", "amount": 20 } ],
+      "refundPercent": 100,
+      "footprint": 3,
+      "powerUse": 30
     }
   ],
   "economy": {

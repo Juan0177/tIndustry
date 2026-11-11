@@ -57,11 +57,12 @@ public static class PlacementLine
     private static readonly string BridgeId = BuildSpec.StructureIdFor(BuildingKind.Bridge)!;
 
     /// <summary>
-    /// The cells of <paramref name="request"/> in order from the anchor. Plain belts, junctions, routers and both sorters
-    /// make a line facing the next cell (routers and sorters have no direction: they face North) (the last one: the plain belt it ends on, else the line's way; a lone cell: the
+    /// The cells of <paramref name="request"/> in order from the anchor. Plain belts, junctions, routers, both sorters and both
+    /// gates make a line facing the next cell (routers, sorters and gates have no direction: they face North) (the last one: the plain belt it ends on, else the line's way; a lone cell: the
     /// brush); every other block is one cell on the anchor facing the drag. A plain belt inside the line over a
     /// perpendicular belt is a crossing; a belt whose last cell touches the Core faces it. A straight belt line jumps a
-    /// run of walls, deep water or buildings with a bridge when it can (<see cref="Bridge"/>). Ctrl
+    /// run of walls, deep water or buildings with a bridge when it can (<see cref="Bridge"/>). A stack conveyor's line
+    /// never crosses nor bridges (its packs pass only between stack cells). Ctrl
     /// (<see cref="LineShape.Diagonal"/>, belts) follows the chain between anchor and cursor (<see cref="Chain"/>), else
     /// the A* path (<see cref="Path"/>), else the straight line.
     /// </summary>
@@ -71,8 +72,11 @@ public static class PlacementLine
         ArgumentNullException.ThrowIfNull(request);
         var kind = BuildSpec.KindFor(request.StructureId);
         var belt = kind is null;
+        // A stack conveyor's line must stay whole (packs pass only between stack cells): no crossing, no bridge.
+        var stack = belt && view.Content.FindConveyor(request.StructureId)?.Kind == LogisticsKind.Stack;
         var inLine = belt
-            || kind is BuildingKind.Junction or BuildingKind.Router or BuildingKind.Sorter or BuildingKind.SorterInverted;
+            || kind is BuildingKind.Junction or BuildingKind.Router or BuildingKind.Sorter or BuildingKind.SorterInverted
+                or BuildingKind.OverflowGate or BuildingKind.UnderflowGate;
         var dragged = request.Cursor != request.Anchor;
         var ctrl = belt && dragged && request.Shape == LineShape.Diagonal;
         var chain = ctrl ? Chain(view, request.Anchor, request.Cursor) : null;
@@ -99,7 +103,8 @@ public static class PlacementLine
                 : inLine && last && overBelt ? under!.Direction
                 : inLine ? next is { } ahead ? BeltLane.DirectionBetween(cell, ahead) : BeltLane.DirectionBetween(previous!.Value, cell)
                 : lineWay;
-            if (kind is BuildingKind.Router or BuildingKind.Sorter or BuildingKind.SorterInverted)
+            if (kind is BuildingKind.Router or BuildingKind.Sorter or BuildingKind.SorterInverted
+                or BuildingKind.OverflowGate or BuildingKind.UnderflowGate)
             {
                 direction = Direction.North; // no direction: R and the drag do not turn it
             }
@@ -110,16 +115,18 @@ public static class PlacementLine
                 direction = intoCore;
             }
 
+            // A junction inside the line is a crossing too: the line goes on through it, the junction stays.
             var crossing = belt
+                && !stack
                 && BeltLine.IsInterior(previous, cell, next, direction)
-                && BeltLine.MayCross(view, cell, direction);
+                && (BeltLine.MayCross(view, cell, direction) || under?.Kind == LogisticsKind.Junction);
             SimCommand command = belt
                 ? new PlaceBelt(request.PlayerId, cell, direction, request.StructureId, crossing)
                 : new PlaceBuilding(request.PlayerId, kind!.Value, cell, direction, request.RecipeId, request.FilterItemId);
             placements.Add(new LinePlacement(cell, direction, command, Foreseen(view, command, crossing)));
         }
 
-        if (belt && dragged && chain is null && path is null
+        if (belt && !stack && dragged && chain is null && path is null
             && (!request.FixedDirection || request.Brush == lineWay)
             && view.IsStructureUnlocked(BridgeId))
         {
@@ -339,13 +346,15 @@ public static class PlacementLine
     }
 
     /// <summary>
-    /// The refusal the simulation would give that the line can already tell: none for a belt over a belt (it turns,
-    /// merges or changes tier) or a crossing (Occupied when the crossed cell is planned), else <see cref="IGameView.CanPlace"/>'s reason, or Occupied over a plan.
+    /// The refusal the simulation would give that the line can already tell: none for a 1×1 logistics block over another
+    /// (it turns, does nothing or replaces it) or a crossing (Occupied when the crossed cell is planned), else
+    /// <see cref="IGameView.CanPlace"/>'s reason, or Occupied over a plan.
     /// </summary>
     private static RefusalCode? Foreseen(IGameView view, SimCommand command, bool crossing)
     {
         var spec = command is PlaceBelt placeBelt ? BuildSpec.FromCommand(placeBelt) : BuildSpec.FromCommand((PlaceBuilding)command);
-        if (spec.Kind is null && (crossing || view.BeltOverBeltAt(spec.Origin, spec.Direction, spec.StructureId) != BeltOverBelt.None))
+        if ((spec.Kind is null && crossing)
+            || view.BeltOverBeltAt(spec.Origin, spec.Direction, spec.StructureId) != BeltOverBelt.None)
         {
             // A crossing skips CanPlace (the belt is there) but not the plan queue, which refuses a planned cell.
             return crossing && view.IsPlannedTile(spec.Origin) ? RefusalCode.Occupied : null;

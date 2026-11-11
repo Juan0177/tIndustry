@@ -1,10 +1,11 @@
 """Logistics sprites: narrow belts in four tiers (basic, fast, express, armored; icon, straight strip,
-corner strip, T merge strip, side join strips: variant C "Mindustry" of the proposal sheet), junction,
-router, sorter, inverted sorter, bridge end and bridge span.
+corner strip, T merge strip, side join strips: variant C "Mindustry" of the proposal sheet), the stack
+conveyor (icon and straight strip: its cells are always drawn straight), junction,
+router, sorter, inverted sorter, overflow and underflow gates, bridge end and bridge span, long bridge end and span.
 
 Every directional sprite faces East (flow towards +x); the client rotates it. The belt is as wide as
-Mindustry's at 32 px: a 12 px tread (rows 10-21) between side plates of 4 px (outline, three rail tones
-and an inner edge: rows 5-9 above, 22-25 below); the rest of the cell is transparent. Belt strips have
+Mindustry's at 32 px: a 12 px tread (rows 10-21) between side plates of 5 px (outline, two rail tones
+and an inner edge: rows 5-9 above, 22-26 below, mirror images); the rest of the cell is transparent. Belt strips have
 32 frames that move the tread 1 px along the flow each, so the loop has no seam and the tread scrolls
 smoothly next to items moving every tick. The plates stay still; on the tread a small chevron repeats
 every 16 px and a rib every 8 px, so each step shows a different phase and the direction reads.
@@ -15,7 +16,7 @@ import math
 
 import forme
 from blocchi import sprite
-from palette import ACCENTO, FERRO, METALLO, NASTRO, OUT, RAME, ROSSO, TITANIO
+from palette import ACCENTO, CARTA, ENERGIA, FERRO, METALLO, NASTRO, OUT, PLASTICA, RAME, ROSSO, TITANIO
 
 T = 32
 PASSO = 1  # px the tread moves per frame: 32 frames per cell, smooth next to items moving every tick
@@ -23,11 +24,13 @@ FOTOGRAMMI = T // PASSO
 
 # Rows across a straight belt (0 = left of the flow, North for an East belt): "o" outline, "r<k>" plate
 # tone k of the tier's rail ramp, "e" inner edge (the tier's accent, else rail tone 1), "t" tread.
-RIGHE = {5: "o", 6: "r4", 7: "r3", 8: "r2", 9: "e", **{v: "t" for v in range(10, 22)},
-         22: "e", 23: "r2", 24: "r1", 25: "o"}
+# The two plates mirror each other across the flow axis (row v and row 31 - v are alike), so a belt
+# rotated or flipped by the client (counter-clockwise corners) always matches the straight pieces.
+RIGHE = {5: "o", 6: "r3", 7: "r3", 8: "r2", 9: "e", **{v: "t" for v in range(10, 22)},
+         22: "e", 23: "r2", 24: "r3", 25: "r3", 26: "o"}
 TREAD_RIGHE = range(10, 22)  # the 12 px tread
 PIASTRE_SU = range(5, 10)  # top side plate
-PIASTRE_GIU = range(22, 26)  # bottom side plate
+PIASTRE_GIU = range(22, 27)  # bottom side plate
 CHEVRON = 18  # chevron column on the axis in frame 0 (2 px colour then outline in front)
 PERIODO_FRECCIA = 16
 PERIODO_COSTA = 8
@@ -42,6 +45,10 @@ TIER = {
     "conveyor-armored": (FERRO, ROSSO, ROSSO[2]),
 }
 RINFORZATI = {"conveyor-armored"}  # tiers whose plates carry rivets
+# Stack conveyor (Mindustry's plastanium conveyor): plastic plates, white chevrons. Only straight: the grid never
+# draws it as a corner, T or join (BeltGrid.GetShape), so it has the icon and the straight strip alone.
+PACCHI = {"conveyor-stack": (PLASTICA, CARTA, PLASTICA[3])}
+ASPETTO = {**TIER, **PACCHI}
 
 
 def _colore(tier, u, v, spostamento=0, passo_u=1.0, frecce=True):
@@ -55,7 +62,7 @@ def _colore(tier, u, v, spostamento=0, passo_u=1.0, frecce=True):
     tipo = RIGHE.get(v)
     if tipo is None:
         return None
-    binario, freccia, bordo = TIER[tier]
+    binario, freccia, bordo = ASPETTO[tier]
     if tipo == "o":
         return 0, OUT
     if tipo == "e":
@@ -64,7 +71,7 @@ def _colore(tier, u, v, spostamento=0, passo_u=1.0, frecce=True):
         k = min(int(tipo[1:]), len(binario) - 1)
         i = math.floor(u)
         if tier in RINFORZATI and v in (7, 24) and i % 8 in (3, 4):
-            return 0, FERRO[4] if i % 8 == 3 else FERRO[0]  # rivet on the armour plate, lit from the left
+            return 0, FERRO[4] if i % 8 == 3 else FERRO[0]  # rivet on the armour plate, the same on both plates
         return 0, binario[max(0, k - 2) if i % 8 == 7 else k]  # roller joint every 8 px
     m = u - spostamento
     dv = int(abs(v + 0.5 - T / 2))
@@ -185,6 +192,10 @@ def _registra_nastro(tier):
 
 for _tier in TIER:
     _registra_nastro(_tier)
+
+for _tier in PACCHI:
+    sprite(_tier)(lambda tier=_tier: nastro(tier, 0))
+    sprite(_tier + "-anim")(lambda tier=_tier: forme.striscia([nastro(tier, k) for k in range(FOTOGRAMMI)]))
 
 
 # ---------------------------------------------------------------- belt furniture
@@ -315,6 +326,41 @@ def sorter_inverted():
     return im
 
 
+def _gate(cornice, verso):
+    """Overflow / underflow gate: the crossing treads under a square cap framed in `cornice`, with a small arrow on
+    each tread (no direction on screen, so all four alike). `verso` "fuori": arrows point out of the cap, toward the
+    edges (the item leaves straight ahead first); "lati": they point back toward the cap (the sides come first)."""
+    im = _piastra()
+    _croce(im)
+    forme.rett(im, 9, 9, 22, 22, OUT)
+    forme.pannello(im, 10, 10, 21, 21, METALLO)
+    forme.rett(im, 12, 12, 19, 19, OUT)
+    forme.rett(im, 13, 13, 18, 18, cornice[1])
+    forme.rett(im, 13, 13, 18, 13, cornice[3])
+    forme.rett(im, 13, 13, 13, 18, cornice[3])
+    forme.rett(im, 15, 15, 16, 16, cornice[4])
+    if verso == "fuori":
+        frecce = ((29, 16, "E"), (2, 15, "W"), (15, 2, "N"), (16, 29, "S"))
+    else:
+        frecce = ((23, 15, "W"), (8, 16, "E"), (16, 8, "S"), (15, 23, "N"))
+    for cx, cy, punta in frecce:
+        _freccia(im, cx, cy, punta, cornice, lato=2)
+    return im
+
+
+@sprite("overflow-gate")
+def overflow_gate():
+    """Overflow gate: items go straight on, to the sides only when the way ahead is full. Amber cap, arrows leaving
+    toward every edge."""
+    return _gate(ACCENTO, "fuori")
+
+
+@sprite("underflow-gate")
+def underflow_gate():
+    """Underflow gate: the overflow the other way round (sides first). Red cap, arrows turned back toward the cap."""
+    return _gate(ROSSO, "lati")
+
+
 @sprite("conveyor-bridge")
 def conveyor_bridge():
     """Bridge end: a raised housing over the belt with the span leaving East."""
@@ -328,20 +374,55 @@ def conveyor_bridge():
     return im
 
 
-@sprite("conveyor-bridge-span")
-def conveyor_bridge_span():
-    """16 px of the bridge deck (East), tiled along the span; 22 px thick (~0.70 cell,
+def _campata(rotaia):
+    """16 px of a bridge deck (East) with side rails of the ramp `rotaia`, tiled along the span; 22 px thick (~0.70 cell,
     BridgeSpanVisual.DeckPixels in the client)."""
     w, h = 16, 22
     im = forme.nuova(w, h)
     for x in range(w):
-        for y, c in ((0, OUT), (1, METALLO[4]), (2, METALLO[3]), (3, OUT),
-                     (18, OUT), (19, METALLO[3]), (20, METALLO[2]), (21, OUT)):
+        for y, c in ((0, OUT), (1, rotaia[4]), (2, rotaia[3]), (3, OUT),
+                     (18, OUT), (19, rotaia[3]), (20, rotaia[2]), (21, OUT)):
             forme.pixel(im, x, y, c)
         for y in range(4, 18):
             k = x % 8
             forme.pixel(im, x, y, NASTRO[3] if k == 0 else NASTRO[0] if k == 1 else NASTRO[1])
+    return im
+
+
+@sprite("conveyor-bridge-span")
+def conveyor_bridge_span():
+    """16 px of the bridge deck (East), tiled along the span; 22 px thick (~0.70 cell,
+    BridgeSpanVisual.DeckPixels in the client)."""
+    im = _campata(METALLO)
     for x in (4, 12):
         forme.pixel(im, x, 1, METALLO[5])
         forme.pixel(im, x, 19, METALLO[4])
+    return im
+
+
+@sprite("bridge-long")
+def bridge_long():
+    """Long bridge end (Mindustry's phase conveyor, without the phase): the bridge housing in titanium with a power
+    lamp (it runs on power) and the span leaving East."""
+    im = _piastra()
+    _canale(im, -1, 9, T, 22)
+    forme.pannello(im, 5, 5, 26, 26, TITANIO)
+    forme.rett(im, 10, 10, 21, 21, OUT)
+    forme.rett(im, 11, 11, 20, 20, NASTRO[0])
+    forme.rett(im, 11, 11, 20, 11, NASTRO[2])
+    _freccia(im, 19, 16, "E", ACCENTO)
+    # Power lamp in the top-left corner of the housing.
+    forme.rett(im, 7, 7, 9, 9, OUT)
+    forme.pixel(im, 8, 8, ENERGIA[3])
+    return im
+
+
+@sprite("bridge-long-span")
+def bridge_long_span():
+    """16 px of the long bridge's deck (East), titanium rails with a yellow power stripe every 8 px; same size as the
+    plain bridge's deck (BridgeSpanVisual.DeckPixels)."""
+    im = _campata(TITANIO)
+    for x in (4, 12):
+        forme.pixel(im, x, 1, ENERGIA[3])
+        forme.pixel(im, x, 19, ENERGIA[2])
     return im

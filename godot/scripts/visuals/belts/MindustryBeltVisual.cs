@@ -15,16 +15,22 @@ public partial class MindustryBeltVisual : Node2D
     public const float BridgeThicknessScale = BridgeSpanVisual.ThicknessScale;
 
     /// <summary>Animation state of one belt tier, kept across rebuilds so placing a belt does not reset the others.</summary>
-    private sealed class TierClock(string id, float rateCellsPerSecond, bool armored)
+    /// <remarks>
+    /// A stack conveyor (<paramref name="straightOnly"/>) is always drawn straight (<see cref="BeltGrid.GetShape"/>): it has
+    /// the straight strip alone, which stands in for the other shapes.
+    /// </remarks>
+    private sealed class TierClock(string id, float rateCellsPerSecond, bool armored, bool straightOnly)
     {
         public readonly SharedStrip Straight = new(id);
-        public readonly SharedStrip Corner = new(id + "-corner");
-        public readonly SharedStrip T = new(id + "-t");
-        public readonly SharedStrip JoinLeft = new(id + "-join-left");
-        public readonly SharedStrip JoinRight = new(id + "-join-right");
-        public readonly SharedStrip JoinBoth = new(id + "-join-both");
+        public SharedStrip Corner => straightOnly ? Straight : _corner ??= new(id + "-corner");
+        public SharedStrip T => straightOnly ? Straight : _t ??= new(id + "-t");
+        public SharedStrip JoinLeft => straightOnly ? Straight : _joinLeft ??= new(id + "-join-left");
+        public SharedStrip JoinRight => straightOnly ? Straight : _joinRight ??= new(id + "-join-right");
+        public SharedStrip JoinBoth => straightOnly ? Straight : _joinBoth ??= new(id + "-join-both");
         // An armored belt never blends with a building (BeltGrid.BuildingFeeders): it has no such strip.
-        public readonly SharedStrip? JoinBuildingBoth = armored ? null : new(id + "-join-building-both");
+        public SharedStrip? JoinBuildingBoth =>
+            armored ? null : straightOnly ? Straight : _joinBuildingBoth ??= new(id + "-join-building-both");
+        private SharedStrip? _corner, _t, _joinLeft, _joinRight, _joinBoth, _joinBuildingBoth;
         public readonly float Rate = rateCellsPerSecond;
         public float Scroll;
         public int Frame;
@@ -80,21 +86,23 @@ public partial class MindustryBeltVisual : Node2D
         {
             switch (cell.Kind)
             {
-                case LogisticsKind.Junction or LogisticsKind.Router or LogisticsKind.Sorter:
+                case LogisticsKind.Junction or LogisticsKind.Router or LogisticsKind.Sorter or LogisticsKind.Gate:
                     AddSpecial(view, pos, cell.Kind, cell.Direction, tileSize, cell.FilterItemId, cell.Definition.Inverted);
                     break;
                 case LogisticsKind.Bridge:
                     // Both ends get their pad; the span is drawn once, from the entry.
-                    AddSpecial(view, pos, LogisticsKind.Bridge, cell.Direction, tileSize);
-                    if (cell.BridgePartner is { } partner && IsBridgeEntryVisual(pos, cell.Direction, partner))
+                    // Each bridge its own sprite and deck (the long bridge's ends: <id>, <id>-span), its own reach.
+                    AddSpecial(view, pos, LogisticsKind.Bridge, cell.Direction, tileSize, bridgeId: cell.Definition.Id);
+                    if (cell.BridgePartner is { } partner
+                        && BeltGrid.IsBridgeEntry(pos, cell.Direction, partner, cell.Definition.MaxSpan))
                     {
                         var span = new BridgeSpanVisual { Name = $"BridgeSpan_{pos.X}_{pos.Y}" };
                         AddChild(span);
-                        span.Configure(pos, partner, cell.Direction, tileSize);
+                        span.Configure(pos, partner, cell.Direction, tileSize, cell.Definition.Id + "-span");
                     }
 
                     break;
-                case LogisticsKind.Belt:
+                case LogisticsKind.Belt or LogisticsKind.Stack:
                     AddBelt(view, pos, cell, tileSize);
                     break;
             }
@@ -166,7 +174,11 @@ public partial class MindustryBeltVisual : Node2D
     {
         if (!_tiers.TryGetValue(definition.Id, out var clock))
         {
-            clock = new TierClock(definition.Id, Math.Max(0.05f, definition.RateItemsPerSecond), definition.IsArmoredBelt);
+            clock = new TierClock(
+                definition.Id,
+                Math.Max(0.05f, definition.RateItemsPerSecond),
+                definition.IsArmoredBelt,
+                straightOnly: definition.Kind == LogisticsKind.Stack);
             _tiers[definition.Id] = clock;
         }
 
@@ -181,26 +193,6 @@ public partial class MindustryBeltVisual : Node2D
         }
     }
 
-    private static bool IsBridgeEntryVisual(GridPosition entry, Direction direction, GridPosition partner)
-    {
-        var dx = partner.X - entry.X;
-        var dy = partner.Y - entry.Y;
-        var span = Math.Abs(dx) + Math.Abs(dy);
-        if (span < BeltGridCell.MinBridgeSpan || span > BeltGridCell.MaxBridgeSpan)
-        {
-            return false;
-        }
-
-        return direction switch
-        {
-            Direction.North => dx == 0 && dy < 0,
-            Direction.East => dy == 0 && dx > 0,
-            Direction.South => dx == 0 && dy > 0,
-            Direction.West => dy == 0 && dx < 0,
-            _ => false
-        };
-    }
-
     private void AddSpecial(
         IGameView view,
         GridPosition pos,
@@ -208,14 +200,16 @@ public partial class MindustryBeltVisual : Node2D
         Direction direction,
         int tileSize,
         string? filterItemId = null,
-        bool inverted = false)
+        bool inverted = false,
+        string bridgeId = "conveyor-bridge")
     {
         var texture = Sprites.For(kind switch
         {
             LogisticsKind.Junction => "junction-base",
             LogisticsKind.Router => "router",
             LogisticsKind.Sorter => inverted ? "sorter-inverted" : "sorter",
-            LogisticsKind.Bridge => "conveyor-bridge",
+            LogisticsKind.Gate => inverted ? Factory.UnderflowGateId : Factory.OverflowGateId,
+            LogisticsKind.Bridge => bridgeId,
             _ => BuildSpec.DefaultConveyorId
         });
         var node = new Node2D
@@ -231,7 +225,7 @@ public partial class MindustryBeltVisual : Node2D
             TextureFilter = CanvasItem.TextureFilterEnum.Nearest,
             Scale = Vector2.One * Sprites.ScaleToCells(texture, 1, tileSize)
         };
-        // A bridge turns with its facing; junctions, routers and sorters have no direction (Mindustry).
+        // A bridge turns with its facing; junctions, routers, sorters and gates have no direction (Mindustry).
         if (kind == LogisticsKind.Bridge)
         {
             sprite.RotationDegrees = ScrollingBeltStrip.RotationFor(direction);

@@ -3,7 +3,7 @@ namespace TIndustry.Shared;
 /// <summary>
 /// The Core's storage: the single way items enter the Core stock (<see cref="EconomyWallet"/> materials).
 /// Each item has a maximum (<see cref="Capacity"/>): the tier's <see cref="CoreTierDefinition.ItemCapacity"/>
-/// plus the space of linked storage blocks. An item at its maximum does not enter: the caller keeps it (a belt
+/// plus the space of linked storage blocks, both with the research's storage upgrade. An item at its maximum does not enter: the caller keeps it (a belt
 /// holds it on its last cell, a building in its output buffer) and the line stops. Money has no maximum.
 /// All counts are integers; nothing here iterates a hash collection.
 /// </summary>
@@ -16,11 +16,16 @@ public sealed class CoreStorage
         this.state = state ?? throw new ArgumentNullException(nameof(state));
     }
 
-    /// <summary>Space added to every item's maximum by the storage blocks touching the Core.</summary>
+    /// <summary>Space added to every item's maximum by the storage blocks touching the Core (their <see cref="StorageBlock.BaseCapacity"/>).</summary>
     public int LinkedCapacity { get; private set; }
 
-    /// <summary>Maximum stock of <paramref name="itemId"/>: the Core tier's capacity plus <see cref="LinkedCapacity"/>.</summary>
-    public int Capacity(string itemId) => state.Content.CoreTiers[state.CoreTier].ItemCapacity + LinkedCapacity;
+    /// <summary>
+    /// Maximum stock of <paramref name="itemId"/>: the Core tier's capacity plus <see cref="LinkedCapacity"/>, with the
+    /// research's storage upgrade (<see cref="Upgrades.StoragePercent"/>, rounded down: 1000 → 1250 → 1500). Read when
+    /// asked, so it follows the research from the moment of the unlock; a maximum only grows with it, so nothing is lost.
+    /// </summary>
+    public int Capacity(string itemId) => Upgrades.Scale(
+        state.Content.CoreTiers[state.CoreTier].ItemCapacity + LinkedCapacity, Upgrades.StoragePercent(state.Research));
 
     /// <summary>True when the stock of <paramref name="itemId"/> is at (or above) its maximum.</summary>
     public bool IsFull(string itemId) => state.Wallet.MaterialCount(itemId) >= Capacity(itemId);
@@ -68,7 +73,7 @@ public sealed class CoreStorage
 
     /// <summary>
     /// Recomputes which storage blocks are linked (at least one cell of their perimeter is Core) and
-    /// <see cref="LinkedCapacity"/> (sum of the linked blocks' capacity). A block that has just become linked pours
+    /// <see cref="LinkedCapacity"/> (sum of the linked blocks' <see cref="StorageBlock.BaseCapacity"/>). A block that has just become linked pours
     /// its contents into the Core with <see cref="AddClamped"/> (the rest is lost) and is emptied; pouring happens
     /// after the new maximum is known. Blocks in ascending id order, contents in ordinal item order. Called after
     /// every finished placement or removal of a storage block, after <see cref="GameState.SetCore"/> and on restore.
@@ -88,7 +93,7 @@ public sealed class CoreStorage
             storage.IsLinked = linked;
             if (linked)
             {
-                linkedCapacity += storage.Capacity;
+                linkedCapacity += storage.BaseCapacity;
             }
         }
 

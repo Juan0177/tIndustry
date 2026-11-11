@@ -64,6 +64,7 @@ public sealed class MinerTierTests
     {
         Assert.Equal(1, Content.FindBuilding(Miner.BasicId)!.Tier);
         Assert.Equal(2, Content.FindBuilding(Miner.AdvancedId)!.Tier);
+        Assert.Equal(3, Content.FindBuilding(Miner.ImpactDrillId)!.Tier);
         Assert.Equal(2, Content.Terrain.Hardness(DepositKind.Titanium));
         foreach (var ore in new[] { DepositKind.Iron, DepositKind.Copper, DepositKind.Coal, DepositKind.Lead })
         {
@@ -219,7 +220,8 @@ public sealed class MinerTierTests
             Y = origin.Y,
             Direction = "East",
             OutputItemId = "titanium-ore",
-            DefinitionId = Miner.BasicId
+            DefinitionId = Miner.BasicId,
+            CoveredDepositTiles = Miner.T1Size * Miner.T1Size
         });
         var json = JsonSerializer.Serialize(data, FactorySaveStore.JsonOptions);
         var reloaded = Factory.Restore(Content, JsonSerializer.Deserialize<FactorySaveData>(json, FactorySaveStore.JsonOptions)!);
@@ -298,8 +300,8 @@ public sealed class MinerTierTests
             for (var x = 0; x + 2 < terrain.Width; x++)
             {
                 var at = new GridPosition(x, y);
-                if (terrain.CountDepositTiles(at, Miner.Size, DepositKind.Titanium) == Miner.FootprintArea
-                    && factory.CanOccupyFootprint(at, Miner.Size)
+                if (terrain.CountDepositTiles(at, Miner.T1Size, DepositKind.Titanium) == Miner.T1Size * Miner.T1Size
+                    && factory.CanOccupyFootprint(at, Miner.T1Size)
                     && factory.CanOccupy(new GridPosition(x + 2, y)))
                 {
                     return (factory, at);

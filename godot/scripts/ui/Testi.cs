@@ -129,6 +129,10 @@ public static class Testi
     /// <summary>A number written with the invariant "." given the decimal mark of the language (key <c>formato.decimale</c>).</summary>
     public static string Decimale(string invariant) => invariant.Replace(".", T("formato.decimale"), StringComparison.Ordinal);
 
+    /// <summary>A whole number with the thousands mark of the language (key <c>formato.migliaia</c>): 20.000 or 20,000.</summary>
+    public static string Migliaia(long value) =>
+        value.ToString("N0", CultureInfo.InvariantCulture).Replace(",", T("formato.migliaia"), StringComparison.Ordinal);
+
     /// <summary>
     /// Why a save did not load: key <c>salvataggi.errore.&lt;Code&gt;</c> with the map, level or generator it is about.
     /// <paramref name="mapName"/> gives the name of the level that uses a campaign map (the map id when there is none).
@@ -145,6 +149,10 @@ public static class Testi
         return F($"salvataggi.errore.{failure.Code}", argument);
     }
 
+    /// <summary>The campaign chapter whose end gives <paramref name="structureId"/> (<c>?</c> when it is not a reward).</summary>
+    public static object Capitolo(string? structureId, FactoryContent? content) =>
+        (object?)content?.FindStructure(structureId ?? "")?.CampaignReward ?? "?";
+
     /// <summary>Text of a refusal: key <c>rifiuto.&lt;Code&gt;</c>, filled with its arguments.</summary>
     public static string Rifiuto(Refusal refusal, IGameView? view = null)
     {
@@ -160,6 +168,8 @@ public static class Testi
                 return F("rifiuto.CoreUpgradeLocked", Struttura(refusal.StructureId ?? "?", content));
             case RefusalCode.SellAllCooldown:
                 return F("rifiuto.SellAllCooldown", refusal.WaitSeconds);
+            case RefusalCode.CampaignRewardOnly:
+                return F("rifiuto.CampaignRewardOnly", Capitolo(refusal.StructureId, content));
             default:
                 return T($"rifiuto.{refusal.Code}");
         }

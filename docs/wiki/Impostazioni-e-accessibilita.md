@@ -25,7 +25,7 @@ La Scala UI predefinita è 100%; al primo avvio del gioco esportato si sceglie d
 | Daltonici | Tinte sicure per deuteranopia e protanopia (azzurro e vermiglio, giallo e porpora) |
 | Alto contrasto | Pannelli neri, testo bianco, bordi chiari; segni nel mondo giallo puro e rosso magenta con un bordo nero, leggibili su ogni terreno |
 
-La variante cambia l'anteprima di piazzamento valida o rifiutata, costruzione e smontaggio, energia e denaro, rifiuti e materiali mancanti, linee della Ricerca. In ogni variante il significato non sta mai solo nel colore:
+La variante cambia l'anteprima di piazzamento valida o rifiutata, costruzione e smontaggio, energia e denaro, rifiuti e materiali mancanti, linee della Ricerca e bordo dei premi della campagna in Ricerca. In ogni variante il significato non sta mai solo nel colore:
 
 | Segno | Significato |
 |---|---|
@@ -34,6 +34,7 @@ La variante cambia l'anteprima di piazzamento valida o rifiutata, costruzione e 
 | Barra sopra un materiale o sul denaro | Manca |
 | "!" sull'energia | Energia bassa |
 | Freccia sul prezzo | Prezzo in calo |
+| Numero nell'angolo di un nodo della Ricerca | Premio di quel capitolo della campagna (solo in campagna) |
 
 <table>
   <tr>

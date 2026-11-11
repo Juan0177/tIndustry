@@ -2,22 +2,41 @@ namespace TIndustry.Shared;
 
 /// <summary>
 /// Static miner produce loop (shared math with Logistics MinerBuilding).
-/// Size 2×2; ejects onto adjacent belt cells facing outward from the footprint.
+/// Miner T1 and T2 are 2×2, the impact drill 3×3 (<see cref="SizeFor"/>); ejects onto adjacent belt cells facing
+/// outward from the footprint.
 /// </summary>
 public sealed class Miner
 {
-    public const int Size = 2;
-    public const int FootprintArea = Size * Size;
-    public const int OutputTileCount = Size * 4;
+    /// <summary>Edge of the Miner T1 and T2 (the starter deposits are cut to it).</summary>
+    public const int T1Size = 2;
+
+    /// <summary>Edge of the impact drill.</summary>
+    public const int ImpactDrillSize = 3;
+
     public const float MiningDurationSeconds = 2f;
     public const string BasicId = "miner";
     public const string AdvancedId = "miner-advanced";
+    public const string ImpactDrillId = "impact-drill";
     public const string DefaultOutputItemId = "iron-ore";
+
+    /// <summary>Footprint edge of the miner <paramref name="definitionId"/>: 3 for the impact drill, 2 otherwise.</summary>
+    public static int SizeFor(string? definitionId) => definitionId == ImpactDrillId ? ImpactDrillSize : T1Size;
+
+    /// <summary>
+    /// Own mining speed of <paramref name="definitionId"/> (pieces per <see cref="MiningDurationSeconds"/> at full
+    /// efficiency, before power): T1 1, T2 2, impact drill 8 (four times the T2).
+    /// </summary>
+    public static float SpeedOf(string? definitionId) => definitionId switch
+    {
+        AdvancedId => 2f,
+        ImpactDrillId => 8f,
+        _ => 1f
+    };
 
     public Miner(
         GridPosition position,
         Direction direction,
-        int coveredDepositTiles = FootprintArea,
+        int? coveredDepositTiles = null,
         string outputItemId = DefaultOutputItemId,
         string definitionId = BasicId,
         long id = 0)
@@ -25,9 +44,10 @@ public sealed class Miner
         Id = id;
         Position = position;
         Direction = direction;
-        CoveredDepositTiles = coveredDepositTiles;
         OutputItemId = string.IsNullOrWhiteSpace(outputItemId) ? DefaultOutputItemId : outputItemId;
         DefinitionId = string.IsNullOrWhiteSpace(definitionId) ? BasicId : definitionId;
+        Size = SizeFor(DefinitionId);
+        CoveredDepositTiles = coveredDepositTiles ?? FootprintArea;
     }
 
     /// <summary>Stable entity id assigned by <see cref="Factory"/> at creation (saved).</summary>
@@ -38,6 +58,14 @@ public sealed class Miner
     public int CoveredDepositTiles { get; }
     public string OutputItemId { get; }
     public string DefinitionId { get; }
+
+    /// <summary>Footprint edge (<see cref="SizeFor"/>).</summary>
+    public int Size { get; }
+
+    public int FootprintArea => Size * Size;
+
+    /// <summary>Outer edge cells it ejects on: 8 for a 2×2, 12 for the drill.</summary>
+    public int OutputTileCount => Size * 4;
 
     public void Relocate(GridPosition position, Direction direction)
     {
@@ -55,13 +83,13 @@ public sealed class Miner
     public int EjectIndex { get; private set; }
     public long ItemsProduced { get; private set; }
 
-    /// <summary>True while the T2 miner gets some power from its network this tick.</summary>
+    /// <summary>True while the T2 or the drill gets some power from its network this tick.</summary>
     public bool IsPowered => PowerBp > 0;
 
-    /// <summary>Share of its power use the T2 got this tick, 0–10 000 basis points (always 0 for T1; never saved).</summary>
+    /// <summary>Share of its power use the T2 or the drill got this tick, 0–10 000 basis points (always 0 for T1; never saved).</summary>
     public int PowerBp { get; private set; }
 
-    /// <summary>True when the T2 works this tick and so asks its network for its power use.</summary>
+    /// <summary>True when the T2 or the drill works this tick and so asks its network for its power use.</summary>
     public bool WantsPower => CanReceivePower && IsWorking;
 
     /// <summary>True when this miner's power use is in its network's demand this tick (set by the power systems).</summary>
@@ -72,9 +100,22 @@ public sealed class Miner
     /// <summary>On a deposit (gears should spin).</summary>
     public bool IsWorking => Efficiency > 0f;
 
-    public float MiningSpeed => DefinitionId == AdvancedId ? 2f : 1f;
+    /// <summary>True while the miner actually digs this tick: on a deposit and, for the drill, with some power.</summary>
+    public bool IsMining => IsWorking && (!NeedsPower || IsPowered);
 
-    public bool CanReceivePower => DefinitionId == AdvancedId;
+    public float MiningSpeed => SpeedOf(DefinitionId);
+
+    /// <summary>
+    /// Percent of its speed the miner digs at: 100, plus the research's miner upgrade (<see cref="Upgrades.MinerPercent"/>),
+    /// set by <see cref="MiningSystem"/> every tick. The speed is multiplied by <c>RatePercent / 100f</c>: exactly 1 at 100.
+    /// </summary>
+    public int RatePercent { get; internal set; } = 100;
+
+    /// <summary>The T2 and the drill are power blocks; the T1 is not.</summary>
+    public bool CanReceivePower => DefinitionId is AdvancedId or ImpactDrillId;
+
+    /// <summary>The drill works only with power (speed × satisfaction); the T2 also without (power is a bonus).</summary>
+    public bool NeedsPower => DefinitionId == ImpactDrillId;
 
     public float Efficiency
     {
@@ -85,6 +126,7 @@ public sealed class Miner
                 return 0f;
             }
 
+            // covered / footprint; the T2 alone gets ×1.25 (capped at 1), the drill does not.
             var raw = CoveredDepositTiles / (float)FootprintArea;
             return DefinitionId == AdvancedId ? Math.Min(1f, raw * 1.25f) : raw;
         }
@@ -203,11 +245,16 @@ public sealed class Miner
             return false;
         }
 
-        // 1 + 0.2 × s on top of the T2's own speed.
-        var powerMul = 1f + PowerBp / 50_000f;
+        // Drill: its speed × s (stalled at 0). T2: 1 + 0.2 × s on top of its own speed. T1: PowerBp is always 0.
+        var powerMul = NeedsPower ? PowerBp / 10_000f : 1f + PowerBp / 50_000f;
+        if (powerMul <= 0f)
+        {
+            return false;
+        }
+
         Progress = Math.Min(
             1f,
-            Progress + deltaSeconds * Efficiency * MiningSpeed * powerMul / MiningDurationSeconds);
+            Progress + deltaSeconds * Efficiency * MiningSpeed * (RatePercent / 100f) * powerMul / MiningDurationSeconds);
         return Progress >= 1f;
     }
 
@@ -228,7 +275,7 @@ public sealed class Miner
 
     private bool IsOutwardBeltCell(BeltGrid grid, GridPosition outputPosition) =>
         grid.TryGet(outputPosition, out var cell)
-        && (cell.Kind is LogisticsKind.Junction or LogisticsKind.Router or LogisticsKind.Sorter
+        && (cell.Kind is LogisticsKind.Junction or LogisticsKind.Router || cell.PassesThrough
             || IsOutwardDirection(cell.Direction, outputPosition));
 
     private bool IsOutwardDirection(Direction dir, GridPosition outputPosition)

@@ -86,6 +86,7 @@ public partial class World
         BuildTool.BeltFast => Hud.ToolKind.BeltFast,
         BuildTool.BeltExpress => Hud.ToolKind.BeltExpress,
         BuildTool.BeltArmored => Hud.ToolKind.BeltArmored,
+        BuildTool.BeltStack => Hud.ToolKind.BeltStack,
         BuildTool.Extractor => Hud.ToolKind.Extractor,
         BuildTool.PowerNode => Hud.ToolKind.PowerNode,
         BuildTool.PowerNodeT2 => Hud.ToolKind.PowerNodeT2,
@@ -96,6 +97,18 @@ public partial class World
         BuildTool.CoreFoundation => Hud.ToolKind.CoreFoundation,
         BuildTool.CoreNucleus => Hud.ToolKind.CoreNucleus,
         BuildTool.MarketScreen => Hud.ToolKind.MarketScreen,
+        BuildTool.SmelterAdvanced => Hud.ToolKind.SmelterAdvanced,
+        BuildTool.GraphitePress => Hud.ToolKind.GraphitePress,
+        BuildTool.Separator => Hud.ToolKind.Separator,
+        BuildTool.Plasticizer => Hud.ToolKind.Plasticizer,
+        BuildTool.ImpactDrill => Hud.ToolKind.ImpactDrill,
+        BuildTool.OverflowGate => Hud.ToolKind.OverflowGate,
+        BuildTool.UnderflowGate => Hud.ToolKind.UnderflowGate,
+        BuildTool.BridgeLong => Hud.ToolKind.BridgeLong,
+        BuildTool.Solar => Hud.ToolKind.Solar,
+        BuildTool.SolarLarge => Hud.ToolKind.SolarLarge,
+        BuildTool.CombustionGenerator => Hud.ToolKind.CombustionGenerator,
+        BuildTool.BatteryLarge => Hud.ToolKind.BatteryLarge,
         _ => Hud.ToolKind.None
     };
 
@@ -116,6 +129,7 @@ public partial class World
         Hud.ToolKind.BeltFast => BuildTool.BeltFast,
         Hud.ToolKind.BeltExpress => BuildTool.BeltExpress,
         Hud.ToolKind.BeltArmored => BuildTool.BeltArmored,
+        Hud.ToolKind.BeltStack => BuildTool.BeltStack,
         Hud.ToolKind.Extractor => BuildTool.Extractor,
         Hud.ToolKind.PowerNode => BuildTool.PowerNode,
         Hud.ToolKind.PowerNodeT2 => BuildTool.PowerNodeT2,
@@ -126,6 +140,18 @@ public partial class World
         Hud.ToolKind.CoreFoundation => BuildTool.CoreFoundation,
         Hud.ToolKind.CoreNucleus => BuildTool.CoreNucleus,
         Hud.ToolKind.MarketScreen => BuildTool.MarketScreen,
+        Hud.ToolKind.SmelterAdvanced => BuildTool.SmelterAdvanced,
+        Hud.ToolKind.GraphitePress => BuildTool.GraphitePress,
+        Hud.ToolKind.Separator => BuildTool.Separator,
+        Hud.ToolKind.Plasticizer => BuildTool.Plasticizer,
+        Hud.ToolKind.ImpactDrill => BuildTool.ImpactDrill,
+        Hud.ToolKind.OverflowGate => BuildTool.OverflowGate,
+        Hud.ToolKind.UnderflowGate => BuildTool.UnderflowGate,
+        Hud.ToolKind.BridgeLong => BuildTool.BridgeLong,
+        Hud.ToolKind.Solar => BuildTool.Solar,
+        Hud.ToolKind.SolarLarge => BuildTool.SolarLarge,
+        Hud.ToolKind.CombustionGenerator => BuildTool.CombustionGenerator,
+        Hud.ToolKind.BatteryLarge => BuildTool.BatteryLarge,
         _ => BuildTool.None
     };
 

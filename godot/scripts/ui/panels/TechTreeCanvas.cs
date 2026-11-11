@@ -18,6 +18,13 @@ public partial class TechTreeCanvas : Control
     public TechTreeLayout.Graph? Graph { get; set; }
     public IResearchView? Research { get; set; }
     public string? SelectedId { get; set; }
+
+    /// <summary>
+    /// True in a campaign game: the chapter rewards (<see cref="StructureDefinition.CampaignReward"/>) are given by their
+    /// chapter, never bought, so they are drawn apart (<see cref="UiColors.RicercaPremio"/> and a badge with the chapter)
+    /// and never with the gold of what can be unlocked now.
+    /// </summary>
+    public bool InCampaign { get; set; }
     public float Zoom { get; private set; } = 1f;
 
     public event Action<string>? NodeSelected;
@@ -252,6 +259,13 @@ public partial class TechTreeCanvas : Control
     private ResearchNodeState StateOf(TechTreeLayout.Node node) =>
         node.IsRoot ? ResearchNodeState.Unlocked : Research!.GetNodeState(node.Structure);
 
+    /// <summary>The chapter of a reward still to come in a campaign game (drawn apart), else null.</summary>
+    private int? PendingReward(TechTreeLayout.Node node, ResearchNodeState state) =>
+        !node.IsRoot && state != ResearchNodeState.Unlocked
+        && ResearchState.IsCampaignRewardOnly(node.Structure, InCampaign)
+            ? node.Structure.CampaignReward
+            : null;
+
     // Mindustry palette: neutral greys for what you have, pale gold for what you can research next.
     private static Color Accent => UiColors.Accento;
     private static Color NodeBg => UiColors.RicercaNodo;
@@ -262,6 +276,7 @@ public partial class TechTreeCanvas : Control
     private static Color LineAvailable => UiColors.RicercaLineaDisponibile;
     private static Color LineLocked => UiColors.RicercaLineaBloccata;
     private static Color CoreCyan => UiColors.Core;
+    private static Color Reward => UiColors.RicercaPremio;
 
     public override void _Draw()
     {
@@ -287,7 +302,14 @@ public partial class TechTreeCanvas : Control
         // Edges first: extra prerequisites dashed underneath, tree edges on top.
         foreach (var edge in Graph.Edges.OrderBy(e => e.Primary))
         {
-            var toState = StateOf(byId[edge.ToId]);
+            var toNode = byId[edge.ToId];
+            var toState = StateOf(toNode);
+            // A reward still to come is not something to research next: no gold edge.
+            if (toState == ResearchNodeState.Available && PendingReward(toNode, toState) is not null)
+            {
+                toState = ResearchNodeState.Locked;
+            }
+
             var onPath = TechTreeLayout.IsEdgeOnPath(edge, pathIds);
             var color = onPath
                 ? PathEdge
@@ -328,13 +350,15 @@ public partial class TechTreeCanvas : Control
             var isSelected = string.Equals(id, SelectedId, StringComparison.Ordinal);
             var isHover = string.Equals(id, _hoverId, StringComparison.Ordinal);
             var rect = new Rect2(Screen(node.X, node.Y), new Vector2(nodeSize, nodeSize));
+            var reward = PendingReward(node, state);
 
             var border = node.IsRoot
                 ? CoreCyan
                 : state switch
                 {
                     ResearchNodeState.Unlocked => BorderUnlocked,
-                    ResearchNodeState.Available => Accent,
+                    // A reward is never for sale in the campaign: not the gold of "you can unlock it".
+                    ResearchNodeState.Available => reward is null ? Accent : Reward,
                     _ => BorderLocked
                 };
             if (isSelected || isHover)
@@ -360,7 +384,29 @@ public partial class TechTreeCanvas : Control
                     state == ResearchNodeState.Available ? new Color(1f, 1f, 1f, 0.82f) : Colors.White);
             }
 
+            if (reward is { } chapter)
+            {
+                DrawRewardBadge(rect, chapter, zoom);
+            }
         }
+    }
+
+    /// <summary>
+    /// The chapter number on a badge across the node's top-right corner (what the campaign legend explains): the node
+    /// comes with that chapter. The text font at its native size, like the names.
+    /// </summary>
+    private void DrawRewardBadge(Rect2 node, int chapter, float zoom)
+    {
+        var font = UiTheme.TextFont;
+        var text = chapter.ToString(System.Globalization.CultureInfo.InvariantCulture);
+        var textSize = font.GetStringSize(text, HorizontalAlignment.Left, -1, LabelSize);
+        var side = Mathf.Max(textSize.X + 6f, LabelLine);
+        var badge = new Rect2(node.End.X - side + 4f * zoom, node.Position.Y - 4f * zoom, side, side);
+        DrawRect(badge, Reward, true);
+        DrawRect(badge, CanvasFill, false, 1.5f);
+        var baseline = badge.Position.Y + (side + font.GetAscent(LabelSize) - font.GetDescent(LabelSize)) / 2f;
+        DrawString(font, new Vector2(badge.Position.X + (side - textSize.X) / 2f, baseline), text,
+            HorizontalAlignment.Left, -1, LabelSize, UiColors.TestoSuAccento);
     }
 
     /// <summary>
@@ -381,7 +427,7 @@ public partial class TechTreeCanvas : Control
                 : state switch
                 {
                     ResearchNodeState.Unlocked => NodeTitle,
-                    ResearchNodeState.Available => Accent,
+                    ResearchNodeState.Available => PendingReward(node, state) is null ? Accent : Reward,
                     _ => HintSoft with { A = 0.55f }
                 };
             var origin = screen(node.X, node.Y);

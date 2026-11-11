@@ -74,11 +74,20 @@ public sealed class FactoryContent
     public RecipeDefinition? FindRecipe(string id) =>
         Recipes.FirstOrDefault(r => r.Id == id);
 
-    public IReadOnlyList<RecipeDefinition> SmelterRecipes() =>
-        Recipes.Where(r => r.Id.StartsWith("smelt-", StringComparison.Ordinal)).ToList();
+    /// <summary>
+    /// The recipes of the craft machine <paramref name="buildingId"/>, in content order: those whose id starts with its
+    /// <see cref="BuildingDefinition.RecipePrefix"/>. Empty for a building that is not a craft machine (or unknown).
+    /// </summary>
+    public IReadOnlyList<RecipeDefinition> RecipesFor(string buildingId) =>
+        FindBuilding(buildingId)?.RecipePrefix is { } prefix
+            ? Recipes.Where(r => r.Id.StartsWith(prefix, StringComparison.Ordinal)).ToList()
+            : [];
 
-    public IReadOnlyList<RecipeDefinition> AssemblerRecipes() =>
-        Recipes.Where(r => r.Id.StartsWith("craft-", StringComparison.Ordinal)).ToList();
+    /// <summary>Shortcut for <see cref="RecipesFor"/> of the forno.</summary>
+    public IReadOnlyList<RecipeDefinition> SmelterRecipes() => RecipesFor(Crafter.SmelterBuildingId);
+
+    /// <summary>Shortcut for <see cref="RecipesFor"/> of the assembler.</summary>
+    public IReadOnlyList<RecipeDefinition> AssemblerRecipes() => RecipesFor(Crafter.AssemblerBuildingId);
 
     public BuildingDefinition? FindBuilding(string id) =>
         Buildings.FirstOrDefault(b => b.Id == id);
@@ -159,6 +168,11 @@ public sealed class FactoryContent
         var terrain = MapTerrain(root.Terrain);
         ValidateLamp(buildings, structures);
         ValidatePowerBlocks(buildings);
+        ValidateFuels(buildings, market, recipes);
+        ValidateCrafters(buildings, recipes);
+        ValidateRecipeResearch(recipes, structures);
+        ValidateUpgrades(structures, buildings, conveyors);
+        ValidateCampaignRewards(structures);
 
         return new FactoryContent
         {
@@ -187,6 +201,92 @@ public sealed class FactoryContent
         }
     }
 
+    // A craft machine's recipe prefix must pick at least one recipe, or the machine could never work.
+    private static void ValidateCrafters(List<BuildingDefinition> buildings, List<RecipeDefinition> recipes)
+    {
+        foreach (var building in buildings.Where(b => b.IsCrafter))
+        {
+            if (!recipes.Any(r => r.Id.StartsWith(building.RecipePrefix!, StringComparison.Ordinal)))
+            {
+                throw new InvalidDataException(
+                    $"content.json: buildings '{building.Id}': nessuna ricetta inizia con recipes '{building.RecipePrefix}'.");
+            }
+        }
+    }
+
+    // A recipe gated by research names an existing structure of kind "recipe": a typo would gate it forever.
+    private static void ValidateRecipeResearch(List<RecipeDefinition> recipes, List<StructureDefinition> structures)
+    {
+        foreach (var recipe in recipes.Where(r => r.Research is not null))
+        {
+            var node = structures.FirstOrDefault(s => s.Id == recipe.Research);
+            if (node is null || node.Kind != RecipeKind)
+            {
+                throw new InvalidDataException(
+                    $"content.json: recipes '{recipe.Id}': research '{recipe.Research}' deve essere una struttura di kind '{RecipeKind}'.");
+            }
+        }
+    }
+
+    /// <summary>Kind of the research nodes that open a recipe (nothing to place).</summary>
+    public const string RecipeKind = "recipe";
+
+    // The upgrade nodes (kind "upgrade", nothing to place) are the ones the simulation reads (Upgrades.NodeIds): an
+    // unknown id would cost money and do nothing, a known one under another kind would look like a block.
+    private static void ValidateUpgrades(
+        List<StructureDefinition> structures, List<BuildingDefinition> buildings, List<ConveyorDefinition> conveyors)
+    {
+        foreach (var structure in structures)
+        {
+            var upgrade = structure.Kind == Upgrades.Kind;
+            var known = Upgrades.NodeIds.Contains(structure.Id, StringComparer.Ordinal);
+            if (upgrade != known)
+            {
+                throw new InvalidDataException(upgrade
+                    ? $"content.json: structures '{structure.Id}': nessun potenziamento con questo id (kind '{Upgrades.Kind}')."
+                    : $"content.json: structures '{structure.Id}': un potenziamento deve avere kind '{Upgrades.Kind}'.");
+            }
+
+            if (upgrade && (buildings.Any(b => b.Id == structure.Id) || conveyors.Any(c => c.Id == structure.Id)))
+            {
+                throw new InvalidDataException(
+                    $"content.json: structures '{structure.Id}': un potenziamento non ha un blocco da piazzare.");
+            }
+        }
+    }
+
+    /// <summary>Chapters of the campaign: each gives exactly one research node (<see cref="StructureDefinition.CampaignReward"/>).</summary>
+    public const int CampaignChapters = 4;
+
+    // One reward per chapter (1–4), each on a node that is sold in free play (it has an unlock).
+    private static void ValidateCampaignRewards(List<StructureDefinition> structures)
+    {
+        foreach (var structure in structures.Where(s => s.CampaignReward is not null))
+        {
+            if (structure.CampaignReward is < 1 or > CampaignChapters)
+            {
+                throw new InvalidDataException(
+                    $"content.json: structures '{structure.Id}': campaignReward deve essere un capitolo da 1 a {CampaignChapters}.");
+            }
+
+            if (structure.Unlock is null)
+            {
+                throw new InvalidDataException(
+                    $"content.json: structures '{structure.Id}': un premio della campagna deve avere un costo di sblocco (unlock).");
+            }
+        }
+
+        for (var chapter = 1; chapter <= CampaignChapters; chapter++)
+        {
+            var count = structures.Count(s => s.CampaignReward == chapter);
+            if (count != 1)
+            {
+                throw new InvalidDataException(
+                    $"content.json: il capitolo {chapter} della campagna deve avere un premio (campaignReward) e uno solo, non {count}.");
+            }
+        }
+    }
+
     // Power network blocks that are declared need their numbers: a node without range or links, a battery without
     // capacity or a generator without output would sit in a network doing nothing.
     private static void ValidatePowerBlocks(List<BuildingDefinition> buildings)
@@ -205,9 +305,64 @@ public sealed class FactoryContent
             throw new InvalidDataException("content.json: la Batteria deve avere una capacità (powerCapacity) maggiore di zero.");
         }
 
+        if (buildings.FirstOrDefault(b => b.Id == Battery.LargeId) is { PowerCapacity: <= 0 })
+        {
+            throw new InvalidDataException("content.json: la Batteria grande deve avere una capacità (powerCapacity) maggiore di zero.");
+        }
+
         if (buildings.FirstOrDefault(b => b.Id == Generator.BuildingId) is { PowerOutput: <= 0f })
         {
             throw new InvalidDataException("content.json: il Generatore deve avere una produzione (powerOutput) maggiore di zero.");
+        }
+
+        if (buildings.FirstOrDefault(b => b.Id == Generator.CombustionId) is { PowerOutput: <= 0f })
+        {
+            throw new InvalidDataException(
+                "content.json: il Generatore a combustione deve avere una produzione (powerOutput) maggiore di zero.");
+        }
+
+        // The panels' size and entity live in code: only their ids may be solar, and each needs an output.
+        foreach (var building in buildings.Where(b => b.Solar || SolarPanel.IsSolarId(b.Id)))
+        {
+            if (!building.Solar || !SolarPanel.IsSolarId(building.Id) || building.PowerOutput <= 0f)
+            {
+                throw new InvalidDataException(
+                    $"content.json: il pannello solare '{building.Id}' deve essere solar o solar-large, con \"solar\": true e una produzione (powerOutput) maggiore di zero.");
+            }
+        }
+    }
+
+    // A generator burns only what its fuels list (it needs at least one, each a known item burning a positive time); any
+    // other building has no fuels.
+    private static void ValidateFuels(
+        List<BuildingDefinition> buildings, List<MarketItemDefinition> market, List<RecipeDefinition> recipes)
+    {
+        bool Known(string itemId) =>
+            market.Any(m => m.ItemId == itemId)
+            || recipes.Any(r => r.Inputs.Any(a => a.ItemId == itemId) || r.Outputs.Any(a => a.ItemId == itemId));
+
+        foreach (var building in buildings)
+        {
+            var isGenerator = Generator.IsGeneratorId(building.Id);
+            if (!isGenerator && building.Fuels.Count > 0)
+            {
+                throw new InvalidDataException($"content.json: buildings '{building.Id}': fuels vale solo per i generatori.");
+            }
+
+            if (isGenerator && building.Fuels.Count == 0)
+            {
+                throw new InvalidDataException($"content.json: il generatore '{building.Id}' deve avere almeno un carburante (fuels).");
+            }
+
+            var seen = new HashSet<string>(StringComparer.Ordinal);
+            foreach (var fuel in building.Fuels)
+            {
+                if (!(fuel.Seconds > 0f) || !float.IsFinite(fuel.Seconds) || !Known(fuel.ItemId) || !seen.Add(fuel.ItemId))
+                {
+                    throw new InvalidDataException(
+                        $"content.json: il generatore '{building.Id}': il carburante '{fuel.ItemId}' deve essere un oggetto del gioco, una volta sola, con seconds maggiore di zero.");
+                }
+            }
         }
     }
 
@@ -319,7 +474,7 @@ public sealed class FactoryContent
     // Every miner says which ores it digs: tier >= the ore's hardness (terrain.deposits).
     private static void CheckMinerTiers(IEnumerable<BuildingDto> buildings)
     {
-        foreach (var id in new[] { Miner.BasicId, Miner.AdvancedId })
+        foreach (var id in new[] { Miner.BasicId, Miner.AdvancedId, Miner.ImpactDrillId })
         {
             var miner = buildings.FirstOrDefault(b => b.Id == id);
             if (miner is null)
@@ -329,7 +484,7 @@ public sealed class FactoryContent
 
             if (miner.Tier is not { } tier)
             {
-                throw new InvalidDataException($"content.json: buildings '{id}': manca tier (1 = Minatore T1, 2 = T2).");
+                throw new InvalidDataException($"content.json: buildings '{id}': manca tier (1 = Minatore T1, 2 = T2, 3 = trapano a impatto).");
             }
 
             if (tier < 1)
@@ -492,13 +647,73 @@ public sealed class FactoryContent
             ParseKind(c.Kind),
             MapMultiplier(c.BuildCostMultiplier),
             c.Armored,
-            c.Inverted);
+            c.Inverted,
+            MapMaxSpan(c),
+            c.PowerUse < 0f
+                ? throw new InvalidDataException($"content.json: conveyors '{c.Id}': powerUse non può essere negativo.")
+                : c.PowerUse);
 
-    private static RecipeDefinition MapRecipe(RecipeDto r) =>
-        new(r.Id, r.DurationSeconds, MapAmounts(r.Inputs), MapAmounts(r.Outputs));
+    /// <summary>A bridge's reach: <see cref="ConveyorDefinition.DefaultMaxSpan"/> when absent, never below the shortest span.</summary>
+    private static int MapMaxSpan(ConveyorDto c) => c.MaxSpan switch
+    {
+        null => ConveyorDefinition.DefaultMaxSpan,
+        < BeltGridCell.MinBridgeSpan => throw new InvalidDataException(
+            $"content.json: conveyors '{c.Id}': maxSpan deve essere almeno {BeltGridCell.MinBridgeSpan}."),
+        { } span => span
+    };
 
-    private static BuildingDefinition MapBuilding(BuildingDto b) =>
-        new(
+    private static RecipeDefinition MapRecipe(RecipeDto r)
+    {
+        // A random recipe's amounts are the weights of its outputs: a missing or zero weight would be dropped silently.
+        if (r.RandomOutput && (r.Outputs is not { Count: > 0 } || r.Outputs.Any(o => string.IsNullOrWhiteSpace(o.ItemId) || o.Amount <= 0)))
+        {
+            throw new InvalidDataException(
+                $"content.json: recipes '{r.Id}' con randomOutput richiede almeno un'uscita e pesi (amount) maggiori di zero.");
+        }
+
+        return new(
+            r.Id,
+            r.DurationSeconds,
+            MapAmounts(r.Inputs),
+            MapAmounts(r.Outputs),
+            r.RandomOutput,
+            string.IsNullOrWhiteSpace(r.Research) ? null : r.Research);
+    }
+
+    private static BuildingDefinition MapBuilding(BuildingDto b)
+    {
+        var isCrafter = !string.IsNullOrWhiteSpace(b.Recipes);
+        if (!isCrafter && (b.Recipes is not null || b.PowerMode is not null || b.CraftSpeed is not null))
+        {
+            throw new InvalidDataException(
+                $"content.json: buildings '{b.Id}': powerMode e craftSpeed valgono solo per una macchina con recipes (non vuoto).");
+        }
+
+        var powerMode = CraftPowerMode.CoalOrPower;
+        if (isCrafter)
+        {
+            powerMode = b.PowerMode switch
+            {
+                "coal-or-power" => CraftPowerMode.CoalOrPower,
+                "boost" => CraftPowerMode.Boost,
+                "required" => CraftPowerMode.Required,
+                "none" => CraftPowerMode.None,
+                _ => throw new InvalidDataException(
+                    $"content.json: buildings '{b.Id}': powerMode '{b.PowerMode}' sconosciuto (coal-or-power, boost, required, none).")
+            };
+        }
+
+        var speedPercent = 100;
+        if (b.CraftSpeed is { } speed)
+        {
+            speedPercent = float.IsFinite(speed) ? (int)Math.Round(speed * 100.0, MidpointRounding.AwayFromZero) : 0;
+            if (speedPercent < 1)
+            {
+                throw new InvalidDataException($"content.json: buildings '{b.Id}': craftSpeed deve essere maggiore di zero.");
+            }
+        }
+
+        return new(
             b.Id,
             b.MoneyCost,
             MapAmounts(b.BuildCost),
@@ -509,7 +724,15 @@ public sealed class FactoryContent
             Math.Max(0f, b.PowerOutput),
             Math.Max(0, b.PowerLinkRange),
             Math.Max(0, b.MaxPowerLinks),
-            Math.Max(0, b.PowerCapacity));
+            Math.Max(0, b.PowerCapacity),
+            isCrafter ? b.Recipes : null,
+            powerMode,
+            speedPercent,
+            b.Solar)
+        {
+            Fuels = (b.Fuels ?? []).Select(f => new FuelDefinition(f.ItemId, f.Seconds)).ToArray()
+        };
+    }
 
     private static MarketItemDefinition MapMarket(MarketDto m) =>
         new(
@@ -607,7 +830,8 @@ public sealed class FactoryContent
             (s.Prerequisites ?? [])
                 .Where(id => !string.IsNullOrWhiteSpace(id))
                 .ToList(),
-            Math.Max(0, s.ItemCapacity));
+            Math.Max(0, s.ItemCapacity),
+            s.CampaignReward);
 
     private static IReadOnlyList<ResourceAmount> MapAmounts(List<AmountDto>? list) =>
         (list ?? [])
@@ -632,6 +856,8 @@ public sealed class FactoryContent
             "router" => LogisticsKind.Router,
             "bridge" => LogisticsKind.Bridge,
             "sorter" => LogisticsKind.Sorter,
+            "gate" => LogisticsKind.Gate,
+            "stack" => LogisticsKind.Stack,
             _ => LogisticsKind.Belt
         };
 
@@ -713,6 +939,10 @@ public sealed class FactoryContent
         public float? BuildCostMultiplier { get; set; }
         public bool Armored { get; set; }
         public bool Inverted { get; set; }
+        /// <summary>Bridge: most cells between its two ends (null = <see cref="ConveyorDefinition.DefaultMaxSpan"/>).</summary>
+        public int? MaxSpan { get; set; }
+        /// <summary>Bridge: power its entry draws per second (0 = none, the plain bridge).</summary>
+        public float PowerUse { get; set; }
     }
 
     private sealed class RecipeDto
@@ -721,6 +951,10 @@ public sealed class FactoryContent
         public float DurationSeconds { get; set; }
         public List<AmountDto>? Inputs { get; set; }
         public List<AmountDto>? Outputs { get; set; }
+        /// <summary>The output amounts are weights: one craft makes one piece of one of them.</summary>
+        public bool RandomOutput { get; set; }
+        /// <summary>Research node (kind <c>recipe</c>) that opens this recipe; null = always available.</summary>
+        public string? Research { get; set; }
     }
 
     private sealed class BuildingDto
@@ -742,6 +976,23 @@ public sealed class FactoryContent
         public int MaxPowerLinks { get; set; }
         /// <summary>Battery: units of power it stores.</summary>
         public int PowerCapacity { get; set; }
+        /// <summary>Craft machines: the id prefix of their recipes (e.g. <c>smelt-</c>).</summary>
+        public string? Recipes { get; set; }
+        /// <summary>Craft machines: <c>coal-or-power</c>, <c>boost</c>, <c>required</c> or <c>none</c>.</summary>
+        public string? PowerMode { get; set; }
+        /// <summary>Craft machines: speed multiplier (1 = the recipe's duration).</summary>
+        public float? CraftSpeed { get; set; }
+        /// <summary>Solar panels: <see cref="PowerOutput"/> is the output at full light, scaled by the world's light.</summary>
+        public bool Solar { get; set; }
+        /// <summary>Generators: what they burn, the first listed first (<see cref="FuelDto"/>).</summary>
+        public List<FuelDto>? Fuels { get; set; }
+    }
+
+    private sealed class FuelDto
+    {
+        public string ItemId { get; set; } = "";
+        /// <summary>Seconds one piece burns.</summary>
+        public float Seconds { get; set; }
     }
 
     private sealed class MarketDto
@@ -809,6 +1060,8 @@ public sealed class FactoryContent
         public List<string>? Prerequisites { get; set; }
         /// <summary>Storage blocks only: pieces per item.</summary>
         public int ItemCapacity { get; set; }
+        /// <summary>Campaign rewards only: the chapter whose end gives the node.</summary>
+        public int? CampaignReward { get; set; }
     }
 
     private sealed class AmountDto

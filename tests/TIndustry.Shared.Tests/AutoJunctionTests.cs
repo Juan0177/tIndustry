@@ -220,26 +220,44 @@ public sealed class AutoJunctionTests
         Assert.Equal(BeltCrossing.Junction, factory.BeltCrossingAt(Crossing, Direction.East));
     }
 
-    [Theory]
-    [InlineData(BuildingKind.Router)]
-    [InlineData(BuildingKind.Sorter)]
-    [InlineData(BuildingKind.SorterInverted)]
-    [InlineData(BuildingKind.Junction)]
-    [InlineData(BuildingKind.Bridge)]
-    public void DragOverASpecialKeepsTodaysBehaviour(BuildingKind kind)
+    [Fact]
+    public void DragOverABridgeKeepsTodaysBehaviour()
     {
         var (factory, host, refusals) = NewGame();
-        host.Submit(new PlaceBuilding(Player, kind, Crossing, Direction.South));
+        host.Submit(new PlaceBuilding(Player, BuildingKind.Bridge, Crossing, Direction.South));
         host.AdvanceTicks(1);
         Assert.Empty(refusals);
-        var before = factory.Belts.Cells[Crossing].Kind;
 
         var line = Drag(host, Row(33, 37, 43), Direction.East);
 
         // The line foresees the refusal: the cell is shown red and not sent.
         Assert.Contains(line, c => c.Cell == Crossing && c.Refusal == RefusalCode.Occupied);
         Assert.Empty(refusals);
-        Assert.Equal(before, factory.Belts.Cells[Crossing].Kind);
+        Assert.Equal(LogisticsKind.Bridge, factory.Belts.Cells[Crossing].Kind);
+        Assert.Equal(BeltCrossing.None, factory.BeltCrossingAt(Crossing, Direction.East));
+    }
+
+    /// <summary>
+    /// Since every 1×1 logistics block replaces another (<see cref="LogisticsReplaceTests"/>), a dragged belt line replaces a
+    /// router or a sorter on its way; a junction inside the line stays, as the auto-junction would have made it.
+    /// </summary>
+    [Theory]
+    [InlineData(BuildingKind.Router, LogisticsKind.Belt)]
+    [InlineData(BuildingKind.Sorter, LogisticsKind.Belt)]
+    [InlineData(BuildingKind.SorterInverted, LogisticsKind.Belt)]
+    [InlineData(BuildingKind.Junction, LogisticsKind.Junction)]
+    public void DragOverAOneCellLogisticsBlockReplacesItButAJunctionStays(BuildingKind kind, LogisticsKind after)
+    {
+        var (factory, host, refusals) = NewGame();
+        host.Submit(new PlaceBuilding(Player, kind, Crossing, Direction.South));
+        host.AdvanceTicks(1);
+        Assert.Empty(refusals);
+
+        var line = Drag(host, Row(33, 37, 43), Direction.East);
+
+        Assert.DoesNotContain(line, c => c.Refusal is not null);
+        Assert.Empty(refusals);
+        Assert.Equal(after, factory.Belts.Cells[Crossing].Kind);
         Assert.Equal(BeltCrossing.None, factory.BeltCrossingAt(Crossing, Direction.East));
     }
 

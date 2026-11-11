@@ -3,7 +3,7 @@ using Xunit;
 
 namespace TIndustry.Shared.Tests;
 
-/// <summary>Save format v20: metadata + canonical snapshot, written and read through <see cref="SimHost"/>; older versions are refused.</summary>
+/// <summary>Save format v22: metadata + canonical snapshot, written and read through <see cref="SimHost"/>; older versions are refused.</summary>
 [Collection(SaveStoreCollection.Name)]
 public sealed class SaveVersionTests
 {
@@ -133,16 +133,23 @@ public sealed class SaveVersionTests
     }
 
     [Fact]
-    public void SaveWritesVersion20()
+    public void SaveWritesVersion23()
     {
-        Assert.Equal(20, FactorySaveData.CurrentVersion);
-        Assert.Equal(20, FactorySaveData.MinReadableVersion);
+        Assert.Equal(23, FactorySaveData.CurrentVersion);
+        Assert.Equal(23, FactorySaveData.MinReadableVersion);
         var host = new SimHost(NewGame.Sandbox(LoadContent(), new GridPosition(60, 60), mapWidth: 120, mapHeight: 120, seed: 3));
-        FactorySaveStore.Save("v20-versione", host);
+        FactorySaveStore.Save("v23-versione", host);
 
-        Assert.Contains("\"version\": 20", File.ReadAllText(FactorySaveStore.SlotPath("v20-versione")));
+        Assert.Contains("\"version\": 23", File.ReadAllText(FactorySaveStore.SlotPath("v23-versione")));
         var snapshot = System.Text.Encoding.UTF8.GetString(host.CreateSnapshot());
-        Assert.Contains("\"version\":20", snapshot);
+        Assert.Contains("\"version\":23", snapshot);
+        // No replacement site, no replaced blocks (v23 makes them a list with their state).
+        Assert.DoesNotContain("\"replaced\"", snapshot, StringComparison.Ordinal);
+        // No pack on a stack conveyor, no pack keys (v22 adds them): a game without them keeps its snapshot.
+        Assert.DoesNotContain("\"count\"", snapshot, StringComparison.Ordinal);
+        Assert.DoesNotContain("stackWaitTicks", snapshot, StringComparison.Ordinal);
+        // No new machine, no machine key (v21 adds them): a game without them keeps its snapshot.
+        Assert.DoesNotContain("\"machines\"", snapshot, StringComparison.Ordinal);
         // No screen, no screen key (v20 adds the watched item and the last result to it).
         Assert.DoesNotContain("marketScreen", snapshot, StringComparison.Ordinal);
         // The drone's v19 state: held input, hand mining and its hold.
@@ -155,6 +162,48 @@ public sealed class SaveVersionTests
         Assert.DoesNotContain("autoSellAtCore", snapshot, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("autoSellCarryMilli", snapshot, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("\"autoSellCarry\":", snapshot);
+    }
+
+    [Fact]
+    public void Version21_Refused_OlderVersion()
+    {
+        var content = LoadContent();
+        var host = new SimHost(NewGame.Demo(content));
+        FactorySaveStore.Save("v21-rifiutato", host);
+        var path = FactorySaveStore.SlotPath("v21-rifiutato");
+        var json = File.ReadAllText(path);
+        Assert.Contains(Current, json);
+        File.WriteAllText(path, json.Replace(Current, "\"version\": 21"));
+
+        Assert.False(FactorySaveStore.TryLoadSlot(content, "v21-rifiutato", out var loaded, out var failure));
+        Assert.Null(loaded);
+        Assert.Equal(SaveLoadError.OlderVersion, failure!.Code);
+
+        // A v21 snapshot (before the gates, packs, long bridge, solar panels, combustion and large battery) is not read.
+        var snapshot = System.Text.Encoding.UTF8.GetString(host.CreateSnapshot())
+            .Replace($"\"version\":{FactorySaveData.CurrentVersion}", "\"version\":21");
+        Assert.Throws<InvalidDataException>(() => Snapshot.Read(content, System.Text.Encoding.UTF8.GetBytes(snapshot)));
+    }
+
+    [Fact]
+    public void Version20_Refused_OlderVersion()
+    {
+        var content = LoadContent();
+        var host = new SimHost(NewGame.Demo(content));
+        FactorySaveStore.Save("v20-rifiutato", host);
+        var path = FactorySaveStore.SlotPath("v20-rifiutato");
+        var json = File.ReadAllText(path);
+        Assert.Contains(Current, json);
+        File.WriteAllText(path, json.Replace(Current, "\"version\": 20"));
+
+        Assert.False(FactorySaveStore.TryLoadSlot(content, "v20-rifiutato", out var loaded, out var failure));
+        Assert.Null(loaded);
+        Assert.Equal(SaveLoadError.OlderVersion, failure!.Code);
+
+        // A v20 snapshot (before the new machines and the miners' covered cells) is not read either.
+        var snapshot = System.Text.Encoding.UTF8.GetString(host.CreateSnapshot())
+            .Replace($"\"version\":{FactorySaveData.CurrentVersion}", "\"version\":20");
+        Assert.Throws<InvalidDataException>(() => Snapshot.Read(content, System.Text.Encoding.UTF8.GetBytes(snapshot)));
     }
 
     [Fact]

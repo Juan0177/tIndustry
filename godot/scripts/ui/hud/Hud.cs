@@ -38,7 +38,20 @@ public partial class Hud : Control
         Vault,
         CoreFoundation,
         CoreNucleus,
-        MarketScreen
+        MarketScreen,
+        SmelterAdvanced,
+        GraphitePress,
+        Separator,
+        Plasticizer,
+        ImpactDrill,
+        OverflowGate,
+        UnderflowGate,
+        BeltStack,
+        BridgeLong,
+        Solar,
+        SolarLarge,
+        CombustionGenerator,
+        BatteryLarge
     }
 
     internal enum BuildCategory
@@ -140,12 +153,15 @@ public partial class Hud : Control
         _palette.ShowCategory(BuildCategory.Logistics);
     }
 
-    /// <summary>Bind content + wallet so the info panel can show costs / barred mats.</summary>
-    public void BindEconomy(FactoryContent? content, IWalletView? wallet)
+    /// <summary>
+    /// Bind content + wallet so the info panel can show costs / barred mats, and the research for the upgraded rates and
+    /// capacities of its I/O line.
+    /// </summary>
+    public void BindEconomy(FactoryContent? content, IWalletView? wallet, IResearchView? research = null)
     {
         _core.Bind(content, wallet);
         _palette.Content = content;
-        _info.Bind(content, wallet);
+        _info.Bind(content, wallet, research);
         RefreshBlockInfo();
     }
 
@@ -415,6 +431,7 @@ public partial class Hud : Control
         ToolKind.BeltFast => "conveyor-fast",
         ToolKind.BeltExpress => "conveyor-express",
         ToolKind.BeltArmored => "conveyor-armored",
+        ToolKind.BeltStack => "conveyor-stack",
         ToolKind.Miner => "miner",
         ToolKind.MinerAdvanced => "miner-advanced",
         ToolKind.Smelter => "smelter",
@@ -435,6 +452,18 @@ public partial class Hud : Control
         ToolKind.CoreFoundation => "core-foundation",
         ToolKind.CoreNucleus => "core-nucleus",
         ToolKind.MarketScreen => "market-screen",
+        ToolKind.SmelterAdvanced => Crafter.SmelterAdvancedId,
+        ToolKind.GraphitePress => Crafter.GraphitePressId,
+        ToolKind.Separator => Crafter.SeparatorId,
+        ToolKind.Plasticizer => Crafter.PlasticizerId,
+        ToolKind.ImpactDrill => Miner.ImpactDrillId,
+        ToolKind.OverflowGate => Factory.OverflowGateId,
+        ToolKind.UnderflowGate => Factory.UnderflowGateId,
+        ToolKind.BridgeLong => Factory.BridgeLongId,
+        ToolKind.Solar => SolarPanel.SmallId,
+        ToolKind.SolarLarge => SolarPanel.LargeId,
+        ToolKind.CombustionGenerator => Generator.CombustionId,
+        ToolKind.BatteryLarge => Battery.LargeId,
         _ => "conveyor-basic"
     };
 

@@ -12,13 +12,25 @@ public enum LogisticsKind
     Junction,
     Router,
     Bridge,
-    Sorter
+    Sorter,
+
+    /// <summary>Overflow gate (Mindustry's), or the underflow gate when <see cref="ConveyorDefinition.Inverted"/>.</summary>
+    Gate,
+
+    /// <summary>
+    /// Stack conveyor (Mindustry's plastanium conveyor): the first cell of a line packs items, the others carry packs, the
+    /// last one unloads them into a building or the Core (<see cref="BeltGrid.StackPackSize"/>).
+    /// </summary>
+    Stack
 }
 
 /// <summary>
 /// A belt or a logistics block. <see cref="RateItemsPerSecond"/> is the speed in cells per second (the name is older
 /// than the spacing); a full line carries speed / <see cref="ItemSpacing"/> items per second, at most
-/// <see cref="Capacity"/> items per cell. <paramref name="Inverted"/> marks the inverted sorter (<c>sorter-inverted</c>).
+/// <see cref="Capacity"/> items per cell. <paramref name="Inverted"/> marks the inverted sorter (<c>sorter-inverted</c>) and the underflow gate (<c>underflow-gate</c>).
+/// A bridge's ends stand <see cref="BeltGridCell.MinBridgeSpan"/> to <paramref name="MaxSpan"/> cells apart (JSON
+/// <c>maxSpan</c>, 4 when absent: Mindustry's bridge conveyor); <paramref name="PowerUse"/> (JSON <c>powerUse</c>, units per
+/// second, 0 = none) makes the bridge's entry a power consumer (<see cref="BridgePower"/>, the long bridge).
 /// </summary>
 public sealed record ConveyorDefinition(
     string Id,
@@ -32,25 +44,66 @@ public sealed record ConveyorDefinition(
     LogisticsKind Kind = LogisticsKind.Belt,
     float BuildCostMultiplier = 1f,
     bool Armored = false,
-    bool Inverted = false)
+    bool Inverted = false,
+    int MaxSpan = ConveyorDefinition.DefaultMaxSpan,
+    float PowerUse = 0f)
 {
+    /// <summary>Reach of a bridge when the content does not give one: Mindustry's bridge conveyor, ends at most 4 cells apart.</summary>
+    public const int DefaultMaxSpan = 4;
+
+    /// <summary><see cref="PowerUse"/> in thousandths of a unit per second, the integer rate of the power balance.</summary>
+    public long PowerUseRate => BuildingDefinition.MilliRate(PowerUse);
+
+    /// <summary>A bridge whose entry needs power to let items cross (<see cref="BridgePower"/>).</summary>
+    public bool IsPoweredBridge => Kind == LogisticsKind.Bridge && PowerUse > 0f;
+
     /// <summary>Armored belt (Mindustry's): takes items from non-belts only from behind, never blends with buildings.</summary>
     public bool IsArmoredBelt => Armored && Kind == LogisticsKind.Belt;
 
     public IReadOnlyList<ResourceAmount> EffectiveBuildCost => BuildCost ?? [];
 }
 
+/// <summary>
+/// A recipe of content.json. With <paramref name="RandomOutput"/> (JSON <c>randomOutput</c>) the amounts of
+/// <paramref name="Outputs"/> are weights and one craft makes a single piece of one of them. A recipe with
+/// <paramref name="Research"/> (JSON <c>research</c>, the id of a structure of kind <c>recipe</c>) runs only once that
+/// research node is unlocked (<see cref="Factory.RecipesAvailableTo"/>).
+/// </summary>
 public sealed record RecipeDefinition(
     string Id,
     float DurationSeconds,
     IReadOnlyList<ResourceAmount> Inputs,
-    IReadOnlyList<ResourceAmount> Outputs);
+    IReadOnlyList<ResourceAmount> Outputs,
+    bool RandomOutput = false,
+    string? Research = null);
+
+/// <summary>
+/// How a craft machine uses power (JSON <c>powerMode</c>), on top of its <see cref="BuildingDefinition.CraftSpeedPercent"/>:
+/// <list type="bullet">
+/// <item><see cref="CoalOrPower"/> (<c>coal-or-power</c>, the forno): 1.2 × s with power, 1× burning coal, else stalled;</item>
+/// <item><see cref="Boost"/> (<c>boost</c>, the assembler): always works, 1 + 0.2 × s;</item>
+/// <item><see cref="Required"/> (<c>required</c>): s, stalled without power, never burns coal;</item>
+/// <item><see cref="None"/> (<c>none</c>): always works at its speed and never asks for power.</item>
+/// </list>
+/// s is the satisfaction of its network (0–1).
+/// </summary>
+public enum CraftPowerMode
+{
+    CoalOrPower,
+    Boost,
+    Required,
+    None
+}
 
 /// <summary>
 /// A building of content.json. Power (spec «Rete di corrente»): <paramref name="PowerUse"/> and
 /// <paramref name="PowerOutput"/> are units per second, <paramref name="PowerLinkRange"/> (cells between the edges of
 /// the two blocks) and <paramref name="MaxPowerLinks"/> belong to the power nodes, <paramref name="PowerCapacity"/>
-/// (units) to the battery; 0 = none.
+/// (units) to the battery; 0 = none. A craft machine names its recipes by id prefix (<paramref name="RecipePrefix"/>,
+/// JSON <c>recipes</c>; null = not a craft machine), its <paramref name="PowerMode"/> and its speed
+/// (<paramref name="CraftSpeedPercent"/>, 100 = 1×; JSON <c>craftSpeed</c> as a multiplier). A solar panel
+/// (<paramref name="Solar"/>, <see cref="SolarPanel"/>) produces its <paramref name="PowerOutput"/> × the world's light.
+/// A generator burns its <see cref="Fuels"/> (JSON <c>fuels</c>).
 /// </summary>
 public sealed record BuildingDefinition(
     string Id,
@@ -63,8 +116,20 @@ public sealed record BuildingDefinition(
     float PowerOutput = 0f,
     int PowerLinkRange = 0,
     int MaxPowerLinks = 0,
-    int PowerCapacity = 0)
+    int PowerCapacity = 0,
+    string? RecipePrefix = null,
+    CraftPowerMode PowerMode = CraftPowerMode.CoalOrPower,
+    int CraftSpeedPercent = 100,
+    bool Solar = false)
 {
+    /// <summary>True for a craft machine: it has recipes (<see cref="RecipePrefix"/>).</summary>
+    public bool IsCrafter => RecipePrefix is not null;
+
+    /// <summary>
+    /// Generators: what they burn, in content order (the first listed burns first); empty for every other building.
+    /// </summary>
+    public IReadOnlyList<FuelDefinition> Fuels { get; init; } = [];
+
     /// <summary>Sixty-thousandths of a unit in one unit: a battery's charge unit (one tick moves a milli-rate of them).</summary>
     public const long ChargePerUnit = 60_000;
 
@@ -81,6 +146,9 @@ public sealed record BuildingDefinition(
     public static long MilliRate(float unitsPerSecond) =>
         unitsPerSecond <= 0f ? 0 : (long)Math.Round(unitsPerSecond * 1000.0, MidpointRounding.AwayFromZero);
 }
+
+/// <summary>A generator's fuel (JSON <c>fuels</c>): one piece of <paramref name="ItemId"/> burns for <paramref name="Seconds"/>.</summary>
+public sealed record FuelDefinition(string ItemId, float Seconds);
 
 /// <summary>
 /// Mobile unit stats (Mindustry's UnitType): build speed, build range in tiles, speed in tiles/s. Hand mining (spec
@@ -100,10 +168,17 @@ public sealed record UnitDefinition(
     public IReadOnlyList<string> MineItems { get; init; } = [];
 
     /// <summary>
-    /// <see cref="MineRate"/> in thousandths of a piece per second: what one tick adds to the hand-mining progress, which
-    /// makes a piece at <see cref="MineProgressPerPiece"/> (0.7/s = 700 per tick, 42 000 per second: exact).
+    /// Percent of <see cref="MineRate"/> the unit mines at: 100 for the content's units, more with the research's
+    /// hand-mining upgrade (<see cref="Upgrades.Apply(UnitDefinition, IResearchView)"/>).
     /// </summary>
-    public long MineRateMilli => BuildingDefinition.MilliRate(MineRate);
+    public int MineRatePercent { get; init; } = 100;
+
+    /// <summary>
+    /// <see cref="MineRate"/> in thousandths of a piece per second: what one tick adds to the hand-mining progress, which
+    /// makes a piece at <see cref="MineProgressPerPiece"/> (0.7/s = 700 per tick, 42 000 per second: exact). With
+    /// <see cref="MineRatePercent"/> it is <c>milli × percent / 100</c> in integers, rounded down (700 → 875 → 1050).
+    /// </summary>
+    public long MineRateMilli => BuildingDefinition.MilliRate(MineRate) * MineRatePercent / 100;
 
     /// <summary>True when the unit mines <paramref name="itemId"/> by hand.</summary>
     public bool CanMine(string itemId)
@@ -122,7 +197,7 @@ public sealed record UnitDefinition(
     public bool Equals(UnitDefinition? other) =>
         other is not null
         && BuildSpeed.Equals(other.BuildSpeed) && BuildRange.Equals(other.BuildRange) && Speed.Equals(other.Speed)
-        && MineRate.Equals(other.MineRate) && HoldCapacity == other.HoldCapacity
+        && MineRate.Equals(other.MineRate) && HoldCapacity == other.HoldCapacity && MineRatePercent == other.MineRatePercent
         && MineItems.SequenceEqual(other.MineItems, StringComparer.Ordinal);
 
     public override int GetHashCode() => HashCode.Combine(BuildSpeed, BuildRange, Speed, MineRate, HoldCapacity, MineItems.Count);
@@ -149,6 +224,11 @@ public sealed record MarketRules(
     int LostBoostBp, int LostBoostMinutes, int LostPieces, int HistorySeconds,
     int LedMildDropMilli, int LedYellowPieces);
 
+/// <summary>
+/// A node of the research. <paramref name="CampaignReward"/> (JSON <c>campaignReward</c>) is the campaign chapter (1–4)
+/// whose end gives the node for free (<see cref="Factory.GrantCampaignReward"/>): in the campaign it is never sold
+/// (<see cref="RefusalCode.CampaignRewardOnly"/>), in free play it is bought like any node.
+/// </summary>
 public sealed record StructureDefinition(
     string Id,
     string DisplayName,
@@ -157,7 +237,8 @@ public sealed record StructureDefinition(
     UnlockRequirement? Unlock,
     bool IsStub,
     IReadOnlyList<string> Prerequisites,
-    int ItemCapacity = 0);
+    int ItemCapacity = 0,
+    int? CampaignReward = null);
 
 /// <summary>
 /// One Core tier of <c>cores</c> (index = tier): footprint <paramref name="Size"/>, pieces per item, pieces/s sold

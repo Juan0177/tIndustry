@@ -25,11 +25,13 @@ public sealed class Factory : IGameView
     private List<Miner> miners => State.Miners;
     private List<Crafter> smelters => State.Smelters;
     private List<Crafter> assemblers => State.Assemblers;
+    private List<Crafter> machines => State.Machines;
     private List<Generator> generators => State.Generators;
     private List<Extractor> extractors => State.Extractors;
     private List<PowerNode> powerNodes => State.PowerNodes;
     private List<Lamp> lamps => State.Lamps;
     private List<Battery> batteries => State.Batteries;
+    private List<SolarPanel> solarPanels => State.SolarPanels;
     private List<StorageBlock> storages => State.Storages;
 
     public Factory(
@@ -54,7 +56,10 @@ public sealed class Factory : IGameView
         RouterDefinition = content.RequireConveyor("router");
         SorterDefinition = content.RequireConveyor("sorter");
         SorterInvertedDefinition = content.RequireConveyor("sorter-inverted");
+        OverflowGateDefinition = content.RequireConveyor(OverflowGateId);
+        UnderflowGateDefinition = content.RequireConveyor(UnderflowGateId);
         BridgeDefinition = content.RequireConveyor("conveyor-bridge");
+        BridgeLongDefinition = content.RequireConveyor(BridgeLongId);
     }
 
     /// <summary>Wraps an existing state (used by snapshots); definitions come from its content.</summary>
@@ -67,7 +72,10 @@ public sealed class Factory : IGameView
         RouterDefinition = state.Content.RequireConveyor("router");
         SorterDefinition = state.Content.RequireConveyor("sorter");
         SorterInvertedDefinition = state.Content.RequireConveyor("sorter-inverted");
+        OverflowGateDefinition = state.Content.RequireConveyor(OverflowGateId);
+        UnderflowGateDefinition = state.Content.RequireConveyor(UnderflowGateId);
         BridgeDefinition = state.Content.RequireConveyor("conveyor-bridge");
+        BridgeLongDefinition = state.Content.RequireConveyor(BridgeLongId);
     }
 
     public FactoryContent Content => State.Content;
@@ -78,9 +86,30 @@ public sealed class Factory : IGameView
     public ConveyorDefinition SorterDefinition { get; }
 
     public ConveyorDefinition SorterInvertedDefinition { get; }
+
+    /// <summary>Content id of the overflow gate (<see cref="LogisticsKind.Gate"/>).</summary>
+    public const string OverflowGateId = "overflow-gate";
+
+    /// <summary>Content id of the underflow gate (<see cref="LogisticsKind.Gate"/>, inverted).</summary>
+    public const string UnderflowGateId = "underflow-gate";
+
+    public ConveyorDefinition OverflowGateDefinition { get; }
+    public ConveyorDefinition UnderflowGateDefinition { get; }
     public ConveyorDefinition BridgeDefinition { get; }
+
+    /// <summary>Content id of the long bridge (<see cref="LogisticsKind.Bridge"/> with a power use and a longer reach).</summary>
+    public const string BridgeLongId = "bridge-long";
+
+    public ConveyorDefinition BridgeLongDefinition { get; }
+
+    /// <summary>The definition a bridge spec places: the long bridge's or the plain one's.</summary>
+    private ConveyorDefinition BridgeDefinitionOf(BuildSpec spec) =>
+        spec.Kind == BuildingKind.BridgeLong ? BridgeLongDefinition : BridgeDefinition;
     public IReadOnlySet<GridPosition> CoreTiles => State.CoreTiles;
     public int CoreTier => State.CoreTier;
+
+    /// <summary>The builder drone of the Core's tier with the research upgrades (<see cref="GameState.EffectiveUnit"/>).</summary>
+    public UnitDefinition EffectiveUnit => State.EffectiveUnit;
     public int CoreCapacity(string itemId) => State.Storage.Capacity(itemId);
     public EconomyWallet Wallet => State.Wallet;
     public ResearchState Research => State.Research;
@@ -135,11 +164,16 @@ public sealed class Factory : IGameView
     public IReadOnlyList<Miner> Miners => miners;
     public IReadOnlyList<Crafter> Smelters => smelters;
     public IReadOnlyList<Crafter> Assemblers => assemblers;
+
+    /// <summary>The other craft machines (advanced smelter, graphite press, separator, plasticizer), in id order.</summary>
+    public IReadOnlyList<Crafter> Machines => machines;
     public IReadOnlyList<Generator> Generators => generators;
     public IReadOnlyList<Extractor> Extractors => extractors;
     public IReadOnlyList<PowerNode> PowerNodes => powerNodes;
     public IReadOnlyList<Lamp> Lamps => lamps;
+    public IReadOnlyList<BridgePower> BridgePowers => State.BridgePowers;
     public IReadOnlyList<Battery> Batteries => batteries;
+    public IReadOnlyList<SolarPanel> SolarPanels => solarPanels;
 
     /// <summary>The finished stock-exchange screen (one per game), or null; active when it touches the Core.</summary>
     public MarketScreen? MarketScreen => State.MarketScreen;
@@ -233,24 +267,30 @@ public sealed class Factory : IGameView
     }
 
     /// <summary>
-    /// Mindustry's belt over belt: <see cref="BeltOverBelt.None"/> unless <paramref name="cell"/> holds a plain belt
-    /// that no plan, mark for removal or site touches and <paramref name="conveyorId"/> is a plain belt; then
-    /// <see cref="BeltOverBelt.Same"/> (same id and direction) or <see cref="BeltOverBelt.Rotate"/> (same id).
+    /// Mindustry's replace for the 1×1 logistics blocks (<see cref="IsReplaceableLogistics"/>: belts of every tier, the
+    /// armored and the stack conveyor too, junction, router, both sorters and both gates; never a bridge):
+    /// <see cref="BeltOverBelt.None"/> unless <paramref name="cell"/> holds one that no plan, mark for removal or site
+    /// touches and <paramref name="conveyorId"/> (a structure id) is one too; then <see cref="BeltOverBelt.Replace"/>
+    /// (another id), <see cref="BeltOverBelt.Rotate"/> (the same belt or stack conveyor facing another way) or
+    /// <see cref="BeltOverBelt.Same"/> (the same id otherwise: a router, a sorter, a gate or a junction has no direction).
     /// </summary>
     public BeltOverBelt BeltOverBeltAt(GridPosition cell, Direction direction, string conveyorId) =>
         BeltOverBeltAt(cell, direction, conveyorId, ignoring: null);
 
+    /// <summary>True for the logistics kinds that replace one another by placing over: every 1×1 one, not the bridge.</summary>
+    public static bool IsReplaceableLogistics(LogisticsKind kind) => kind is not LogisticsKind.Bridge;
+
     /// <summary>True while the build plan's cell still answers <see cref="BeltOverBelt.Replace"/>, the plan itself aside.</summary>
     internal bool IsReplacePlan(BuildPlan plan) =>
         !plan.Breaking
-        && plan.Spec.Kind is null
         && BeltOverBeltAt(plan.Spec.Origin, plan.Spec.Direction, plan.Spec.StructureId, plan) == BeltOverBelt.Replace;
 
-    private BeltOverBelt BeltOverBeltAt(GridPosition cell, Direction direction, string conveyorId, BuildPlan? ignoring)
+    private BeltOverBelt BeltOverBeltAt(GridPosition cell, Direction direction, string structureId, BuildPlan? ignoring)
     {
-        if (!Belts.TryGet(cell, out var belt)
-            || belt.Kind != LogisticsKind.Belt
-            || Content.FindConveyor(conveyorId)?.Kind != LogisticsKind.Belt
+        if (!Belts.TryGet(cell, out var old)
+            || !IsReplaceableLogistics(old.Kind)
+            || Content.FindConveyor(structureId) is not { } conveyor
+            || !IsReplaceableLogistics(conveyor.Kind)
             || State.Builders.Any(b => b.Plans.Any(p =>
                 !ReferenceEquals(p, ignoring) && !p.Breaking && Footprint(p.Spec).Contains(cell)))
             || TryGetSiteAt(cell, out _)
@@ -259,104 +299,323 @@ public sealed class Factory : IGameView
             return BeltOverBelt.None;
         }
 
-        return !string.Equals(belt.Definition.Id, conveyorId, StringComparison.Ordinal) ? BeltOverBelt.Replace
-            : belt.Direction == direction ? BeltOverBelt.Same
-            : BeltOverBelt.Rotate;
+        return !string.Equals(old.Definition.Id, structureId, StringComparison.Ordinal) ? BeltOverBelt.Replace
+            : old.HasDirection && old.Direction != direction ? BeltOverBelt.Rotate
+            : BeltOverBelt.Same;
     }
 
     /// <summary>
-    /// Takes the plain belt on <paramref name="cell"/> away without refund for a replacement, returning its spec and
-    /// items (front first, positions kept). False, changing nothing, when no plain belt is there.
+    /// The specs of the blocks <paramref name="spec"/> would replace (<see cref="BeltOverBelt.Replace"/>): the logistics
+    /// cell under its origin. Empty when there is none.
     /// </summary>
-    internal bool TryTakeBeltForReplacement(GridPosition cell, out ReplacedBelt old)
+    private IReadOnlyList<BuildSpec> ReplacedSpecsUnder(BuildSpec spec) =>
+        Belts.TryGet(spec.Origin, out var cell) && IsReplaceableLogistics(cell.Kind)
+        && TryGetSpecAt(spec.Origin, out var old, out _)
+            ? [old]
+            : [];
+
+    /// <summary>
+    /// Takes away without refund the blocks <paramref name="spec"/> replaces (<see cref="ReplacedSpecsUnder"/>), returning
+    /// each with its spec, its items (front first, positions, junction queues and packs kept) and its state. False,
+    /// changing nothing, when there is none.
+    /// </summary>
+    internal bool TryTakeForReplacement(BuildSpec spec, out IReadOnlyList<ReplacedBlock> taken)
     {
-        old = null!;
-        if (!Belts.TryGet(cell, out var belt) || belt.Kind != LogisticsKind.Belt)
+        taken = [];
+        if (ReplacedSpecsUnder(spec) is not [var oldSpec] || !Belts.TryGet(oldSpec.Origin, out var cell))
         {
             return false;
         }
 
-        old = new ReplacedBelt(
-            new BuildSpec(belt.Definition.Id, null, cell, belt.Direction),
-            belt.Items.Select(i => new TransportedItem(i.Id, i.ItemId, i.Progress, i.Travel)).ToList());
-        return RemoveInstant(cell, refund: false);
+        var block = new ReplacedBlock(oldSpec, cell.Items.Select(CopyItem).ToList(), LogisticsStateOf(cell));
+        if (!RemoveInstant(oldSpec.Origin, refund: false))
+        {
+            return false;
+        }
+
+        taken = [block];
+        return true;
+    }
+
+    /// <summary>A copy of <paramref name="item"/> that keeps what a save keeps (not the carry of the tick).</summary>
+    private static TransportedItem CopyItem(TransportedItem item) =>
+        new(item.Id, item.ItemId, item.Progress, item.Travel) { Count = item.Count, JunctionTicks = item.JunctionTicks };
+
+    /// <summary>The state of a logistics cell beyond its spec and items; null when it is all at rest (0).</summary>
+    private static ReplacedLogisticsState? LogisticsStateOf(BeltGridCell cell)
+    {
+        var state = cell.Kind switch
+        {
+            LogisticsKind.Router => new ReplacedLogisticsState(
+                RouterTurn: cell.RouterTurn, RouterWaitTicks: cell.RouterWaitTicks, RouterFrom: cell.RouterFrom),
+            LogisticsKind.Sorter or LogisticsKind.Gate => new ReplacedLogisticsState(SorterTurns: cell.SorterTurns),
+            LogisticsKind.Stack => new ReplacedLogisticsState(StackWaitTicks: cell.StackWaitTicks),
+            _ => null
+        };
+        return state == new ReplacedLogisticsState() ? null : state;
     }
 
     /// <summary>
-    /// Ends a replacement on the new belt of <paramref name="spec"/>: it takes the first <c>Capacity</c> items of
-    /// <paramref name="old"/> with their positions, and the old cost beyond the credit comes back at the old belt's
-    /// refund share (<see cref="RefundBasisPointsFor"/>, rounded up once per line).
+    /// Ends a replacement on the new block of <paramref name="spec"/>: it keeps the items of <paramref name="taken"/> it
+    /// can hold through its normal acceptance (<see cref="KeepItems"/>) and the others go to the Core; the old cost beyond
+    /// the credit comes back at each old block's refund share (<see cref="RefundBasisPointsFor"/>, rounded up once per line).
     /// </summary>
-    internal void SettleReplacement(BuildSpec spec, ReplacedBelt old)
+    internal void SettleReplacement(BuildSpec spec, IReadOnlyList<ReplacedBlock> taken)
     {
-        var cell = Belts.Cells[spec.Origin];
-        cell.RestoreState(old.Items.Take(cell.Definition.Capacity));
-        var oldCost = CostOf(old.Spec);
-        var credit = Construction.Credit(oldCost, CostOf(spec));
-        var basisPoints = RefundBasisPointsFor(old.Spec);
-        for (var i = 0; i < oldCost.Count; i++)
-        {
-            var back = Construction.RefundShare(oldCost[i].Amount - credit[i], basisPoints);
-            if (back <= 0)
-            {
-                continue;
-            }
+        ItemsToCore(Belts.TryGet(spec.Origin, out var cell)
+            ? KeepItems(cell, taken)
+            : taken.SelectMany(b => b.Items).ToList());
+        RefundExcess(spec, taken);
+    }
 
-            if (oldCost[i].ItemId is { } itemId)
+    /// <summary>
+    /// Puts into the new <paramref name="cell"/> the items of <paramref name="taken"/> it holds by its normal acceptance,
+    /// in order, and returns the others. A belt: single pieces, front first, each kept where it was but never past the
+    /// cell nor closer than the spacing to the one ahead, up to its capacity (a pack is no belt item). A junction: each
+    /// single piece in the queue of its way (a belt's or stack's direction, the way it crossed a junction, away from the
+    /// side it came into a router), up to <see cref="BeltGridCell.JunctionQueueLength"/> per queue. A router: the first
+    /// single piece, which it never hands back to the side it came from. A stack conveyor's loading cell: the single
+    /// pieces that join the pack its first one starts (<see cref="BeltGridCell.CanLoad"/>); any other stack cell, a sorter
+    /// and a gate hold nothing.
+    /// </summary>
+    private static List<TransportedItem> KeepItems(BeltGridCell cell, IReadOnlyList<ReplacedBlock> taken)
+    {
+        var rest = new List<TransportedItem>();
+        var kept = new List<TransportedItem>();
+        foreach (var old in taken)
+        {
+            foreach (var item in old.Items)
             {
-                State.Storage.AddClamped(itemId, back);
+                if (item.Count == 1 && TryKeep(item, old))
+                {
+                    continue;
+                }
+
+                rest.Add(item);
+            }
+        }
+
+        switch (cell.Kind)
+        {
+            case LogisticsKind.Belt or LogisticsKind.Junction:
+                cell.RestoreState(kept);
+                break;
+            case LogisticsKind.Router when kept is [var held]:
+                cell.RestoreState(kept);
+                cell.RestoreRouter(0, 0, held.Travel is { } way ? DirectionMath.Opposite(way) : null);
+                held.Travel = null;
+                break;
+        }
+
+        return rest;
+
+        bool TryKeep(TransportedItem item, ReplacedBlock old)
+        {
+            var def = cell.Definition;
+            switch (cell.Kind)
+            {
+                case LogisticsKind.Belt:
+                {
+                    var limit = kept.Count == 0 ? 1f : kept[^1].Progress - def.ItemSpacing;
+                    if (kept.Count >= def.Capacity || limit < 0f)
+                    {
+                        return false;
+                    }
+
+                    item.Progress = Math.Clamp(item.Progress, 0f, limit);
+                    item.Travel = null;
+                    item.JunctionTicks = null;
+                    kept.Add(item);
+                    return true;
+                }
+                case LogisticsKind.Junction:
+                {
+                    if (WayOf(item, old) is not { } way
+                        || kept.Count(k => k.Travel == way) >= BeltGridCell.JunctionQueueLength)
+                    {
+                        return false;
+                    }
+
+                    // Its crossing so far is what its progress says (BeltCell.RestoreItems).
+                    item.Travel = way;
+                    item.JunctionTicks = null;
+                    kept.Add(item);
+                    return true;
+                }
+                case LogisticsKind.Router:
+                {
+                    if (kept.Count > 0)
+                    {
+                        return false;
+                    }
+
+                    // Travel holds the way it was going until the router state is set (above).
+                    item.Travel = WayOf(item, old);
+                    item.JunctionTicks = null;
+                    item.Progress = 0f;
+                    kept.Add(item);
+                    return true;
+                }
+                case LogisticsKind.Stack:
+                    // TryLoad starts the pack with the first piece and counts the next ones into it.
+                    return cell.IsStackLoader && cell.TryLoad(item);
+                default:
+                    return false;
+            }
+        }
+    }
+
+    /// <summary>
+    /// The way <paramref name="item"/> was travelling in the replaced <paramref name="old"/> block: a belt's or a stack
+    /// conveyor's direction, its junction queue, away from the side it came into a router; null when unknown.
+    /// </summary>
+    private static Direction? WayOf(TransportedItem item, ReplacedBlock old) =>
+        old.Spec.Kind switch
+        {
+            null => old.Spec.Direction, // a belt or a stack conveyor
+            BuildingKind.Junction => item.Travel,
+            BuildingKind.Router => old.State is ReplacedLogisticsState { RouterFrom: { } from }
+                ? DirectionMath.Opposite(from)
+                : null,
+            _ => null
+        };
+
+    /// <summary>
+    /// Gives back the old cost of <paramref name="taken"/> beyond the credit of <paramref name="spec"/>: the credit
+    /// (<see cref="Construction.Credit"/> against all the old blocks together) is used block by block in order, and what
+    /// each block has left comes back at its own refund share, rounded up once per line.
+    /// </summary>
+    private void RefundExcess(BuildSpec spec, IReadOnlyList<ReplacedBlock> taken)
+    {
+        var newCost = CostOf(spec);
+        var left = Construction.Credit(newCost, Construction.CostOfAll(Content, taken.Select(b => b.Spec)));
+        foreach (var old in taken)
+        {
+            var basisPoints = RefundBasisPointsFor(old.Spec);
+            foreach (var line in CostOf(old.Spec))
+            {
+                var used = 0;
+                for (var i = 0; i < newCost.Count; i++)
+                {
+                    if (string.Equals(newCost[i].ItemId, line.ItemId, StringComparison.Ordinal))
+                    {
+                        used = Math.Min(line.Amount, left[i]);
+                        left[i] -= used;
+                    }
+                }
+
+                var back = Construction.RefundShare(line.Amount - used, basisPoints);
+                if (back <= 0)
+                {
+                    continue;
+                }
+
+                if (line.ItemId is { } itemId)
+                {
+                    State.Storage.AddClamped(itemId, back);
+                }
+                else
+                {
+                    Wallet.AddMoney(back);
+                }
+            }
+        }
+    }
+
+    /// <summary>
+    /// Puts the blocks of a cancelled replacement back, free, with all their items and their state. The site kept the
+    /// cells and a loaded <see cref="ConstructSite.Replaced"/> is checked (<see cref="IsReplaceable"/>), so this always
+    /// succeeds; should it not, the items go to the Core rather than vanish.
+    /// </summary>
+    internal void RestoreReplaced(IReadOnlyList<ReplacedBlock> taken)
+    {
+        foreach (var old in taken)
+        {
+            if (PlaceInstant(old.Spec, charge: false) && Belts.TryGet(old.Spec.Origin, out var cell))
+            {
+                cell.RestoreState(old.Items, filter: old.Spec.FilterItemId);
+                if (old.State is ReplacedLogisticsState state)
+                {
+                    cell.RestoreRouter(state.RouterTurn, state.RouterWaitTicks, state.RouterFrom);
+                    cell.RestoreSorter(state.SorterTurns);
+                    cell.RestoreStackWait(state.StackWaitTicks);
+                }
             }
             else
             {
-                Wallet.AddMoney(back);
+                ItemsToCore(old.Items);
             }
         }
     }
 
     /// <summary>
-    /// Puts the belt of a cancelled replacement back, free, with all its items. The site kept the cell and a loaded
-    /// <see cref="ReplacedBelt.Spec"/> is checked (<see cref="IsReplaceableBelt"/>), so this always succeeds; should it
-    /// not, the items go to the Core rather than vanish.
+    /// Whether a loaded site of <paramref name="site"/> can put <paramref name="taken"/> back: both are 1×1 logistics
+    /// blocks of different ids (<see cref="IsReplaceableLogistics"/>), the old one alone, on the site's cell, a valid spec
+    /// of its kind (the kind its id names), with items and state of that kind. Content may have dropped or changed a block.
     /// </summary>
-    internal void RestoreReplacedBelt(ReplacedBelt old)
+    private bool IsReplaceable(BuildSpec site, IReadOnlyList<ReplacedBlock> taken)
     {
-        if (PlaceInstant(old.Spec, charge: false))
+        if (taken is not [var old]
+            || Content.FindConveyor(site.StructureId) is not { } newDef
+            || !IsReplaceableLogistics(newDef.Kind)
+            || Content.FindConveyor(old.Spec.StructureId) is not { } def
+            || !IsReplaceableLogistics(def.Kind)
+            || string.Equals(def.Id, newDef.Id, StringComparison.Ordinal)
+            || old.Spec.Origin != site.Origin
+            || old.Spec.Kind != BuildSpec.KindFor(old.Spec.StructureId)
+            || !IsValidSpec(old.Spec))
         {
-            Belts.Cells[old.Spec.Origin].RestoreState(old.Items);
+            return false;
         }
-        else
-        {
-            ItemsToCore(old.Items);
-        }
-    }
 
-    /// <summary>A replaced belt's spec a site on <paramref name="origin"/> can put back: a known plain belt on that cell.</summary>
-    private bool IsReplaceableBelt(BuildSpec old, GridPosition origin) =>
-        old.Kind is null && old.Origin == origin && Content.FindConveyor(old.StructureId)?.Kind == LogisticsKind.Belt;
+        // A pack only on a stack conveyor; a router holds one piece; a sorter or a gate nothing.
+        var packSize = def.Kind == LogisticsKind.Stack ? BeltGrid.StackPackSize : 1;
+        var most = def.Kind switch
+        {
+            LogisticsKind.Router => 1,
+            LogisticsKind.Sorter or LogisticsKind.Gate => 0,
+            LogisticsKind.Junction => BeltGridCell.JunctionQueueLength * DirectionMath.All.Length,
+            _ => def.Capacity
+        };
+        if (old.Items.Count > most || old.Items.Any(i => i.Count < 1 || i.Count > packSize))
+        {
+            return false;
+        }
+
+        return old.State is not ReplacedLogisticsState state
+            || (state.SorterTurns is >= 0 and <= 0b1111
+                && (state.SorterTurns == 0 || def.Kind is LogisticsKind.Sorter or LogisticsKind.Gate)
+                && state.RouterTurn >= 0 && state.RouterTurn < DirectionMath.All.Length
+                && state.RouterWaitTicks is >= 0 and <= BeltGridCell.RouterTicks
+                && (def.Kind == LogisticsKind.Router || (state.RouterTurn == 0 && state.RouterWaitTicks == 0 && state.RouterFrom is null))
+                && state.StackWaitTicks >= 0 && state.StackWaitTicks < BeltGrid.StackWaitTicks
+                && (state.StackWaitTicks == 0 || def.Kind == LogisticsKind.Stack));
+    }
 
     /// <summary>Puts each item back in the Core's stock, even over its maximum (no sale, not counted as delivered).</summary>
     private void ItemsToCore(IEnumerable<TransportedItem> items)
     {
         foreach (var item in items)
         {
-            State.Storage.Return(item.ItemId, 1);
+            State.Storage.Return(item.ItemId, item.Count);
         }
     }
 
     /// <summary>
-    /// Instant replacement of the plain belt under <paramref name="spec"/>, all or nothing: pays the new cost less the
-    /// credit (else <see cref="RefusalCode.InsufficientResources"/> with only that difference missing, nothing changed),
-    /// gives the rest of the old cost back as <see cref="SettleReplacement"/> does, and keeps the items.
+    /// Instant replacement of the blocks under <paramref name="spec"/> (<see cref="BeltOverBelt.Replace"/>), all or
+    /// nothing: pays the new cost less the credit (else <see cref="RefusalCode.InsufficientResources"/> with only that
+    /// difference missing, nothing changed), then settles as a finished site does (<see cref="SettleReplacement"/>).
     /// </summary>
-    internal Refusal? TryReplaceBeltInstant(BuildSpec spec)
+    internal Refusal? TryReplaceInstant(BuildSpec spec)
     {
-        if (!TryGetSpecAt(spec.Origin, out var oldSpec, out _) || oldSpec.Kind is not null)
+        var oldSpecs = ReplacedSpecsUnder(spec);
+        if (oldSpecs.Count == 0)
         {
             return RefusalCode.Occupied;
         }
 
         var cost = CostOf(spec);
-        var credit = Construction.Credit(cost, CostOf(oldSpec));
+        var credit = Construction.Credit(cost, Construction.CostOfAll(Content, oldSpecs));
         var money = 0;
         var materials = new List<ResourceAmount>();
         for (var i = 0; i < cost.Count; i++)
@@ -386,7 +645,7 @@ public sealed class Factory : IGameView
             return new Refusal(RefusalCode.InsufficientResources, spec.StructureId);
         }
 
-        if (!TryTakeBeltForReplacement(spec.Origin, out var old))
+        if (!TryTakeForReplacement(spec, out var taken))
         {
             Refund(money, materials, putBack: true);
             return RefusalCode.Occupied;
@@ -394,13 +653,13 @@ public sealed class Factory : IGameView
 
         if (!PlaceInstant(spec, charge: false))
         {
-            // Cannot happen: the cell was just freed. Put the old belt back and the payment too.
-            RestoreReplacedBelt(old);
+            // Cannot happen: the cell was just freed. Put the old blocks back and the payment too.
+            RestoreReplaced(taken);
             Refund(money, materials, putBack: true);
             return RefusalCode.Occupied;
         }
 
-        SettleReplacement(spec, old);
+        SettleReplacement(spec, taken);
         return null;
     }
 
@@ -460,7 +719,7 @@ public sealed class Factory : IGameView
         ejectorTiles.Clear();
         foreach (var miner in miners)
         {
-            AddEjector(miner.Position, Miner.Size, null);
+            AddEjector(miner.Position, miner.Size, null);
         }
 
         foreach (var crafter in smelters)
@@ -469,6 +728,11 @@ public sealed class Factory : IGameView
         }
 
         foreach (var crafter in assemblers)
+        {
+            AddEjector(crafter.Position, Crafter.Size, null);
+        }
+
+        foreach (var crafter in machines)
         {
             AddEjector(crafter.Position, Crafter.Size, null);
         }
@@ -562,9 +826,9 @@ public sealed class Factory : IGameView
             return false;
         }
 
-        // A junction sends the item on away from the building, a router and a sorter never back to it: their direction is
-        // unused.
-        return cell.Kind is LogisticsKind.Junction or LogisticsKind.Router or LogisticsKind.Sorter
+        // A junction sends the item on away from the building, a router, a sorter and a gate never back to it: their
+        // direction is unused.
+        return cell.Kind is LogisticsKind.Junction or LogisticsKind.Router || cell.PassesThrough
             || !BuildingIo.Occupies(building.Origin, building.Size, next);
     }
 
@@ -740,7 +1004,7 @@ public sealed class Factory : IGameView
             return SiteCentre(site);
         }
 
-        if (!plan.Breaking && plan.Spec.Kind != BuildingKind.Bridge)
+        if (!plan.Breaking && !BuildSpec.IsBridge(plan.Spec.Kind))
         {
             return SpecCentre(plan.Spec); // a square block: no need to list its cells
         }
@@ -760,13 +1024,14 @@ public sealed class Factory : IGameView
 
     /// <summary>
     /// True when <paramref name="plan"/> is within <paramref name="builder"/>'s build range (the unit of the Core's
-    /// tier): the distance from the drone's centre to <see cref="PlanWorkCentre"/> is at most its <c>BuildRange</c>.
+    /// tier with the research upgrades, <see cref="GameState.EffectiveUnit"/>): the distance from the drone's centre to
+    /// <see cref="PlanWorkCentre"/> is at most its <c>BuildRange</c>.
     /// </summary>
     public bool IsPlanInRange(BuilderUnit builder, BuildPlan plan)
     {
         ArgumentNullException.ThrowIfNull(builder);
         var (x, y) = PlanWorkCentre(plan);
-        return BuilderSystem.Distance(builder, x, y) <= Content.UnitForTier(State.CoreTier).BuildRange;
+        return BuilderSystem.Distance(builder, x, y) <= State.EffectiveUnit.BuildRange;
     }
 
     /// <summary>
@@ -786,7 +1051,7 @@ public sealed class Factory : IGameView
     public bool IsMiningNow(BuilderUnit builder)
     {
         ArgumentNullException.ThrowIfNull(builder);
-        var unit = Content.UnitForTier(State.CoreTier);
+        var unit = State.EffectiveUnit;
         return builder.MiningTile is { } tile && builder.CurrentSiteId is null && builder.HoldCount < unit.HoldCapacity
             && HandMiningSystem.InRange(builder, tile, unit.BuildRange);
     }
@@ -885,17 +1150,26 @@ public sealed class Factory : IGameView
                 Progress = m.Progress,
                 EjectIndex = m.EjectIndex,
                 OutputItemId = m.OutputItemId,
-                DefinitionId = m.DefinitionId
+                DefinitionId = m.DefinitionId,
+                CoveredDepositTiles = m.CoveredDepositTiles
             }).ToList(),
             Smelters = smelters.OrderBy(s => s.Id).Select(CaptureCraft).ToList(),
             Assemblers = assemblers.OrderBy(a => a.Id).Select(CaptureCraft).ToList(),
+            // Null when empty: a game without the new machines keeps its snapshot.
+            Machines = machines.Count > 0 ? machines.OrderBy(m => m.Id).Select(CaptureCraft).ToList() : null,
             Generators = generators.OrderBy(g => g.Id).Select(g => new GeneratorSaveDto
             {
                 Id = g.Id,
                 X = g.Position.X,
                 Y = g.Position.Y,
                 Direction = g.Direction.ToString(),
+                // Null for the generator: old snapshots keep their bytes.
+                DefinitionId = g.DefinitionId == Generator.BuildingId ? null : g.DefinitionId,
                 FuelBuffer = g.FuelBuffer,
+                // Only when it holds a fuel other than its first: otherwise FuelBuffer pieces of the first fuel say it all.
+                Fuels = g.HoldsOnlyFirstFuel
+                    ? null
+                    : g.FuelCounts().Select(f => new FuelCountSaveDto { ItemId = f.ItemId, Count = f.Count }).ToList(),
                 BurnRemaining = g.BurnRemaining,
                 FuelConsumed = g.FuelConsumed
             }).ToList(),
@@ -924,7 +1198,24 @@ public sealed class Factory : IGameView
                 : lamps.OrderBy(l => l.Id).Select(l => new LampSaveDto { Id = l.Id, X = l.Position.X, Y = l.Position.Y }).ToList(),
             Batteries = batteries.Count == 0
                 ? null
-                : batteries.OrderBy(b => b.Id).Select(b => new BatterySaveDto { Id = b.Id, X = b.Position.X, Y = b.Position.Y, Charge = b.Charge }).ToList(),
+                : batteries.OrderBy(b => b.Id).Select(b => new BatterySaveDto
+                {
+                    Id = b.Id,
+                    X = b.Position.X,
+                    Y = b.Position.Y,
+                    // Null for the battery: old snapshots keep their bytes.
+                    DefinitionId = b.DefinitionId == Battery.BuildingId ? null : b.DefinitionId,
+                    Charge = b.Charge
+                }).ToList(),
+            SolarPanels = solarPanels.Count == 0
+                ? null
+                : solarPanels.OrderBy(p => p.Id).Select(p => new SolarPanelSaveDto
+                {
+                    Id = p.Id,
+                    X = p.Position.X,
+                    Y = p.Position.Y,
+                    DefinitionId = p.DefinitionId
+                }).ToList(),
             PowerLinks = State.PowerGrid.Links.Count == 0
                 ? null
                 : State.PowerGrid.Links.Select(l => new PowerLinkSaveDto { A = l.A, B = l.B }).ToList(),
@@ -993,9 +1284,7 @@ public sealed class Factory : IGameView
                 Deconstructing = site.Deconstructing,
                 RefundBasisPoints = site.RefundBasisPoints,
                 Owner = site.OwnerPlayerId,
-                Replaced = site.Replaced is { } old
-                    ? new ReplacedSaveDto { Spec = CaptureSpec(old.Spec), Items = old.Items.Select(CaptureItem).ToList() }
-                    : null
+                Replaced = site.Replaced?.Select(CaptureReplaced).ToList()
             }).ToList(),
             // BeltGrid.Cells already enumerates in canonical (Y, X) order.
             Belts = Belts.Cells.Values.Select(c => new BeltSaveDto
@@ -1010,16 +1299,50 @@ public sealed class Factory : IGameView
                 BridgePartnerX = c.BridgePartner?.X,
                 BridgePartnerY = c.BridgePartner?.Y,
                 FilterItemId = c.Kind == LogisticsKind.Sorter ? c.FilterItemId : null,
-                SorterTurns = c.Kind == LogisticsKind.Sorter && c.SorterTurns != 0 ? c.SorterTurns : null,
+                SorterTurns = c.PassesThrough && c.SorterTurns != 0 ? c.SorterTurns : null,
+                StackWaitTicks = c.Kind == LogisticsKind.Stack && c.StackWaitTicks != 0 ? c.StackWaitTicks : null,
+                PowerId = BridgePowerAt(c.Position)?.Id,
+                PowerSatisfactionBp = BridgePowerAt(c.Position) is { SatisfactionBp: > 0 } power ? power.SatisfactionBp : null,
                 Items = c.Items.Select(CaptureItem).ToList()
             }).ToList()
         };
+    }
+
+    private static ReplacedSaveDto CaptureReplaced(ReplacedBlock old)
+    {
+        var state = old.State as ReplacedLogisticsState;
+        return new ReplacedSaveDto
+        {
+            Spec = CaptureSpec(old.Spec),
+            Items = old.Items.Select(CaptureItem).ToList(),
+            // Only what differs from a block at rest: an old belt's replacement keeps its bytes.
+            SorterTurns = state is { SorterTurns: not 0 } ? state.SorterTurns : null,
+            RouterTurn = state is { RouterTurn: not 0 } ? state.RouterTurn : null,
+            RouterWaitTicks = state is { RouterWaitTicks: not 0 } ? state.RouterWaitTicks : null,
+            RouterFrom = state?.RouterFrom?.ToString(),
+            StackWaitTicks = state is { StackWaitTicks: not 0 } ? state.StackWaitTicks : null
+        };
+    }
+
+    private static ReplacedBlock RestoreReplaced(ReplacedSaveDto dto)
+    {
+        var state = new ReplacedLogisticsState(
+            dto.SorterTurns ?? 0,
+            dto.RouterTurn ?? 0,
+            dto.RouterWaitTicks ?? 0,
+            ParseRouterFrom(dto.RouterFrom),
+            dto.StackWaitTicks ?? 0);
+        return new ReplacedBlock(
+            RestoreSpec(dto.Spec),
+            dto.Items.Select(RestoreItem).ToList(),
+            state == new ReplacedLogisticsState() ? null : state);
     }
 
     private static ItemSaveDto CaptureItem(TransportedItem it) => new()
     {
         Id = it.Id,
         ItemId = it.ItemId,
+        Count = it.Count != 1 ? it.Count : null,
         Progress = it.Progress,
         Travel = it.Travel?.ToString(),
         JunctionTicks = it.JunctionTicks
@@ -1031,7 +1354,8 @@ public sealed class Factory : IGameView
         it.Progress,
         string.IsNullOrWhiteSpace(it.Travel) ? null : ParseDirection(it.Travel))
     {
-        JunctionTicks = it.JunctionTicks
+        JunctionTicks = it.JunctionTicks,
+        Count = it.Count ?? 1
     };
 
     private static BuildSpecSaveDto CaptureSpec(BuildSpec spec) => new()
@@ -1116,23 +1440,57 @@ public sealed class Factory : IGameView
     public static Factory Restore(FactoryContent content, FactorySaveData data, string? mapsDirectory = null)
     {
         var belts = new BeltGrid();
+        // Every saved cell by its position, so a bridge end can check that its partner is the same bridge (lookups only).
+        var savedAt = new Dictionary<GridPosition, BeltSaveDto>();
+        foreach (var cell in data.Belts)
+        {
+            savedAt[new GridPosition(cell.X, cell.Y)] = cell;
+        }
+
         foreach (var cell in data.Belts)
         {
             var def = content.FindConveyor(cell.DefinitionId)
                 ?? content.RequireConveyor("conveyor-basic");
             var dir = ParseDirection(cell.Direction);
             var items = cell.Items.Select(RestoreItem).ToList();
+            // A pack (more than one piece) only on a stack conveyor, never over its size; the wait only below its end.
+            var packSize = def.Kind == LogisticsKind.Stack ? BeltGrid.StackPackSize : 1;
+            if (items.Any(i => i.Count < 1 || i.Count > packSize))
+            {
+                throw new InvalidDataException($"Pacco non valido sul nastro {cell.X},{cell.Y}.");
+            }
+
+            if (cell.StackWaitTicks is { } wait
+                && (def.Kind != LogisticsKind.Stack || wait < 0 || wait >= BeltGrid.StackWaitTicks))
+            {
+                throw new InvalidDataException($"Attesa del pacco non valida sul nastro {cell.X},{cell.Y}: {wait}.");
+            }
+
             GridPosition? partner = null;
             if (cell.BridgePartnerX is { } bx && cell.BridgePartnerY is { } by)
             {
                 partner = new GridPosition(bx, by);
             }
 
-            // A bridge the current rules would not allow (older saves reached 5 cells) is not placed, both ends.
+            // A bridge the current rules would not allow (older saves reached 5 cells; a long entry with a plain exit) is
+            // not placed, both ends.
             if (def.Kind == LogisticsKind.Bridge
-                && (partner is not { } end || !BeltGrid.IsBridgeSpan(new GridPosition(cell.X, cell.Y), end)))
+                && (partner is not { } end
+                    || !BeltGrid.IsBridgeSpan(new GridPosition(cell.X, cell.Y), end, def.MaxSpan)
+                    || !savedAt.TryGetValue(end, out var endCell)
+                    || content.FindConveyor(endCell.DefinitionId) != def))
             {
                 continue;
+            }
+
+            if (cell.PowerId is not null || cell.PowerSatisfactionBp is not null)
+            {
+                var entry = partner is { } exit
+                    && BeltGrid.IsBridgeEntry(new GridPosition(cell.X, cell.Y), dir, exit, def.MaxSpan);
+                if (!def.IsPoweredBridge || !entry || cell.PowerSatisfactionBp is < 1 or > PowerSystem.FullBp)
+                {
+                    throw new InvalidDataException($"Corrente del ponte non valida sul nastro {cell.X},{cell.Y}.");
+                }
             }
 
             belts.TryRestore(
@@ -1150,7 +1508,7 @@ public sealed class Factory : IGameView
                     ParseRouterFrom(cell.RouterFrom));
             }
 
-            if (def.Kind == LogisticsKind.Sorter)
+            if (def.Kind is LogisticsKind.Sorter or LogisticsKind.Gate)
             {
                 if (cell.SorterTurns is < 0 or > 0b1111)
                 {
@@ -1158,6 +1516,11 @@ public sealed class Factory : IGameView
                 }
 
                 belts.Cells[new GridPosition(cell.X, cell.Y)].RestoreSorter(cell.SorterTurns ?? 0);
+            }
+
+            if (def.Kind == LogisticsKind.Stack)
+            {
+                belts.Cells[new GridPosition(cell.X, cell.Y)].RestoreStackWait(cell.StackWaitTicks ?? 0);
             }
         }
 
@@ -1215,11 +1578,14 @@ public sealed class Factory : IGameView
         var maxSavedId = data.Miners.Select(d => d.Id)
             .Concat(data.Smelters.Select(d => d.Id))
             .Concat(data.Assemblers.Select(d => d.Id))
+            .Concat((data.Machines ?? []).Select(d => d.Id))
             .Concat(data.Generators.Select(d => d.Id))
             .Concat(data.Extractors.Select(d => d.Id))
             .Concat(data.PowerNodes.Select(d => d.Id))
             .Concat((data.Lamps ?? []).Select(d => d.Id))
+            .Concat(data.Belts.Select(d => d.PowerId ?? 0))
             .Concat((data.Batteries ?? []).Select(d => d.Id))
+            .Concat((data.SolarPanels ?? []).Select(d => d.Id))
             .Concat((data.Storages ?? []).Select(d => d.Id))
             .Concat(data.Builders.Select(d => d.Id))
             .Concat(data.Sites.Select(d => d.Id))
@@ -1231,9 +1597,12 @@ public sealed class Factory : IGameView
 
         foreach (var m in data.Miners)
         {
+            // The cells it digs were fixed when placed: a partly covered miner keeps its efficiency.
+            var area = Miner.SizeFor(m.DefinitionId) * Miner.SizeFor(m.DefinitionId);
             var miner = new Miner(
                 new GridPosition(m.X, m.Y),
                 ParseDirection(m.Direction),
+                coveredDepositTiles: m.CoveredDepositTiles is { } covered ? Math.Clamp(covered, 0, area) : null,
                 outputItemId: m.OutputItemId,
                 definitionId: m.DefinitionId,
                 id: RestoredId(m.Id));
@@ -1251,10 +1620,36 @@ public sealed class Factory : IGameView
             factory.assemblers.Add(RestoreCraft(content, a, Crafter.AssemblerBuildingId, RestoredId(a.Id)));
         }
 
+        foreach (var m in data.Machines ?? [])
+        {
+            if (m is null || !IsMachineId(content, m.DefinitionId))
+            {
+                throw new InvalidDataException($"Macchina sconosciuta nel salvataggio: \"{m?.DefinitionId}\".");
+            }
+
+            factory.machines.Add(RestoreCraft(content, m, m.DefinitionId, RestoredId(m.Id)));
+        }
+
         foreach (var g in data.Generators)
         {
-            var gen = new Generator(new GridPosition(g.X, g.Y), ParseDirection(g.Direction), RestoredId(g.Id));
-            gen.RestoreFuel(g.FuelBuffer, g.BurnRemaining, g.FuelConsumed);
+            var definitionId = g.DefinitionId ?? Generator.BuildingId;
+            if (!Generator.IsGeneratorId(definitionId))
+            {
+                throw new InvalidDataException($"Generatore di tipo sconosciuto: '{definitionId}'.");
+            }
+
+            var gen = new Generator(
+                new GridPosition(g.X, g.Y), ParseDirection(g.Direction), RestoredId(g.Id), definitionId,
+                Generator.FuelsOf(content, definitionId));
+            if (g.Fuels is { } fuels)
+            {
+                gen.RestoreFuels(fuels.Select(f => (f.ItemId, f.Count)), g.BurnRemaining, g.FuelConsumed);
+            }
+            else
+            {
+                gen.RestoreFuel(g.FuelBuffer, g.BurnRemaining, g.FuelConsumed);
+            }
+
             factory.generators.Add(gen);
         }
 
@@ -1276,12 +1671,43 @@ public sealed class Factory : IGameView
             factory.lamps.Add(new Lamp(new GridPosition(l.X, l.Y), RestoredId(l.Id)));
         }
 
+        // The power entity of every powered bridge restored above, on its entry (a dropped bridge has none).
+        foreach (var (position, cell) in factory.Belts.Cells)
+        {
+            if (cell.Definition.IsPoweredBridge
+                && cell.BridgePartner is { } partner
+                && BeltGrid.IsBridgeEntry(position, cell.Direction, partner, cell.Definition.MaxSpan))
+            {
+                var saved = savedAt.GetValueOrDefault(position);
+                factory.State.BridgePowers.Add(new BridgePower(position, RestoredId(saved?.PowerId ?? 0))
+                {
+                    SatisfactionBp = saved?.PowerSatisfactionBp ?? 0
+                });
+            }
+        }
+
         foreach (var b in data.Batteries ?? [])
         {
-            factory.batteries.Add(new Battery(new GridPosition(b.X, b.Y), RestoredId(b.Id))
+            var definitionId = b.DefinitionId ?? Battery.BuildingId;
+            if (!Battery.IsBatteryId(definitionId))
             {
-                Charge = Math.Clamp(b.Charge, 0, Battery.CapacityOf(content))
+                throw new InvalidDataException($"Batteria di tipo sconosciuto: '{definitionId}'.");
+            }
+
+            factory.batteries.Add(new Battery(new GridPosition(b.X, b.Y), RestoredId(b.Id), definitionId)
+            {
+                Charge = Math.Clamp(b.Charge, 0, Battery.CapacityOf(content, definitionId))
             });
+        }
+
+        foreach (var p in data.SolarPanels ?? [])
+        {
+            if (!SolarPanel.IsSolarId(p.DefinitionId))
+            {
+                throw new InvalidDataException($"Pannello solare di tipo sconosciuto: '{p.DefinitionId}'.");
+            }
+
+            factory.solarPanels.Add(new SolarPanel(new GridPosition(p.X, p.Y), p.DefinitionId, RestoredId(p.Id)));
         }
 
         foreach (var s in data.Storages ?? [])
@@ -1329,11 +1755,13 @@ public sealed class Factory : IGameView
                 MiningTile = b.MiningTile is { } mining ? new GridPosition(mining.X, mining.Y) : null,
                 MiningProgress = Math.Clamp(b.MiningProgress, 0, UnitDefinition.MineProgressPerPiece - 1)
             };
-            if (b.HoldCount > 0 && content.IsKnownItem(b.HoldItemId) && content.UnitForTier(data.CoreTier).HoldCapacity > 0)
+            // The research and the tier are restored above: the hold of a save with the hold upgrade is not cut.
+            var hold = factory.State.EffectiveUnit.HoldCapacity;
+            if (b.HoldCount > 0 && content.IsKnownItem(b.HoldItemId) && hold > 0)
             {
                 // Never more than the hold of the Core's tier: a hand-edited save cannot create items out of nothing.
                 builder.HoldItemId = b.HoldItemId;
-                builder.HoldCount = Math.Min(b.HoldCount, content.UnitForTier(data.CoreTier).HoldCapacity);
+                builder.HoldCount = Math.Min(b.HoldCount, hold);
             }
 
             builder.PlanQueue.AddRange(b.Plans.Select(p => new BuildPlan(RestoreSpec(p.Spec), p.Breaking)));
@@ -1357,18 +1785,24 @@ public sealed class Factory : IGameView
         SortById(factory.miners, m => m.Id);
         SortById(factory.smelters, s => s.Id);
         SortById(factory.assemblers, a => a.Id);
+        SortById(factory.machines, m => m.Id);
         SortById(factory.generators, g => g.Id);
         SortById(factory.extractors, e => e.Id);
         SortById(factory.powerNodes, n => n.Id);
         SortById(factory.lamps, l => l.Id);
         SortById(factory.batteries, b => b.Id);
+        SortById(factory.solarPanels, p => p.Id);
+        SortById(factory.State.BridgePowers, b => b.Id);
         SortById(factory.storages, s => s.Id);
+        // The recipes gated by research follow the restored research.
+        factory.RefreshAvailableRecipes();
         // Which storage blocks touch the Core (the saved Core cells and tier are set above).
         factory.State.Storage.RecomputeLinks();
         factory.RefreshMarketScreen();
         // The saved lasers, then the networks from them and from contact.
         factory.RestorePowerLinks(data.PowerLinks);
         factory.State.PowerGrid.Rebuild(factory.State);
+        PowerSystem.RefreshSolarRates(factory.State); // panels show the light of the loaded tick before the first step
         factory.buildingsVersion++; // buildings were added straight to the lists: drop any cached corners
         return factory;
     }
@@ -1571,19 +2005,22 @@ public sealed class Factory : IGameView
         // A T1 site on titanium only (saved before the ore-hardness rule) could never finish: dropped the same way.
         var tooWeak = tiles is not null
             && !d.Deconstructing
-            && spec.Kind is BuildingKind.Miner or BuildingKind.MinerAdvanced
+            && BuildSpec.IsMiner(spec.Kind)
             && MinerTooWeak(spec.Origin, spec.StructureId);
-        // A replacement site must be able to put its belt back (content may have dropped or changed that conveyor).
-        var replaced = d.Replaced is { } r
-            ? new ReplacedBelt(RestoreSpec(r.Spec), r.Items.Select(RestoreItem).ToList())
-            : null;
-        var badReplaced = replaced is not null && !IsReplaceableBelt(replaced.Spec, spec.Origin);
+        // A replacement site must be able to put its blocks back (content may have dropped or changed one).
+        var replaced = d.Replaced is { Count: > 0 } saved ? saved.Select(RestoreReplaced).ToList() : null;
+        if (replaced is not null && replaced.SelectMany(b => b.Items).Any(i => i.Count < 1 || i.Count > BeltGrid.StackPackSize))
+        {
+            throw new InvalidDataException("Pacco non valido in un blocco sostituito.");
+        }
+
+        var badReplaced = replaced is not null && !IsReplaceable(spec, replaced);
         if (tiles is null || tiles.Any(TerrainBlocks) || tooWeak || badReplaced)
         {
-            // The belt a dropped replacement site held is gone: its items go to the Core.
+            // The blocks a dropped replacement site held are gone: their items go to the Core.
             if (replaced is not null)
             {
-                ItemsToCore(replaced.Items);
+                ItemsToCore(replaced.SelectMany(b => b.Items));
             }
 
             foreach (var (itemId, amount) in spent)
@@ -1679,23 +2116,32 @@ public sealed class Factory : IGameView
         list.AddRange(sorted);
     }
 
+    /// <summary>
+    /// True for a craft machine of <see cref="Machines"/>: a crafter of the content that is neither the forno nor the
+    /// assembler.
+    /// </summary>
+    private static bool IsMachineId(FactoryContent content, string? id) =>
+        id is not (null or Crafter.SmelterBuildingId or Crafter.AssemblerBuildingId)
+        && content.FindBuilding(id) is { IsCrafter: true };
+
     private static Crafter RestoreCraft(FactoryContent content, CraftSaveDto dto, string fallbackId, long id)
     {
         var recipe = content.FindRecipe(dto.RecipeId)
-            ?? content.FindRecipe(fallbackId == Crafter.AssemblerBuildingId
-                ? "craft-copper-wire"
-                : "smelt-iron")
+            ?? content.FindRecipe(fallbackId switch
+            {
+                Crafter.AssemblerBuildingId => "craft-copper-wire",
+                Crafter.SmelterBuildingId => "smelt-iron",
+                // A new machine falls back on its first recipe, like a fresh one.
+                _ => content.RecipesFor(fallbackId).FirstOrDefault()?.Id ?? "smelt-iron"
+            })
             ?? throw new InvalidDataException($"Ricetta '{dto.RecipeId}' mancante nel save.");
         var buildingId = string.IsNullOrWhiteSpace(dto.DefinitionId) ? fallbackId : dto.DefinitionId;
-        var available = buildingId == Crafter.AssemblerBuildingId
-            ? content.AssemblerRecipes()
-            : content.SmelterRecipes();
-        var craft = new Crafter(
+        var craft = Crafter.Create(
+            content,
             new GridPosition(dto.X, dto.Y),
             ParseDirection(dto.Direction),
             recipe,
             buildingId,
-            available,
             id);
         craft.RestoreCraftState(
             dto.Progress,
@@ -2151,6 +2597,14 @@ public sealed class Factory : IGameView
             }
         }
 
+        foreach (var panel in solarPanels)
+        {
+            if (panel.Occupies(tile))
+            {
+                return true;
+            }
+        }
+
         foreach (var storage in storages)
         {
             if (storage.Occupies(tile))
@@ -2170,6 +2624,8 @@ public sealed class Factory : IGameView
             Research.ForceUnlock(id);
         }
 
+        RefreshAvailableRecipes();
+
         // Seed layouts call TryPlace* (now charged) — stock enough for demo footprints.
         EnsureDemoBuildStock();
     }
@@ -2185,10 +2641,66 @@ public sealed class Factory : IGameView
 
     public bool IsStructureUnlocked(string structureId) => Research.IsUnlocked(structureId);
 
+    /// <summary>
+    /// True when <paramref name="structure"/> is a campaign reward (<see cref="StructureDefinition.CampaignReward"/>)
+    /// and this is a campaign game: then only <see cref="GrantCampaignReward"/> unlocks it.
+    /// </summary>
+    public bool IsCampaignRewardOnly(StructureDefinition structure) =>
+        ResearchState.IsCampaignRewardOnly(structure, inCampaign: ActiveCampaignLevelId is not null);
+
+    /// <summary>Buys a research node with the wallet; false (nothing spent) when it cannot, or is a campaign reward in the campaign.</summary>
     public bool TryUnlockStructure(string structureId)
     {
         var structure = Content.FindStructure(structureId);
-        return structure is not null && Research.TryUnlock(structure, Wallet);
+        if (structure is null || IsCampaignRewardOnly(structure) || !Research.TryUnlock(structure, Wallet))
+        {
+            return false;
+        }
+
+        AfterUnlock();
+        return true;
+    }
+
+    /// <summary>
+    /// Gives the campaign reward <paramref name="nodeId"/> (<see cref="StructureDefinition.CampaignReward"/>) for free,
+    /// without its prerequisites, in any game; saved with the other unlocks. False, changing nothing, for an unknown
+    /// id, a node that is not a reward or one already unlocked.
+    /// </summary>
+    public bool GrantCampaignReward(string nodeId)
+    {
+        var structure = Content.FindStructure(nodeId);
+        if (structure?.CampaignReward is null || Research.IsUnlocked(structure.Id))
+        {
+            return false;
+        }
+
+        Research.ForceUnlock(structure.Id);
+        AfterUnlock();
+        return true;
+    }
+
+    // What follows any unlock: a recipe node (kind "recipe") opens its recipe on the machines already built.
+    private void AfterUnlock() => RefreshAvailableRecipes();
+
+    /// <summary>
+    /// The recipes of <paramref name="buildingId"/> (<see cref="FactoryContent.RecipesFor"/>) without those whose
+    /// research node (<see cref="RecipeDefinition.Research"/>) is not unlocked yet, in content order.
+    /// </summary>
+    public IReadOnlyList<RecipeDefinition> RecipesAvailableTo(string buildingId) =>
+        Content.RecipesFor(buildingId)
+            .Where(r => r.Research is null || Research.IsUnlocked(r.Research))
+            .ToList();
+
+    /// <summary>
+    /// Gives every craft machine the recipes it can run now (<see cref="RecipesAvailableTo"/>): after a research
+    /// unlock and after a restore.
+    /// </summary>
+    public void RefreshAvailableRecipes()
+    {
+        foreach (var craft in CraftMachines())
+        {
+            craft.SetAvailableRecipes(RecipesAvailableTo(craft.DefinitionId));
+        }
     }
 
     /// <summary>Sells stocked materials at the price of the moment (see <see cref="MarketSales.Sell"/>).</summary>
@@ -2393,13 +2905,13 @@ public sealed class Factory : IGameView
         GridPosition coreOrigin, int coreSize, int mapWidth, int mapHeight)
     {
         // Prefer west of core (Raylib-style), clamped into map.
-        var x = Math.Clamp(coreOrigin.X - Miner.Size - 2, 1, Math.Max(1, mapWidth - Miner.Size - 1));
-        var y = Math.Clamp(coreOrigin.Y, 1, Math.Max(1, mapHeight - Miner.Size - 1));
+        var x = Math.Clamp(coreOrigin.X - Miner.T1Size - 2, 1, Math.Max(1, mapWidth - Miner.T1Size - 1));
+        var y = Math.Clamp(coreOrigin.Y, 1, Math.Max(1, mapHeight - Miner.T1Size - 1));
         // Avoid overlapping the core footprint.
-        if (x + Miner.Size > coreOrigin.X && x < coreOrigin.X + coreSize
-            && y + Miner.Size > coreOrigin.Y && y < coreOrigin.Y + coreSize)
+        if (x + Miner.T1Size > coreOrigin.X && x < coreOrigin.X + coreSize
+            && y + Miner.T1Size > coreOrigin.Y && y < coreOrigin.Y + coreSize)
         {
-            x = Math.Max(1, coreOrigin.X - Miner.Size - 1);
+            x = Math.Max(1, coreOrigin.X - Miner.T1Size - 1);
         }
 
         return new GridPosition(x, y);
@@ -2411,21 +2923,34 @@ public sealed class Factory : IGameView
         "belt-fast" => "conveyor-fast",
         "belt-express" => "conveyor-express",
         "belt-armored" => "conveyor-armored",
+        "belt-stack" => "conveyor-stack",
         "miner" => "miner",
         "miner-advanced" => "miner-advanced",
         "smelter" => "smelter",
         "assembler" => "assembler",
+        Crafter.SmelterAdvancedId => Crafter.SmelterAdvancedId,
+        Crafter.GraphitePressId => Crafter.GraphitePressId,
+        Crafter.SeparatorId => Crafter.SeparatorId,
+        Crafter.PlasticizerId => Crafter.PlasticizerId,
+        Miner.ImpactDrillId => Miner.ImpactDrillId,
         "junction" => "junction",
         "router" => "router",
         "generator" => "generator",
         "sorter" => "sorter",
         "sorter-inverted" => "sorter-inverted",
+        OverflowGateId => OverflowGateId,
+        UnderflowGateId => UnderflowGateId,
         "bridge" => "conveyor-bridge",
+        BridgeLongId => BridgeLongId,
         "extractor" => "extractor",
         "power-node" => "power-node",
         "power-node-t2" => "power-node-t2",
         "lamp" => Lamp.BuildingId,
         "battery" => Battery.BuildingId,
+        Generator.CombustionId => Generator.CombustionId,
+        Battery.LargeId => Battery.LargeId,
+        SolarPanel.SmallId => SolarPanel.SmallId,
+        SolarPanel.LargeId => SolarPanel.LargeId,
         "container" => "container",
         "vault" => "vault",
         "market-screen" => MarketScreen.BuildingId,
@@ -2664,7 +3189,7 @@ public sealed class Factory : IGameView
 
     public bool TryPlaceBridge(GridPosition entry, Direction direction) =>
         RequireUnlocked("conveyor-bridge")
-        && PlaceBridge(entry, direction, charge: true, exit: null);
+        && PlaceBridge(entry, direction, BridgeDefinition, charge: true, exit: null);
 
     public bool TryRemoveBelt(GridPosition position)
     {
@@ -2675,7 +3200,7 @@ public sealed class Factory : IGameView
 
         var def = cell.Definition;
         var multiplicity = cell.Kind == LogisticsKind.Bridge ? 2 : 1;
-        if (!Belts.TryRemove(position))
+        if (!RemoveLogisticsCell(position))
         {
             return false;
         }
@@ -2703,7 +3228,7 @@ public sealed class Factory : IGameView
         && PlaceCrafter(origin, direction, recipe, Crafter.AssemblerBuildingId, charge: true);
 
     public bool TryPlaceGenerator(GridPosition origin, Direction direction = Direction.East) =>
-        RequireUnlocked(Generator.BuildingId) && PlaceGenerator(origin, direction, charge: true);
+        RequireUnlocked(Generator.BuildingId) && PlaceGenerator(origin, direction, Generator.BuildingId, charge: true);
 
     /// <summary>Places an extractor (no direction) with <paramref name="filterItemId"/> (null = none, any item in turn).</summary>
     public bool TryPlaceExtractor(GridPosition origin, string? filterItemId = null) =>
@@ -2735,7 +3260,7 @@ public sealed class Factory : IGameView
     public IReadOnlyList<GridPosition> Footprint(BuildSpec spec)
     {
         ArgumentNullException.ThrowIfNull(spec);
-        if (spec.Kind == BuildingKind.Bridge)
+        if (BuildSpec.IsBridge(spec.Kind))
         {
             // An existing bridge covers its own ends; a new one ends on the first free cell in range.
             if (Belts.TryGet(spec.Origin, out var cell)
@@ -2745,7 +3270,7 @@ public sealed class Factory : IGameView
                 return [spec.Origin, partner];
             }
 
-            return FindBridgeExit(spec.Origin, spec.Direction) is { } exit
+            return FindBridgeExit(spec.Origin, spec.Direction, BridgeDefinitionOf(spec).MaxSpan) is { } exit
                 ? [spec.Origin, exit]
                 : [spec.Origin];
         }
@@ -2828,7 +3353,7 @@ public sealed class Factory : IGameView
             return false;
         }
 
-        if (spec.RecipeId is { } recipeId && kind is BuildingKind.Smelter or BuildingKind.Assembler)
+        if (spec.RecipeId is { } recipeId && BuildSpec.IsCrafter(kind))
         {
             return FindRecipeFor(kind, recipeId) is not null;
         }
@@ -2838,7 +3363,7 @@ public sealed class Factory : IGameView
 
     private RecipeDefinition? FindRecipeFor(BuildingKind kind, string recipeId)
     {
-        var available = kind == BuildingKind.Smelter ? Content.SmelterRecipes() : Content.AssemblerRecipes();
+        var available = BuildSpec.StructureIdFor(kind) is { } buildingId ? Content.RecipesFor(buildingId) : [];
         return available.FirstOrDefault(r => string.Equals(r.Id, recipeId, StringComparison.Ordinal));
     }
 
@@ -2865,15 +3390,16 @@ public sealed class Factory : IGameView
 
         var ok = spec.Kind switch
         {
-            null or BuildingKind.Junction or BuildingKind.Router or BuildingKind.Sorter or BuildingKind.SorterInverted =>
+            null or BuildingKind.Junction or BuildingKind.Router or BuildingKind.Sorter or BuildingKind.SorterInverted
+                or BuildingKind.OverflowGate or BuildingKind.UnderflowGate =>
                 !Belts.Contains(spec.Origin) && CanOccupy(spec.Origin),
-            BuildingKind.Bridge =>
+            BuildingKind.Bridge or BuildingKind.BridgeLong =>
                 !Belts.Contains(spec.Origin)
                 && CanOccupy(spec.Origin)
-                && FindBridgeExit(spec.Origin, spec.Direction) is not null,
+                && FindBridgeExit(spec.Origin, spec.Direction, BridgeDefinitionOf(spec).MaxSpan) is not null,
             _ => CanOccupyFootprint(spec.Origin, FootprintSize(spec))
         };
-        if (ok && spec.Kind is BuildingKind.Miner or BuildingKind.MinerAdvanced
+        if (ok && BuildSpec.IsMiner(spec.Kind)
             && MinerTooWeak(spec.Origin, spec.StructureId))
         {
             reason = RefusalCode.NeedsAdvancedMiner;
@@ -2932,21 +3458,21 @@ public sealed class Factory : IGameView
 
         var reason = RefusalReason(Footprint(spec));
         if (reason == RefusalCode.Occupied
-            && spec.Kind is BuildingKind.Miner or BuildingKind.MinerAdvanced
-            && CanOccupyFootprint(spec.Origin, Miner.Size)
+            && BuildSpec.IsMiner(spec.Kind)
+            && CanOccupyFootprint(spec.Origin, FootprintSize(spec))
             && MinerTooWeak(spec.Origin, spec.StructureId))
         {
             return RefusalCode.NeedsAdvancedMiner;
         }
 
         if (reason == RefusalCode.Occupied
-            && spec.Kind == BuildingKind.Bridge
+            && BuildSpec.IsBridge(spec.Kind)
             && !Belts.Contains(spec.Origin)
             && CanOccupy(spec.Origin)
-            && FindBridgeExit(spec.Origin, spec.Direction) is null)
+            && FindBridgeExit(spec.Origin, spec.Direction, BridgeDefinitionOf(spec).MaxSpan) is null)
         {
             var exits = new List<GridPosition>();
-            for (var span = BeltGridCell.MinBridgeSpan; span <= BeltGridCell.MaxBridgeSpan; span++)
+            for (var span = BeltGridCell.MinBridgeSpan; span <= BridgeDefinitionOf(spec).MaxSpan; span++)
             {
                 exits.Add(spec.Origin.Step(spec.Direction, span));
             }
@@ -2992,25 +3518,36 @@ public sealed class Factory : IGameView
                 return PlaceLogistics(origin, dir, SorterDefinition, charge, spec.FilterItemId);
             case BuildingKind.SorterInverted:
                 return PlaceLogistics(origin, dir, SorterInvertedDefinition, charge, spec.FilterItemId);
+            case BuildingKind.OverflowGate:
+                return PlaceLogistics(origin, dir, OverflowGateDefinition, charge);
+            case BuildingKind.UnderflowGate:
+                return PlaceLogistics(origin, dir, UnderflowGateDefinition, charge);
             case BuildingKind.Bridge:
-                return PlaceBridge(origin, dir, charge, bridgeExit);
+            case BuildingKind.BridgeLong:
+                return PlaceBridge(origin, dir, BridgeDefinitionOf(spec), charge, bridgeExit);
             case BuildingKind.Miner:
                 return PlaceMiner(origin, dir, Miner.DefaultOutputItemId, Miner.BasicId, charge);
             case BuildingKind.MinerAdvanced:
                 return PlaceMiner(origin, dir, Miner.DefaultOutputItemId, Miner.AdvancedId, charge);
+            case BuildingKind.ImpactDrill:
+                return PlaceMiner(origin, dir, Miner.DefaultOutputItemId, Miner.ImpactDrillId, charge);
             case BuildingKind.Smelter:
             case BuildingKind.Assembler:
+            case BuildingKind.SmelterAdvanced:
+            case BuildingKind.GraphitePress:
+            case BuildingKind.Separator:
+            case BuildingKind.Plasticizer:
             {
-                var buildingId = spec.Kind == BuildingKind.Smelter
-                    ? Crafter.SmelterBuildingId
-                    : Crafter.AssemblerBuildingId;
+                var buildingId = BuildSpec.StructureIdFor(spec.Kind.Value)!;
                 // IsValidSpec guarantees a non-null RecipeId names a recipe of this machine.
                 var recipe = spec.RecipeId is { } recipeId ? FindRecipeFor(spec.Kind.Value, recipeId) : null;
 
                 return PlaceCrafter(origin, dir, recipe, buildingId, charge);
             }
             case BuildingKind.Generator:
-                return PlaceGenerator(origin, dir, charge);
+                return PlaceGenerator(origin, dir, Generator.BuildingId, charge);
+            case BuildingKind.CombustionGenerator:
+                return PlaceGenerator(origin, dir, Generator.CombustionId, charge);
             case BuildingKind.Extractor:
                 return PlaceExtractor(origin, spec.FilterItemId, charge);
             case BuildingKind.PowerNode:
@@ -3020,7 +3557,13 @@ public sealed class Factory : IGameView
             case BuildingKind.Lamp:
                 return PlaceLamp(origin, charge);
             case BuildingKind.Battery:
-                return PlaceBattery(origin, charge);
+                return PlaceBattery(origin, Battery.BuildingId, charge);
+            case BuildingKind.BatteryLarge:
+                return PlaceBattery(origin, Battery.LargeId, charge);
+            case BuildingKind.Solar:
+                return PlaceSolarPanel(origin, SolarPanel.SmallId, charge);
+            case BuildingKind.SolarLarge:
+                return PlaceSolarPanel(origin, SolarPanel.LargeId, charge);
             case BuildingKind.CoreFoundation:
             case BuildingKind.CoreNucleus:
                 return PlaceCoreUpgrade(spec, charge);
@@ -3036,7 +3579,7 @@ public sealed class Factory : IGameView
 
     /// <summary>
     /// The spec of the building or belt piece on <paramref name="tile"/> (a bridge reads from its entry)
-    /// and its entity id (0 for belt pieces, which have none).
+    /// and its entity id (0 for belt pieces, which have none; a powered bridge answers with its power entity, <see cref="BridgePower"/>).
     /// </summary>
     public bool TryGetSpecAt(GridPosition tile, out BuildSpec spec, out long entityId)
     {
@@ -3044,7 +3587,7 @@ public sealed class Factory : IGameView
         {
             if (m.OccupiedTiles().Contains(tile))
             {
-                var kind = m.DefinitionId == Miner.AdvancedId ? BuildingKind.MinerAdvanced : BuildingKind.Miner;
+                var kind = BuildSpec.KindFor(m.DefinitionId) ?? BuildingKind.Miner;
                 spec = new BuildSpec(m.DefinitionId, kind, m.Position, m.Direction);
                 entityId = m.Id;
                 return true;
@@ -3055,7 +3598,7 @@ public sealed class Factory : IGameView
         {
             if (c.Occupies(tile))
             {
-                var kind = c.IsAssembler ? BuildingKind.Assembler : BuildingKind.Smelter;
+                var kind = BuildSpec.KindFor(c.DefinitionId) ?? BuildingKind.Smelter;
                 spec = new BuildSpec(c.DefinitionId, kind, c.Position, c.Direction, c.Recipe.Id);
                 entityId = c.Id;
                 return true;
@@ -3066,7 +3609,8 @@ public sealed class Factory : IGameView
         {
             if (g.Occupies(tile))
             {
-                spec = new BuildSpec(Generator.BuildingId, BuildingKind.Generator, g.Position, g.Direction);
+                var kind = g.DefinitionId == Generator.CombustionId ? BuildingKind.CombustionGenerator : BuildingKind.Generator;
+                spec = new BuildSpec(g.DefinitionId, kind, g.Position, g.Direction);
                 entityId = g.Id;
                 return true;
             }
@@ -3108,8 +3652,20 @@ public sealed class Factory : IGameView
         {
             if (b.Occupies(tile))
             {
-                spec = new BuildSpec(Battery.BuildingId, BuildingKind.Battery, b.Position, Direction.East);
+                var kind = b.DefinitionId == Battery.LargeId ? BuildingKind.BatteryLarge : BuildingKind.Battery;
+                spec = new BuildSpec(b.DefinitionId, kind, b.Position, Direction.East);
                 entityId = b.Id;
+                return true;
+            }
+        }
+
+        foreach (var p in solarPanels)
+        {
+            if (p.Occupies(tile))
+            {
+                var kind = p.DefinitionId == SolarPanel.LargeId ? BuildingKind.SolarLarge : BuildingKind.Solar;
+                spec = new BuildSpec(p.DefinitionId, kind, p.Position, Direction.East);
+                entityId = p.Id;
                 return true;
             }
         }
@@ -3151,9 +3707,18 @@ public sealed class Factory : IGameView
                         cell.Direction,
                         FilterItemId: cell.FilterItemId);
                     return true;
+                case LogisticsKind.Gate:
+                    spec = new BuildSpec(
+                        id,
+                        cell.Definition.Inverted ? BuildingKind.UnderflowGate : BuildingKind.OverflowGate,
+                        tile,
+                        cell.Direction);
+                    return true;
                 case LogisticsKind.Bridge when cell.BridgePartner is { } partner:
-                    var entry = IsAhead(tile, cell.Direction, partner) ? tile : partner;
-                    spec = new BuildSpec(id, BuildingKind.Bridge, entry, cell.Direction);
+                    var entry = IsAhead(tile, cell.Direction, partner, cell.Definition.MaxSpan) ? tile : partner;
+                    spec = new BuildSpec(id, BuildSpec.KindFor(id) ?? BuildingKind.Bridge, entry, cell.Direction);
+                    // A powered bridge (the long one) is a power block: both ends answer with its id, for the lasers.
+                    entityId = BridgePowerAt(entry)?.Id ?? 0;
                     return true;
                 default:
                     spec = new BuildSpec(id, null, tile, cell.Direction);
@@ -3178,8 +3743,9 @@ public sealed class Factory : IGameView
         }
 
         var removed = spec.Kind is null or BuildingKind.Junction or BuildingKind.Router
-            or BuildingKind.Sorter or BuildingKind.SorterInverted or BuildingKind.Bridge
-            ? Belts.TryRemove(tile)
+            or BuildingKind.Sorter or BuildingKind.SorterInverted or BuildingKind.Bridge or BuildingKind.BridgeLong
+            or BuildingKind.OverflowGate or BuildingKind.UnderflowGate
+            ? RemoveLogisticsCell(tile)
             : TryRemoveBuildingEntity(tile, out _);
         if (!removed)
         {
@@ -3214,21 +3780,29 @@ public sealed class Factory : IGameView
 
     private int FootprintSize(BuildSpec spec) => spec.Kind switch
     {
-        BuildingKind.Miner or BuildingKind.MinerAdvanced => Miner.Size,
-        BuildingKind.Smelter or BuildingKind.Assembler => Crafter.Size,
-        BuildingKind.Generator => Generator.Size,
+        BuildingKind.Miner or BuildingKind.MinerAdvanced => Miner.T1Size,
+        BuildingKind.ImpactDrill => Miner.ImpactDrillSize,
+        BuildingKind.Smelter or BuildingKind.Assembler or BuildingKind.SmelterAdvanced or BuildingKind.GraphitePress
+            or BuildingKind.Separator or BuildingKind.Plasticizer => Crafter.Size,
+        BuildingKind.Generator or BuildingKind.CombustionGenerator => Generator.Size,
         BuildingKind.Extractor => Extractor.Size,
+        BuildingKind.BatteryLarge => Battery.LargeSize,
         BuildingKind.PowerNodeT2 => 2,
+        BuildingKind.Solar => SolarPanel.SmallSize,
+        BuildingKind.SolarLarge => SolarPanel.LargeSize,
         BuildingKind.CoreFoundation or BuildingKind.CoreNucleus => Content.CoreTiers[BuildSpec.CoreTierOf(spec.Kind)].Size,
         BuildingKind.Container or BuildingKind.Vault => StorageBlock.SizeOf(spec.Kind),
         BuildingKind.MarketScreen => MarketScreen.Size,
         _ => 1
     };
 
-    /// <summary>First free bridge end 2–4 cells ahead of <paramref name="entry"/> (same rule as <see cref="BeltGrid.TryPlaceBridge"/>).</summary>
-    private GridPosition? FindBridgeExit(GridPosition entry, Direction direction)
+    /// <summary>
+    /// First free bridge end <see cref="BeltGridCell.MinBridgeSpan"/> to <paramref name="maxSpan"/> cells ahead of
+    /// <paramref name="entry"/> (same rule as <see cref="BeltGrid.TryPlaceBridge"/>).
+    /// </summary>
+    private GridPosition? FindBridgeExit(GridPosition entry, Direction direction, int maxSpan)
     {
-        for (var span = BeltGridCell.MinBridgeSpan; span <= BeltGridCell.MaxBridgeSpan; span++)
+        for (var span = BeltGridCell.MinBridgeSpan; span <= maxSpan; span++)
         {
             var candidate = entry.Step(direction, span);
             if (!Belts.Contains(candidate) && CanOccupy(candidate))
@@ -3240,9 +3814,9 @@ public sealed class Factory : IGameView
         return null;
     }
 
-    private static bool IsAhead(GridPosition from, Direction direction, GridPosition target)
+    private static bool IsAhead(GridPosition from, Direction direction, GridPosition target, int maxSpan)
     {
-        for (var span = 1; span <= BeltGridCell.MaxBridgeSpan; span++)
+        for (var span = 1; span <= maxSpan; span++)
         {
             if (from.Step(direction, span).Equals(target))
             {
@@ -3312,10 +3886,14 @@ public sealed class Factory : IGameView
         return true;
     }
 
-    /// <summary>Bridge from <paramref name="entry"/>; <paramref name="exit"/> forces the far end (finished sites).</summary>
-    private bool PlaceBridge(GridPosition entry, Direction direction, bool charge, GridPosition? exit)
+    /// <summary>
+    /// Bridge of <paramref name="definition"/> from <paramref name="entry"/>; <paramref name="exit"/> forces the far end
+    /// (finished sites). A powered bridge (the long one) gets its power entity on the entry (<see cref="BridgePower"/>).
+    /// </summary>
+    private bool PlaceBridge(
+        GridPosition entry, Direction direction, ConveyorDefinition definition, bool charge, GridPosition? exit)
     {
-        if (charge && !TryChargeConveyor(BridgeDefinition, multiplicity: 2))
+        if (charge && !TryChargeConveyor(definition, multiplicity: 2))
         {
             return false;
         }
@@ -3323,18 +3901,60 @@ public sealed class Factory : IGameView
         Func<GridPosition, bool> canOccupy = exit is { } forced
             ? p => CanOccupy(p) && (p.Equals(entry) || p.Equals(forced))
             : CanOccupy;
-        if (!Belts.TryPlaceBridge(entry, direction, BridgeDefinition, canOccupy))
+        if (!Belts.TryPlaceBridge(entry, direction, definition, canOccupy))
         {
             if (charge)
             {
-                RefundConveyor(BridgeDefinition, multiplicity: 2, putBack: true);
+                RefundConveyor(definition, multiplicity: 2, putBack: true);
             }
 
             return false;
         }
 
+        if (definition.IsPoweredBridge)
+        {
+            State.BridgePowers.Add(new BridgePower(entry, nextEntityId++));
+            PowerBlocksChanged();
+        }
+
         return true;
     }
+
+    /// <summary>The power entity of the powered bridge whose entry is <paramref name="entry"/>, or null.</summary>
+    private BridgePower? BridgePowerAt(GridPosition entry) => State.BridgePowers.Find(b => b.Entry == entry);
+
+    /// <summary>
+    /// Takes the logistics cell on <paramref name="tile"/> away (both ends of a bridge); a powered bridge's power entity
+    /// goes with it, with its lasers, and the networks are recomputed.
+    /// </summary>
+    private bool RemoveLogisticsCell(GridPosition tile)
+    {
+        var partner = Belts.TryGet(tile, out var cell) ? cell.BridgePartner : null;
+        if (!Belts.TryRemove(tile))
+        {
+            return false;
+        }
+
+        var removedPower = false;
+        foreach (var end in partner is { } other ? new[] { tile, other } : [tile])
+        {
+            if (BridgePowerAt(end) is { } power)
+            {
+                State.BridgePowers.Remove(power);
+                State.PowerGrid.RemoveLinksOf(power.Id);
+                removedPower = true;
+            }
+        }
+
+        if (removedPower)
+        {
+            PowerBlocksChanged();
+        }
+
+        return true;
+    }
+
+    private const string SandItemId = "sand";
 
     private bool PlaceMiner(
         GridPosition origin,
@@ -3343,7 +3963,8 @@ public sealed class Factory : IGameView
         string definitionId,
         bool charge)
     {
-        var covered = Miner.FootprintArea;
+        var size = Miner.SizeFor(definitionId);
+        var covered = size * size;
         var itemId = outputItemId;
         if (Terrain is { } terrain)
         {
@@ -3353,24 +3974,32 @@ public sealed class Factory : IGameView
             }
 
             // Ores harder than the miner's tier do not count: a T1 on iron + titanium digs the iron cells only.
-            var majority = terrain.MajorityDeposit(origin, Miner.Size, d => Content.MinerCanDig(definitionId, d));
-            covered = majority == DepositKind.None
-                ? 0
-                : terrain.CountDepositTiles(origin, Miner.Size, majority);
+            var majority = terrain.MajorityDeposit(origin, size, d => Content.MinerCanDig(definitionId, d));
             if (majority != DepositKind.None)
             {
+                covered = terrain.CountDepositTiles(origin, size, majority);
                 itemId = TerrainMap.ItemIdForDeposit(majority);
+            }
+            else if (terrain.CountSandTiles(origin, size) is > 0 and var sandTiles)
+            {
+                // No diggable deposit: the sand floor underneath is dug instead.
+                covered = sandTiles;
+                itemId = SandItemId;
+            }
+            else
+            {
+                covered = 0;
             }
         }
 
-        if (!CanOccupyFootprint(origin, Miner.Size) || (charge && !TryChargeBuilding(definitionId)))
+        if (!CanOccupyFootprint(origin, size) || (charge && !TryChargeBuilding(definitionId)))
         {
             return false;
         }
 
         buildingsVersion++;
         miners.Add(new Miner(origin, direction, covered, itemId, definitionId, nextEntityId++));
-        if (definitionId == Miner.AdvancedId)
+        if (definitionId is Miner.AdvancedId or Miner.ImpactDrillId)
         {
             PowerBlocksChanged();
         }
@@ -3379,7 +4008,8 @@ public sealed class Factory : IGameView
 
     /// <summary>
     /// True when the footprint at <paramref name="origin"/> has ore but none that <paramref name="minerId"/> can
-    /// dig (a T1 on titanium only). A footprint without ore is not refused, as before.
+    /// dig (a T1 on titanium only). A footprint without ore is not refused, as before, and neither is one with
+    /// sand floor cells (the miner digs the sand instead).
     /// </summary>
     private bool MinerTooWeak(GridPosition origin, string minerId)
     {
@@ -3388,10 +4018,11 @@ public sealed class Factory : IGameView
             return false;
         }
 
+        var size = Miner.SizeFor(minerId);
         var anyOre = false;
-        for (var y = 0; y < Miner.Size; y++)
+        for (var y = 0; y < size; y++)
         {
-            for (var x = 0; x < Miner.Size; x++)
+            for (var x = 0; x < size; x++)
             {
                 var p = new GridPosition(origin.X + x, origin.Y + y);
                 if (!terrain.InBounds(p) || terrain[p].Deposit == DepositKind.None)
@@ -3408,7 +4039,7 @@ public sealed class Factory : IGameView
             }
         }
 
-        return anyOre;
+        return anyOre && terrain.CountSandTiles(origin, size) == 0;
     }
 
     private bool PlaceCrafter(
@@ -3418,9 +4049,14 @@ public sealed class Factory : IGameView
         string buildingId,
         bool charge)
     {
-        var isAssembler = buildingId == Crafter.AssemblerBuildingId;
-        var recipes = isAssembler ? Content.AssemblerRecipes() : Content.SmelterRecipes();
-        var defaultRecipeId = isAssembler ? "craft-copper-wire" : "smelt-iron";
+        var recipes = RecipesAvailableTo(buildingId);
+        // The forno and the assembler start on their classic recipe; every other machine on its first one.
+        var defaultRecipeId = buildingId switch
+        {
+            Crafter.AssemblerBuildingId => "craft-copper-wire",
+            Crafter.SmelterBuildingId => "smelt-iron",
+            _ => recipes.FirstOrDefault()?.Id ?? "smelt-iron"
+        };
         recipe ??= recipes.FirstOrDefault(r => r.Id == defaultRecipeId)
             ?? Content.FindRecipe(defaultRecipeId)
             ?? throw new InvalidDataException($"Ricetta {defaultRecipeId} mancante.");
@@ -3431,21 +4067,29 @@ public sealed class Factory : IGameView
         }
 
         buildingsVersion++;
-        (isAssembler ? assemblers : smelters).Add(new Crafter(
-            origin, direction, recipe, buildingId, recipes, nextEntityId++));
+        var crafter = Crafter.Create(Content, origin, direction, recipe, buildingId, nextEntityId++);
+        crafter.SetAvailableRecipes(recipes);
+        var list = buildingId switch
+        {
+            Crafter.SmelterBuildingId => smelters,
+            Crafter.AssemblerBuildingId => assemblers,
+            _ => machines
+        };
+        list.Add(crafter);
         PowerBlocksChanged();
         return true;
     }
 
-    private bool PlaceGenerator(GridPosition origin, Direction direction, bool charge)
+    private bool PlaceGenerator(GridPosition origin, Direction direction, string definitionId, bool charge)
     {
-        if (!CanOccupyFootprint(origin, Generator.Size) || (charge && !TryChargeBuilding(Generator.BuildingId)))
+        if (!CanOccupyFootprint(origin, Generator.Size) || (charge && !TryChargeBuilding(definitionId)))
         {
             return false;
         }
 
         buildingsVersion++; // belts blend with generators
-        generators.Add(new Generator(origin, direction, nextEntityId++));
+        generators.Add(new Generator(
+            origin, direction, nextEntityId++, definitionId, Generator.FuelsOf(Content, definitionId)));
         PowerBlocksChanged();
         return true;
     }
@@ -3488,14 +4132,26 @@ public sealed class Factory : IGameView
         return true;
     }
 
-    private bool PlaceBattery(GridPosition origin, bool charge)
+    private bool PlaceBattery(GridPosition origin, string definitionId, bool charge)
     {
-        if (!CanOccupyFootprint(origin, Battery.Size) || (charge && !TryChargeBuilding(Battery.BuildingId)))
+        if (!CanOccupyFootprint(origin, Battery.SizeFor(definitionId)) || (charge && !TryChargeBuilding(definitionId)))
         {
             return false;
         }
 
-        batteries.Add(new Battery(origin, nextEntityId++));
+        batteries.Add(new Battery(origin, nextEntityId++, definitionId));
+        PowerBlocksChanged();
+        return true;
+    }
+
+    private bool PlaceSolarPanel(GridPosition origin, string definitionId, bool charge)
+    {
+        if (!CanOccupyFootprint(origin, SolarPanel.SizeFor(definitionId)) || (charge && !TryChargeBuilding(definitionId)))
+        {
+            return false;
+        }
+
+        solarPanels.Add(new SolarPanel(origin, definitionId, nextEntityId++));
         PowerBlocksChanged();
         return true;
     }
@@ -3667,13 +4323,16 @@ public sealed class Factory : IGameView
         return true;
     }
 
-    /// <summary>A storage block of <paramref name="kind"/> with the capacity of its structure in the content.</summary>
+    /// <summary>
+    /// A storage block of <paramref name="kind"/> with the capacity of its structure in the content and the game's research
+    /// (its storage upgrade raises the standalone capacity).
+    /// </summary>
     private StorageBlock NewStorage(BuildingKind kind, GridPosition origin, long id)
     {
         var structureId = BuildSpec.StructureIdFor(kind)!;
         var capacity = Content.FindStructure(structureId)?.ItemCapacity
             ?? throw new InvalidDataException($"content.json: struttura {structureId} mancante.");
-        return new StorageBlock(id, kind, origin, StorageBlock.SizeOf(kind), capacity);
+        return new StorageBlock(id, kind, origin, StorageBlock.SizeOf(kind), capacity, Research);
     }
 
     /// <summary>
@@ -3729,12 +4388,23 @@ public sealed class Factory : IGameView
             }
         }
 
+        for (var i = machines.Count - 1; i >= 0; i--)
+        {
+            if (machines[i].Occupies(tile))
+            {
+                entityId = machines[i].Id;
+                buildingId = machines[i].DefinitionId;
+                machines.RemoveAt(i);
+                return true;
+            }
+        }
+
         for (var i = generators.Count - 1; i >= 0; i--)
         {
             if (generators[i].Occupies(tile))
             {
                 entityId = generators[i].Id;
-                buildingId = Generator.BuildingId;
+                buildingId = generators[i].DefinitionId;
                 generators.RemoveAt(i);
                 return true;
             }
@@ -3778,8 +4448,19 @@ public sealed class Factory : IGameView
             if (batteries[i].Occupies(tile))
             {
                 entityId = batteries[i].Id;
-                buildingId = Battery.BuildingId;
+                buildingId = batteries[i].DefinitionId;
                 batteries.RemoveAt(i);
+                return true;
+            }
+        }
+
+        for (var i = solarPanels.Count - 1; i >= 0; i--)
+        {
+            if (solarPanels[i].Occupies(tile))
+            {
+                entityId = solarPanels[i].Id;
+                buildingId = solarPanels[i].DefinitionId;
+                solarPanels.RemoveAt(i);
                 return true;
             }
         }

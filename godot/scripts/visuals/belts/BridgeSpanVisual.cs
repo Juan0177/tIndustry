@@ -23,7 +23,8 @@ public partial class BridgeSpanVisual : Node2D
         GridPosition entry,
         GridPosition exit,
         Direction direction,
-        int tileSize)
+        int tileSize,
+        string deckSpriteId = "conveyor-bridge-span")
     {
         foreach (var child in GetChildren())
         {
@@ -65,7 +66,7 @@ public partial class BridgeSpanVisual : Node2D
 
         // Deck sprite (local +X = flow): the 16 px span texture repeated along the whole length,
         // at the art's pixel scale (2 on a 64 px cell) both along the flow and across it.
-        var deck = Sprites.For("conveyor-bridge-span");
+        var deck = Sprites.For(deckSpriteId);
         var pixelScale = tileSize / (float)Sprites.PixelsPerCell;
         AddChild(new Sprite2D
         {

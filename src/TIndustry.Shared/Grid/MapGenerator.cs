@@ -417,10 +417,10 @@ public static class MapGenerator
         }
 
         Patch(map, starter, DepositKind.Iron);
-        var copper = new GridPosition(starter.X, starter.Y + Miner.Size + 1);
-        if (copper.Y + Miner.Size > map.Height)
+        var copper = new GridPosition(starter.X, starter.Y + Miner.T1Size + 1);
+        if (copper.Y + Miner.T1Size > map.Height)
         {
-            copper = new GridPosition(starter.X, starter.Y - Miner.Size - 1);
+            copper = new GridPosition(starter.X, starter.Y - Miner.T1Size - 1);
         }
 
         Patch(map, copper, DepositKind.Copper);
@@ -428,9 +428,9 @@ public static class MapGenerator
 
     private static void Patch(TerrainMap map, GridPosition origin, DepositKind deposit)
     {
-        for (var y = origin.Y; y < origin.Y + Miner.Size; y++)
+        for (var y = origin.Y; y < origin.Y + Miner.T1Size; y++)
         {
-            for (var x = origin.X; x < origin.X + Miner.Size; x++)
+            for (var x = origin.X; x < origin.X + Miner.T1Size; x++)
             {
                 if (map.InBounds(new GridPosition(x, y)))
                 {
@@ -504,7 +504,7 @@ public static class MapGenerator
     /// <summary>First spot near the starter whose 2×2 is in the map, off the Core and free of deposits.</summary>
     private static GridPosition? FreePatchSpot(TerrainMap map, IReadOnlySet<GridPosition> core, GridPosition starter)
     {
-        const int gap = Miner.Size + 1;
+        const int gap = Miner.T1Size + 1;
         GridPosition[] candidates =
         [
             new(starter.X, starter.Y - gap), new(starter.X, starter.Y + gap),
@@ -515,9 +515,9 @@ public static class MapGenerator
         foreach (var spot in candidates)
         {
             var free = true;
-            for (var y = spot.Y; y < spot.Y + Miner.Size; y++)
+            for (var y = spot.Y; y < spot.Y + Miner.T1Size; y++)
             {
-                for (var x = spot.X; x < spot.X + Miner.Size; x++)
+                for (var x = spot.X; x < spot.X + Miner.T1Size; x++)
                 {
                     var p = new GridPosition(x, y);
                     free &= map.InBounds(p) && !core.Contains(p) && map[p].Deposit == DepositKind.None;

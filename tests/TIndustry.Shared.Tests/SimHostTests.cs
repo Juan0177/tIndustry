@@ -223,9 +223,9 @@ public sealed class SimHostTests
     public void PlacementOnOccupiedTileIsRejected()
     {
         var factory = NewSandbox(LoadContent());
-        // A junction: a belt over a plain belt would turn it in place (BeltOverBeltTests).
+        // A bridge: a belt over another 1×1 logistics block would turn or replace it (BeltOverBeltTests, LogisticsReplaceTests).
         Assert.True(factory.PlaceInstant(
-            new BuildSpec("junction", BuildingKind.Junction, new GridPosition(10, 10), Direction.East), charge: false));
+            new BuildSpec("conveyor-bridge", BuildingKind.Bridge, new GridPosition(10, 10), Direction.East), charge: false));
 
         var (reason, before, atRejection, applied) = RunOne(
             factory, new PlaceBelt(1, new GridPosition(10, 10), Direction.North, "conveyor-basic"));
@@ -286,13 +286,13 @@ public sealed class SimHostTests
         var factory = NewSandbox(LoadContent());
         var terrain = factory.Terrain!;
         GridPosition? ore = null;
-        for (var y = 1; y < terrain.Height - Miner.Size && ore is null; y++)
+        for (var y = 1; y < terrain.Height - Miner.T1Size && ore is null; y++)
         {
-            for (var x = 1; x < terrain.Width - Miner.Size; x++)
+            for (var x = 1; x < terrain.Width - Miner.T1Size; x++)
             {
                 var p = new GridPosition(x, y);
-                if (terrain.MajorityDeposit(p, Miner.Size) != DepositKind.None
-                    && factory.CanOccupyFootprint(p, Miner.Size))
+                if (terrain.MajorityDeposit(p, Miner.T1Size) != DepositKind.None
+                    && factory.CanOccupyFootprint(p, Miner.T1Size))
                 {
                     ore = p;
                     break;

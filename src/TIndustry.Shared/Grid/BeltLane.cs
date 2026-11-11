@@ -194,6 +194,71 @@ public sealed class BeltCell
     public LogisticsKind Kind => Definition.Kind;
     public IReadOnlyList<TransportedItem> Items => items;
 
+    /// <summary>
+    /// Stack conveyor's loading cell: ticks the pack being formed has waited since its last piece came in (0 to
+    /// <see cref="BeltGrid.StackWaitTicks"/> − 1); it leaves when full or when this reaches
+    /// <see cref="BeltGrid.StackWaitTicks"/>. 0 elsewhere. Saved.
+    /// </summary>
+    public int StackWaitTicks { get; private set; }
+
+    /// <summary>
+    /// Stack conveyor's loading cell: whether <see cref="TryLoad"/> would take <paramref name="item"/> (changes nothing).
+    /// A single piece (<see cref="TransportedItem.Count"/> 1) starts a pack on an empty cell or joins the pack being formed
+    /// (still at the start of the cell) if it is the same item and not full.
+    /// </summary>
+    public bool CanLoad(TransportedItem item)
+    {
+        if (Kind != LogisticsKind.Stack || item.Count != 1)
+        {
+            return false;
+        }
+
+        if (items.Count == 0)
+        {
+            return true;
+        }
+
+        var pack = items[0];
+        return items.Count == 1
+            && pack.Progress <= 0f
+            && pack.Count < BeltGrid.StackPackSize
+            && string.Equals(pack.ItemId, item.ItemId, StringComparison.Ordinal);
+    }
+
+    /// <summary>
+    /// Stack conveyor's loading cell: <paramref name="item"/> starts a pack or joins the pack being formed (the item
+    /// object is then dropped: the pack counts it); the wait starts again (<see cref="StackWaitTicks"/> 0).
+    /// </summary>
+    public bool TryLoad(TransportedItem item)
+    {
+        if (!CanLoad(item))
+        {
+            return false;
+        }
+
+        if (items.Count == 0)
+        {
+            item.Progress = 0f;
+            item.Carry = null;
+            item.Travel = null;
+            item.JunctionTicks = null;
+            items.Add(item);
+        }
+        else
+        {
+            items[0].Count++;
+        }
+
+        StackWaitTicks = 0;
+        return true;
+    }
+
+    /// <summary>Stack conveyor state for save/load: ticks the pack being formed has waited (kept only on a stack cell holding a pack).</summary>
+    public void RestoreStackWait(int ticks) =>
+        StackWaitTicks = Kind == LogisticsKind.Stack && items.Count > 0
+            ? Math.Clamp(ticks, 0, BeltGrid.StackWaitTicks - 1)
+            : 0;
+
     /// <summary>Whether <see cref="TryInsert"/> would take an item now (changes nothing).</summary>
     public bool CanInsert(Direction? fromDirection = null) =>
         Kind == LogisticsKind.Junction
@@ -316,7 +381,14 @@ public sealed class BeltCell
         }
     }
 
-    public void Advance(float deltaSeconds)
+    public void Advance(float deltaSeconds) => Advance(deltaSeconds, stackLoader: false);
+
+    /// <summary>
+    /// <see cref="Advance(float)"/>; on a stack conveyor's loading cell (<paramref name="stackLoader"/>) a pack being
+    /// formed (at the start of the cell, not full) stays put and counts the tick; it leaves on the tick it is full or
+    /// has waited <see cref="BeltGrid.StackWaitTicks"/> ticks.
+    /// </summary>
+    internal void Advance(float deltaSeconds, bool stackLoader)
     {
         var movement = Definition.RateItemsPerSecond * deltaSeconds;
         if (movement <= 0f)
@@ -327,6 +399,20 @@ public sealed class BeltCell
         }
 
         tickMovement = movement;
+
+        if (Kind == LogisticsKind.Stack)
+        {
+            var forming = stackLoader
+                && items.Count > 0
+                && items[0].Progress <= 0f
+                && items[0].Count < BeltGrid.StackPackSize;
+            if (forming && ++StackWaitTicks < BeltGrid.StackWaitTicks)
+            {
+                return;
+            }
+
+            StackWaitTicks = 0;
+        }
 
         if (Kind == LogisticsKind.Junction)
         {

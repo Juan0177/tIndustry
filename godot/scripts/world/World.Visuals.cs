@@ -277,7 +277,7 @@ public partial class World
         foreach (var miner in _view.Miners)
         {
             var node = MinerVisual.Create(miner, TileSize);
-            node.Position = FootprintCenter(miner.Position, Miner.Size);
+            node.Position = FootprintCenter(miner.Position, miner.Size);
             _buildingsLayer.AddChild(node);
         }
 
@@ -292,6 +292,13 @@ public partial class World
         {
             var node = AssemblerVisual.Create(assembler, TileSize);
             node.Position = FootprintCenter(assembler.Position, Crafter.Size);
+            _buildingsLayer.AddChild(node);
+        }
+
+        foreach (var machine in _view.Machines)
+        {
+            var node = MachineVisual.Create(machine, TileSize);
+            node.Position = FootprintCenter(machine.Position, Crafter.Size);
             _buildingsLayer.AddChild(node);
         }
 
@@ -324,11 +331,18 @@ public partial class World
             _buildingsLayer.AddChild(node);
         }
 
-        var batteryCapacity = Battery.CapacityOf(_view.Content);
         foreach (var battery in _view.Batteries)
         {
-            var node = BatteryVisual.Create(battery, batteryCapacity, TileSize);
-            node.Position = FootprintCenter(battery.Position, Battery.Size);
+            var node = BatteryVisual.Create(battery, Battery.CapacityOf(_view.Content, battery.DefinitionId), TileSize);
+            node.Position = FootprintCenter(battery.Position, battery.Size);
+            _buildingsLayer.AddChild(node);
+        }
+
+        foreach (var panel in _view.SolarPanels)
+        {
+            var node = SolarVisual.Create(
+                panel, _view.Content.FindBuilding(panel.DefinitionId)?.PowerOutputRate ?? 0, TileSize);
+            node.Position = FootprintCenter(panel.Position, panel.Size);
             _buildingsLayer.AddChild(node);
         }
 
@@ -411,7 +425,8 @@ public partial class World
             _buildingsDirty = true;
         }
 
-        var batteryCapacity = Battery.CapacityOf(_view.Content);
+        var batteryCapacity = Battery.CapacityOf(_view.Content, Battery.BuildingId);
+        var largeBatteryCapacity = Battery.CapacityOf(_view.Content, Battery.LargeId);
         foreach (var child in _buildingsLayer.GetChildren())
         {
             // A rebuild frees the old visuals at the end of the frame: they must not keep their emitters alive.
@@ -466,6 +481,17 @@ public partial class World
                     }
 
                     break;
+                case MachineVisual machineVis:
+                    foreach (var machine in _view.Machines)
+                    {
+                        if (machine.Position.Equals(machineVis.Origin))
+                        {
+                            machineVis.Sync(machine, delta, _effects);
+                            break;
+                        }
+                    }
+
+                    break;
                 case LampVisual lampVis:
                     foreach (var lamp in _view.Lamps)
                     {
@@ -482,7 +508,19 @@ public partial class World
                     {
                         if (battery.Position.Equals(batteryVis.Origin))
                         {
-                            batteryVis.Sync(battery, batteryCapacity);
+                            batteryVis.Sync(
+                                battery, battery.DefinitionId == Battery.LargeId ? largeBatteryCapacity : batteryCapacity);
+                            break;
+                        }
+                    }
+
+                    break;
+                case SolarVisual solarVis:
+                    foreach (var panel in _view.SolarPanels)
+                    {
+                        if (panel.Position.Equals(solarVis.Origin))
+                        {
+                            solarVis.Sync(panel);
                             break;
                         }
                     }
@@ -630,6 +668,7 @@ public partial class World
                 _itemMotion[item.Id] = motion;
                 var drawn = motion.At(alpha);
                 sprite.Position = new Vector2(drawn.X, drawn.Y);
+                SyncPackMark(sprite, item.Count);
                 // Corner and T = galleria: items disappear while inside the turn or the merge (side joins show them).
                 sprite.Visible = _view.GetBeltShape(cell.Position) is not (BeltShape.Corner or BeltShape.T);
             }
@@ -641,6 +680,63 @@ public partial class World
             _itemSprites[id].QueueFree();
             _itemSprites.Remove(id);
             _itemMotion.Remove(id);
+        }
+    }
+
+    /// <summary>Shift of each copy behind a pack's item sprite, in the sprite's own pixels: up and to the right.</summary>
+    private static readonly Vector2 PackStep = new(2f, -2f);
+
+    /// <summary>The copies behind a pack are a little darker than the item in front.</summary>
+    private static readonly Color PackShade = new(0.78f, 0.78f, 0.78f);
+
+    /// <summary>
+    /// Copies of the item drawn behind a stack conveyor's pack (<see cref="TransportedItem.Count"/>): none for one piece,
+    /// one up to 4, two up to 9, three for a full pack of <see cref="BeltGrid.StackPackSize"/>.
+    /// </summary>
+    private static int PackLayers(int count) => count switch
+    {
+        <= 1 => 0,
+        < 5 => 1,
+        < BeltGrid.StackPackSize => 2,
+        _ => 3
+    };
+
+    /// <summary>
+    /// The pack mark of an item sprite: <see cref="PackLayers"/> copies of its texture behind it, each one
+    /// <see cref="PackStep"/> further, a pile that grows while the first cell of a stack conveyor fills the pack.
+    /// </summary>
+    private static void SyncPackMark(Sprite2D sprite, int count)
+    {
+        var layers = PackLayers(count);
+        var have = sprite.GetChildCount();
+        if (have == layers)
+        {
+            return;
+        }
+
+        for (var i = have; i < layers; i++)
+        {
+            sprite.AddChild(new Sprite2D
+            {
+                Name = $"Pezzo{i + 1}",
+                Texture = sprite.Texture,
+                Centered = true,
+                ShowBehindParent = true,
+                SelfModulate = PackShade
+            });
+        }
+
+        for (var i = have - 1; i >= layers; i--)
+        {
+            var child = sprite.GetChild(i);
+            sprite.RemoveChild(child);
+            child.QueueFree();
+        }
+
+        // Behind the parent the children draw in tree order: the farthest copy first, the nearest over it.
+        for (var i = 0; i < layers; i++)
+        {
+            sprite.GetChild<Sprite2D>(i).Position = PackStep * (layers - i);
         }
     }
 
@@ -668,10 +764,36 @@ public partial class World
             return;
         }
 
-        var onBelt = _view.Belts.Values.Sum(c => c.Items.Count);
-        var gensLive = _view.Generators.Count(g => g.IsGenerating);
+        // A stack conveyor's pack counts its pieces.
+        var onBelt = 0;
+        foreach (var belt in _view.Belts.Values)
+        {
+            foreach (var item in belt.Items)
+            {
+                onBelt += item.Count;
+            }
+        }
+
+        // Generators that burn plus solar panels that make power now, out of all of them.
+        var gensLive = 0;
+        foreach (var gen in _view.Generators)
+        {
+            if (gen.IsGenerating)
+            {
+                gensLive++;
+            }
+        }
+
+        foreach (var panel in _view.SolarPanels)
+        {
+            if (panel.CurrentRate > 0)
+            {
+                gensLive++;
+            }
+        }
+
         var (stored, capacity) = BatteryUnits(_view);
-        _hud.BindEconomy(_view.Content, _view.Wallet);
+        _hud.BindEconomy(_view.Content, _view.Wallet, _view.Research);
         _hud.UpdateCore(_view.Content.CoreTiers[_view.CoreTier], _coreCapacityOf ??= id => _view?.CoreCapacity(id) ?? 0);
         if (_view.CoreTier != _locksCoreTier)
         {
@@ -687,11 +809,11 @@ public partial class World
             onBelt,
             _view.Wallet.Money,
             gensLive,
-            _view.Generators.Count,
+            _view.Generators.Count + _view.SolarPanels.Count,
             stored,
             capacity);
         var drone = LocalDrone;
-        _hud.UpdateHold(drone?.HoldItemId, drone?.HoldCount ?? 0, _view.Content.UnitForTier(_view.CoreTier).HoldCapacity);
+        _hud.UpdateHold(drone?.HoldItemId, drone?.HoldCount ?? 0, _view.EffectiveUnit.HoldCapacity);
         SyncWorldTime();
         _hud.SetDirectionLabel(_placeDir);
         _hud.SyncBuildQueue(_view);

@@ -24,6 +24,9 @@ public partial class NightLayer : Node2D
     private static readonly LightKind LampLight = new(6.5f, new Color(1f, 0.9f, 0.68f), 1.4f);
     private static readonly LightKind SmelterLight = new(3f, new Color(1f, 0.55f, 0.25f), 1.2f);
     private static readonly LightKind GeneratorLight = new(3f, new Color(1f, 0.84f, 0.5f), 1f);
+
+    /// <summary>The combustion generator's open firebox: an orange glow, a little wider than the generator's.</summary>
+    private static readonly LightKind CombustionLight = new(3.5f, new Color(1f, 0.6f, 0.28f), 1.2f);
     private static readonly LightKind DroneLight = new(2f, new Color(1f, 0.95f, 0.82f), 0.9f);
 
     /// <summary>
@@ -128,11 +131,21 @@ public partial class NightLayer : Node2D
             }
         }
 
+        // The advanced smelter is a furnace too; the other machines have no fire.
+        foreach (var machine in view.Machines)
+        {
+            if (machine.IsWorking && machine.DefinitionId == Crafter.SmelterAdvancedId)
+            {
+                Add(Center(machine.Position, Crafter.Size), SmelterLight);
+            }
+        }
+
         foreach (var gen in view.Generators)
         {
             if (gen.IsGenerating)
             {
-                Add(Center(gen.Position, Generator.Size), GeneratorLight);
+                Add(Center(gen.Position, Generator.Size),
+                    gen.DefinitionId == Generator.CombustionId ? CombustionLight : GeneratorLight);
             }
         }
 

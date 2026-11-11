@@ -172,6 +172,12 @@ public static class UiColors
     public static Color RicercaLineaDisponibile { get; private set; }
     public static Color RicercaLineaBloccata { get; private set; }
 
+    /// <summary>
+    /// A campaign chapter's reward in a campaign game (given by the chapter, never bought): its edge, name and badge,
+    /// apart from the accent of what can be researched now and from the CORE's colour.
+    /// </summary>
+    public static Color RicercaPremio { get; private set; }
+
     // World overlays.
 
     /// <summary>Building: plans, sites, the drone's beam and engine.</summary>
@@ -265,6 +271,7 @@ public static class UiColors
         RicercaLineaSbloccata = new("8C9499");
         RicercaLineaDisponibile = new("C7A86B");
         RicercaLineaBloccata = new("383D40");
+        RicercaPremio = new("B98CFF");
 
         Costruzione = Accento;
         Smontaggio = new("E55454");
@@ -306,6 +313,9 @@ public static class UiColors
         LedBlu = new("56B4E9");
         LedViola = new("CC79A7");
         LedGiallo = new("F0E442");
+
+        // The research rewards in Okabe–Ito blue: apart from the yellow accent and the neutral CORE.
+        RicercaPremio = new("56B4E9");
 
         Smontaggio = new("CC79A7");
         SmontaggioArea = Smontaggio with { A = 0.16f };
@@ -362,6 +372,7 @@ public static class UiColors
         RicercaLineaSbloccata = new("D2D2D2");
         RicercaLineaDisponibile = new("FFD37F");
         RicercaLineaBloccata = new("767676");
+        RicercaPremio = new("FF66FF");
 
         // World signs: pure yellow against a saturated magenta-red (3.6:1 between them) over a black under-stroke
         // that keeps them readable on grass, snow or sand. Taking apart reuses the refused red: hatching against X.

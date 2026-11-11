@@ -268,6 +268,25 @@ def _nastro(tier):
         | {f"{tier}-{u}-anim": fps for u, _, _ in unioni})
 
 
+def _nastro_a_pacchi(tier):
+    # godot/scripts/visuals/belts/MindustryBeltVisual.cs (ConfigureFromGrid, straightOnly): the stack conveyor scrolls on
+    # the same tier clock as the belts but is always drawn straight (BeltGrid.GetShape), so it has no corner, T or join
+    # strips. A cell carries one pack of up to 10 pieces of the same item.
+    n = _fotogrammi(tier + "-anim")
+    fps = VELOCITA_NASTRO[tier] * n
+    giro = n / fps
+    passo = min(d for d in range(1, n + 1) if n % d == 0 and d / fps >= PASSO_MINIMO) / fps
+    return Blocco(
+        tier, "godot/scripts/visuals/belts/MindustryBeltVisual.cs", (1, 1),
+        [Strato(tier + "-anim", fps=fps, quando="dritto")],
+        [_stato("Dritto", "dritto", durata=giro, passo=passo), _stato("Animazioni spente", "dritto")],
+        [(tier, "icona"), (tier + "-anim", "tratto dritto: sempre dritto, mai curve né unioni")],
+        icona=tier, stato_icona="Dritto",
+        nota=f"{_num(VELOCITA_NASTRO[tier])} celle al secondo, un pacco per cella (fino a 10 pezzi dello stesso "
+             f"oggetto): {fps:g} fotogrammi al secondo.",
+        fps_parti={tier + "-anim": fps})
+
+
 def _core(n):
     # godot/scripts/world/World.Visuals.cs (AddCoreVisual, CoreLightFrame): body, nucleus light strip at
     # 2.5 fps on top (each frame replaces the nucleus), cyan outline. In game only core-1 for now.
@@ -332,6 +351,7 @@ BLOCCHI = [
            icona="battery", nota="Le tacche seguono la carica della batteria.",
            fps_parti={"battery-charge-anim": 2}),
     *[_nastro(t) for t in ("conveyor-basic", "conveyor-fast", "conveyor-express", "conveyor-armored")],
+    _nastro_a_pacchi("conveyor-stack"),
     # godot/scripts/visuals/belts/MindustryBeltVisual.cs (AddSpecial): the open crossing and, on every side
     # without an input or output (IGameView.IsJunctionSideConnected), the North rail piece turned to that side.
     Blocco("junction", "godot/scripts/visuals/belts/MindustryBeltVisual.cs", (1, 1),

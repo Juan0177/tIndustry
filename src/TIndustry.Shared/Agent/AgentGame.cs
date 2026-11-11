@@ -61,8 +61,13 @@ public sealed class AgentGame : IDisposable
         ('M', "minatore"), ('N', "minatore avanzato"), ('S', "forno"), ('A', "assemblatore"), ('G', "generatore"),
         ('E', "estrattore"), ('P', "nodo di energia"), ('Q', "nodo di energia T2"), ('L', "lampada"),
         ('B', "batteria"), ('K', "contenitore"), ('V', "deposito"), ('$', "schermo di borsa"),
+        ('W', "fonderia avanzata"), ('H', "pressa grande"), ('X', "separatore"), ('Y', "plastificatore"),
+        ('T', "trapano a impatto"), ('O', "overflow gate"), ('U', "underflow gate"),
+        ('8', "nastro a pacchi verso nord"), ('6', "nastro a pacchi verso est"), ('2', "nastro a pacchi verso sud"),
+        ('4', "nastro a pacchi verso ovest"), ('Z', "ponte lungo"), ('D', "pannello solare"),
+        ('J', "pannello solare grande"), ('%', "generatore a combustione"), ('&', "batteria grande"),
         ('!', "struttura senza simbolo"),
-        ('#', "parete"), ('~', "acqua profonda"), (',', "acqua bassa"),
+        ('#', "parete"), ('~', "acqua profonda"), (',', "acqua bassa"), ('s', "pavimento di sabbia"),
         ('i', "giacimento di ferro"), ('r', "giacimento di rame"), ('k', "giacimento di carbone"),
         ('p', "giacimento di piombo"), ('t', "giacimento di titanio"), ('.', "suolo libero")
     ];
@@ -660,19 +665,24 @@ public sealed class AgentGame : IDisposable
             ["risorse"] = resources,
             ["energia"] = EnergyJson(),
             ["ricerca"] = research,
+            ["potenziamenti"] = UpgradesJson(),
             ["edifici"] = new JsonObject
             {
                 ["minatori"] = View.Miners.Count,
                 ["forni"] = View.Smelters.Count,
                 ["assemblatori"] = View.Assemblers.Count,
+                ["macchine"] = View.Machines.Count,
                 ["generatori"] = View.Generators.Count,
                 ["estrattori"] = View.Extractors.Count,
                 ["nodi"] = View.PowerNodes.Count,
                 ["lampade"] = View.Lamps.Count,
+                ["pannelliSolari"] = View.SolarPanels.Count,
                 ["nastri"] = logistics.GetValueOrDefault(LogisticsKind.Belt),
                 ["incroci"] = logistics.GetValueOrDefault(LogisticsKind.Junction),
                 ["router"] = logistics.GetValueOrDefault(LogisticsKind.Router),
                 ["selezionatori"] = logistics.GetValueOrDefault(LogisticsKind.Sorter),
+                ["gate"] = logistics.GetValueOrDefault(LogisticsKind.Gate),
+                ["nastriAPacchi"] = logistics.GetValueOrDefault(LogisticsKind.Stack),
                 // Each bridge has two end cells.
                 ["ponti"] = logistics.GetValueOrDefault(LogisticsKind.Bridge) / 2
             },
@@ -860,7 +870,7 @@ public sealed class AgentGame : IDisposable
                 if (withItems && belt.Items.Count > 0)
                 {
                     var item = CellJson(cell);
-                    item["n"] = belt.Items.Count;
+                    item["n"] = belt.Items.Sum(i => i.Count); // pieces: a stack conveyor's pack counts all of its own
                     item["tipi"] = new JsonArray(belt.Items.Select(i => i.ItemId).Distinct().Order(StringComparer.Ordinal)
                         .Select(id => (JsonNode)JsonValue.Create(id)!).ToArray());
                     items.Add(item);
@@ -955,7 +965,17 @@ public sealed class AgentGame : IDisposable
                 LogisticsKind.Junction => KindSymbol(BuildingKind.Junction),
                 LogisticsKind.Router => KindSymbol(BuildingKind.Router),
                 LogisticsKind.Sorter => KindSymbol(belt.Definition.Inverted ? BuildingKind.SorterInverted : BuildingKind.Sorter),
-                LogisticsKind.Bridge => KindSymbol(BuildingKind.Bridge),
+                LogisticsKind.Bridge => KindSymbol(BuildSpec.KindFor(belt.Definition.Id) ?? BuildingKind.Bridge),
+                LogisticsKind.Gate => KindSymbol(belt.Definition.Inverted ? BuildingKind.UnderflowGate : BuildingKind.OverflowGate),
+                // The stack conveyor: the arrows of a numeric keypad.
+                LogisticsKind.Stack => belt.Direction switch
+                {
+                    Direction.North => '8',
+                    Direction.East => '6',
+                    Direction.South => '2',
+                    Direction.West => '4',
+                    _ => '!'
+                },
                 _ => '!'
             };
         }
@@ -988,7 +1008,12 @@ public sealed class AgentGame : IDisposable
             DepositKind.Coal => 'k',
             DepositKind.Lead => 'p',
             DepositKind.Titanium => 't',
-            _ => tile.Floor == FloorKind.ShallowWater ? ',' : '.'
+            _ => tile.Floor switch
+            {
+                FloorKind.ShallowWater => ',',
+                FloorKind.Sand or FloorKind.DarkSand => 's',
+                _ => '.'
+            }
         };
     }
 
@@ -1013,6 +1038,18 @@ public sealed class AgentGame : IDisposable
         BuildingKind.Container => 'K',
         BuildingKind.Vault => 'V',
         BuildingKind.MarketScreen => '$',
+        BuildingKind.SmelterAdvanced => 'W',
+        BuildingKind.GraphitePress => 'H',
+        BuildingKind.Separator => 'X',
+        BuildingKind.Plasticizer => 'Y',
+        BuildingKind.ImpactDrill => 'T',
+        BuildingKind.OverflowGate => 'O',
+        BuildingKind.UnderflowGate => 'U',
+        BuildingKind.BridgeLong => 'Z',
+        BuildingKind.Solar => 'D',
+        BuildingKind.SolarLarge => 'J',
+        BuildingKind.CombustionGenerator => '%',
+        BuildingKind.BatteryLarge => '&',
         _ => '!'
     };
 
@@ -1085,18 +1122,18 @@ public sealed class AgentGame : IDisposable
     {
         foreach (var m in View.Miners)
         {
-            yield return (m.DefinitionId, m.DefinitionId == Miner.AdvancedId ? BuildingKind.MinerAdvanced : BuildingKind.Miner,
-                m.Position, m.Direction);
+            yield return (m.DefinitionId, BuildSpec.KindFor(m.DefinitionId) ?? BuildingKind.Miner, m.Position, m.Direction);
         }
 
-        foreach (var c in View.Smelters.Concat(View.Assemblers))
+        foreach (var c in View.Smelters.Concat(View.Assemblers).Concat(View.Machines))
         {
-            yield return (c.DefinitionId, c.IsAssembler ? BuildingKind.Assembler : BuildingKind.Smelter, c.Position, c.Direction);
+            yield return (c.DefinitionId, BuildSpec.KindFor(c.DefinitionId) ?? BuildingKind.Smelter, c.Position, c.Direction);
         }
 
         foreach (var g in View.Generators)
         {
-            yield return (Generator.BuildingId, BuildingKind.Generator, g.Position, g.Direction);
+            var kind = g.DefinitionId == Generator.CombustionId ? BuildingKind.CombustionGenerator : BuildingKind.Generator;
+            yield return (g.DefinitionId, kind, g.Position, g.Direction);
         }
 
         foreach (var e in View.Extractors)
@@ -1117,7 +1154,14 @@ public sealed class AgentGame : IDisposable
 
         foreach (var b in View.Batteries)
         {
-            yield return (Battery.BuildingId, BuildingKind.Battery, b.Position, Direction.East);
+            var kind = b.DefinitionId == Battery.LargeId ? BuildingKind.BatteryLarge : BuildingKind.Battery;
+            yield return (b.DefinitionId, kind, b.Position, Direction.East);
+        }
+
+        foreach (var p in View.SolarPanels)
+        {
+            var kind = p.DefinitionId == SolarPanel.LargeId ? BuildingKind.SolarLarge : BuildingKind.Solar;
+            yield return (p.DefinitionId, kind, p.Position, Direction.East);
         }
 
         foreach (var s in View.Storages)
@@ -1158,7 +1202,10 @@ public sealed class AgentGame : IDisposable
         return result;
     }
 
-    /// <summary>Every structure of the content: id, name, kind, build cost, unlock cost, prerequisites, unlocked.</summary>
+    /// <summary>
+    /// Every structure of the content: id, name, kind, build cost, unlock cost, prerequisites, unlocked and, for a
+    /// campaign reward, its chapter (<c>premio</c>).
+    /// </summary>
     private JsonObject Catalogo()
     {
         var list = new JsonArray();
@@ -1177,6 +1224,12 @@ public sealed class AgentGame : IDisposable
                 ["prerequisiti"] = new JsonArray(s.Prerequisites.Select(id => (JsonNode)JsonValue.Create(id)!).ToArray()),
                 ["sbloccato"] = View.Research.IsUnlocked(s.Id)
             };
+            if (s.CampaignReward is { } chapter)
+            {
+                // The chapter of the campaign that gives it (in the campaign it is not for sale: CampaignRewardOnly).
+                item["premio"] = chapter;
+            }
+
             list.Add(item);
         }
 
@@ -1196,7 +1249,8 @@ public sealed class AgentGame : IDisposable
 
     /// <summary>
     /// What is missing for <paramref name="refusal"/>: the shortfall the game computed (InsufficientResources), or for
-    /// Locked and UnlockUnaffordable the part of the unlock cost and of the prerequisites the player does not have.
+    /// Locked and UnlockUnaffordable the part of the unlock cost and of the prerequisites the player does not have; for
+    /// CampaignRewardOnly the chapter that gives the node (<c>premio</c>).
     /// </summary>
     private JsonObject? Missing(Refusal refusal, SimCommand command)
     {
@@ -1237,6 +1291,13 @@ public sealed class AgentGame : IDisposable
             {
                 missing["prerequisiti"] = new JsonArray(prerequisites.Select(p => (JsonNode)JsonValue.Create(p)!).ToArray());
             }
+        }
+
+        if (refusal.Code is RefusalCode.CampaignRewardOnly
+            && refusal.StructureId is { } rewardId && content.FindStructure(rewardId)?.CampaignReward is { } chapter)
+        {
+            // Not money: the chapter of the campaign whose end gives the node.
+            missing["premio"] = chapter;
         }
 
         return missing.Count > 0 ? missing : null;
@@ -1286,6 +1347,22 @@ public sealed class AgentGame : IDisposable
             return new JsonObject { ["tick"] = View.CurrentTick, ["celle"] = new JsonArray(), ["rifiuti"] = new JsonArray() };
         }
 
+        // The block each command replaces (Mindustry's replace), read before the commands change the cells.
+        var replaces = new Dictionary<GridPosition, string>();
+        foreach (var command in commands)
+        {
+            var spec = command is PlaceBelt belt ? BuildSpec.FromCommand(belt) : BuildSpec.FromCommand((PlaceBuilding)command);
+            var crossing = command is PlaceBelt { Crossing: true }
+                && (View.BeltCrossingAt(spec.Origin, spec.Direction) == BeltCrossing.Junction
+                    || (View.Belts.TryGetValue(spec.Origin, out var under) && under.Kind == LogisticsKind.Junction));
+            if (!crossing
+                && View.BeltOverBeltAt(spec.Origin, spec.Direction, spec.StructureId) == BeltOverBelt.Replace
+                && View.Belts.TryGetValue(spec.Origin, out var old))
+            {
+                replaces[spec.Origin] = old.Definition.Id;
+            }
+        }
+
         return Command(commands, outcomes =>
         {
             var placed = new JsonArray();
@@ -1315,6 +1392,11 @@ public sealed class AgentGame : IDisposable
                     if (outcome.Command is PlaceBelt { Crossing: true } crossing && JunctionAt(crossing.Position))
                     {
                         cell["incrocio"] = true;
+                    }
+
+                    if (replaces.TryGetValue(placement.Cell, out var replaced))
+                    {
+                        cell["sostituisce"] = replaced;
                     }
 
                     // The line's automatic bridge (its spanned cells are not listed).
@@ -1403,9 +1485,10 @@ public sealed class AgentGame : IDisposable
             || View.PlansOf(PlayerId).Any(plan => plan.Spec.Origin == cell && plan.Spec.StructureId == junction);
     }
 
-    // The armored belt shares tier 2 with conveyor-fast: `tier` names the plain belt, the armored one is asked by `tipo`.
+    // The armored belt shares tier 2 with conveyor-fast: `tier` names the plain belt, the armored one is asked by `tipo`,
+    // as the stack conveyor (tier 4).
     private string ConveyorOfTier(int tier) =>
-        content.Conveyors.FirstOrDefault(c => c.Tier == tier && !c.IsArmoredBelt && BuildSpec.KindFor(c.Id) is null)?.Id
+        content.Conveyors.FirstOrDefault(c => c.Tier == tier && c.Kind == LogisticsKind.Belt && !c.IsArmoredBelt && BuildSpec.KindFor(c.Id) is null)?.Id
         ?? throw Bad($"Nessun nastro di livello {tier}.");
 
     private JsonObject Ruota()
@@ -1525,6 +1608,25 @@ public sealed class AgentGame : IDisposable
 
     private static int Steer(float delta) => delta > SteerDeadZone ? 1 : delta < -SteerDeadZone ? -1 : 0;
 
+    /// <summary>
+    /// The bonus of each upgrade group now (<see cref="Upgrades"/>; level 2 replaces level 1, 0 without either): percent,
+    /// or cells for <c>raggio</c>.
+    /// </summary>
+    private JsonObject UpgradesJson()
+    {
+        var research = View.Research;
+        return new JsonObject
+        {
+            ["costruzione"] = Upgrades.DroneBuildPercent(research),
+            ["stiva"] = Upgrades.DroneHoldPercent(research),
+            ["raggio"] = Upgrades.DroneRangeCells(research),
+            ["scavo"] = Upgrades.DroneMinePercent(research),
+            ["minatori"] = Upgrades.MinerPercent(research),
+            ["macchine"] = Upgrades.MachinePercent(research),
+            ["magazzino"] = Upgrades.StoragePercent(research)
+        };
+    }
+
     private BuilderUnit? Drone() => View.Builders.FirstOrDefault(b => b.OwnerPlayerId == PlayerId);
 
     /// <summary>The player's drone: centre (tiles), held input, hold, mined cell and build range.</summary>
@@ -1535,7 +1637,7 @@ public sealed class AgentGame : IDisposable
             return null;
         }
 
-        var unit = content.UnitForTier(View.CoreTier);
+        var unit = View.EffectiveUnit; // with the research's drone upgrades
         return new JsonObject
         {
             ["x"] = Math.Round(drone.X, 2),

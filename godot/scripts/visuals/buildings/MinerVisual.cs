@@ -4,8 +4,8 @@ using TIndustry.Shared;
 namespace TIndustry.Godot;
 
 /// <summary>
-/// World miner in layers: still base (<c>{id}-base</c>), drill bit (<c>{id}-drill-anim</c>) that turns while
-/// the miner works, and for the advanced miner a lamp (<c>miner-advanced-lamp</c>) lit while it is powered.
+/// World miner in layers (2×2, the impact drill 3×3): still base (<c>{id}-base</c>), drill bit
+/// (<c>{id}-drill-anim</c>) that turns while the miner works, and for the advanced miner a lamp (<c>miner-advanced-lamp</c>) lit while it is powered.
 /// Sparks fly off the bit while it works (G3 effect <c>scintille-trivella</c>).
 /// </summary>
 public partial class MinerVisual : Node2D
@@ -24,7 +24,7 @@ public partial class MinerVisual : Node2D
 
     public static MinerVisual Create(Miner miner, int tileSize)
     {
-        var id = miner.DefinitionId == Miner.AdvancedId ? Miner.AdvancedId : Miner.BasicId;
+        var id = miner.DefinitionId is Miner.AdvancedId or Miner.ImpactDrillId ? miner.DefinitionId : Miner.BasicId;
         var root = new MinerVisual
         {
             Name = $"Miner_{miner.Position.X}_{miner.Position.Y}",
@@ -33,14 +33,14 @@ public partial class MinerVisual : Node2D
             _clock = BuildingPad.Phase(miner.Position)
         };
 
-        BuildingPad.AddShadow(root, Sprites.For(id + "-base"), Miner.Size, tileSize);
-        root.AddChild(BuildingPad.Layer("Base", Sprites.For(id + "-base"), Miner.Size, tileSize, 0));
+        BuildingPad.AddShadow(root, Sprites.For(id + "-base"), miner.Size, tileSize);
+        root.AddChild(BuildingPad.Layer("Base", Sprites.For(id + "-base"), miner.Size, tileSize, 0));
         root._frames = Sprites.Frames(id + "-drill");
-        root._drill = BuildingPad.Layer("Drill", root.Frame(), Miner.Size, tileSize, 1);
+        root._drill = BuildingPad.Layer("Drill", root.Frame(), miner.Size, tileSize, 1);
         root.AddChild(root._drill);
         if (id == Miner.AdvancedId)
         {
-            root._lamp = BuildingPad.Layer("Lamp", Sprites.For("miner-advanced-lamp"), Miner.Size, tileSize, 2);
+            root._lamp = BuildingPad.Layer("Lamp", Sprites.For("miner-advanced-lamp"), miner.Size, tileSize, 2);
             root._lamp.Visible = false;
             root._lamp.SelfModulate = new Color(BuildingPad.GlowBoost, BuildingPad.GlowBoost, BuildingPad.GlowBoost);
             root.AddChild(root._lamp);
@@ -56,10 +56,10 @@ public partial class MinerVisual : Node2D
         if (fx is not null)
         {
             _fx = fx;
-            _sparks = fx.Keep(_sparks, miner.Efficiency > 0f, "scintille-trivella", this, Vector2.Zero, MinerOrigin);
+            _sparks = fx.Keep(_sparks, miner.IsMining, "scintille-trivella", this, Vector2.Zero, MinerOrigin);
         }
 
-        if (miner.Efficiency > 0f && _drill is not null && _frames.Length > 0)
+        if (miner.IsMining && _drill is not null && _frames.Length > 0)
         {
             _clock += delta;
             _drill.Texture = Frame();

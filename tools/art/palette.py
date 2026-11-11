@@ -26,6 +26,7 @@ UNITA_SOTTO = [(46, 47, 56), (68, 70, 82), (82, 84, 96), (96, 98, 110), (116, 11
 UNITA_SOPRA = [(96, 98, 110), (132, 134, 146), (164, 166, 178), (190, 192, 202), (214, 216, 226)]  # top plates
 CELLA = [(150, 84, 40), (214, 132, 60), (240, 166, 84), (255, 190, 100), (255, 240, 200)]  # team cell
 ENERGIA = [(84, 70, 20), (150, 128, 34), (220, 196, 60), (250, 230, 110), (255, 248, 200)]
+SOLARE = [(14, 24, 52), (24, 44, 92), (38, 70, 136), (78, 118, 184), (168, 198, 236)]  # photovoltaic cells (deep blue)
 LUCCIOLA = [(70, 96, 20), (128, 170, 40), (188, 226, 70), (226, 250, 120), (250, 255, 200)]  # fireflies at night (G3)
 # LEDs of the stock-exchange screen (jackpot sequence: confetti): the middle tone of each ramp is the UiColors
 # value of the Normale variant (LedBlu, LedViola, LedGiallo; test_coriandoli_come_ui_colors), plus white paper.
@@ -50,6 +51,10 @@ TITANIO = [(20, 48, 56), (52, 112, 124), (120, 200, 210), (170, 230, 236), (222,
 CARBONE = [(8, 8, 10), (30, 28, 28), (58, 54, 50), (86, 80, 74)]
 GRAFITE = [(20, 22, 26), (50, 54, 60), (88, 92, 98), (128, 134, 142), (168, 174, 182)]
 SILICIO = [(60, 56, 20), (128, 118, 60), (170, 160, 90), (210, 200, 120), (240, 232, 170)]
+SABBIA_GRANI = [(96, 76, 40), (150, 122, 70), (196, 166, 104), (222, 196, 136), (244, 228, 184)]  # sand item, warmer than the floor
+VETRO = [(26, 72, 56), (70, 148, 118), (140, 210, 180), (190, 238, 216), (238, 255, 248)]  # pale green glass, apart from TITANIO
+PLASTICA = [(84, 26, 52), (150, 52, 92), (214, 92, 136), (240, 150, 180), (255, 214, 228)]
+CIRCUITO = [(16, 52, 30), (34, 96, 52), (56, 146, 78), (98, 190, 112), (170, 232, 170)]  # green board
 
 # Floors (terrain.floors). Tones 1-3 make the fine noise, 0 and 4 the pebbles and glints.
 PIETRA = [(60, 64, 63), (80, 85, 83), (92, 98, 96), (106, 112, 110), (132, 138, 135)]
@@ -86,6 +91,7 @@ RAMPE = {
     "METALLO": METALLO, "FULIGGINE": FULIGGINE, "BAGLIORE": BAGLIORE, "ACCENTO": ACCENTO,
     "NASTRO": NASTRO, "ENERGIA": ENERGIA, "LUCCIOLA": LUCCIOLA, "NUCLEO": NUCLEO, "ROSSO": ROSSO, "RAME": RAME, "FERRO": FERRO, "PIOMBO": PIOMBO, "TITANIO": TITANIO,
     "CARBONE": CARBONE, "GRAFITE": GRAFITE, "SILICIO": SILICIO,
+    "SABBIA_GRANI": SABBIA_GRANI, "VETRO": VETRO, "PLASTICA": PLASTICA, "CIRCUITO": CIRCUITO,
     "UNITA_SOTTO": UNITA_SOTTO, "UNITA_SOPRA": UNITA_SOPRA, "CELLA": CELLA,
     "LED_BLU": LED_BLU, "LED_VIOLA": LED_VIOLA, "LED_GIALLO": LED_GIALLO, "CARTA": CARTA,
     **{f"suolo {k}": v for k, v in SUOLI.items()}, **{f"parete {k}": v for k, v in PARETI.items()},

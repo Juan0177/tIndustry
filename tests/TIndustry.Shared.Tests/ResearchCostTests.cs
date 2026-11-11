@@ -13,10 +13,12 @@ public sealed class ResearchCostTests
     private static readonly FactoryContent Content = FactoryContent.Load(ContentPath);
 
     [Fact]
-    public void ResearchMoneyTotalsBetween22And25Million()
+    public void ResearchMoneyTotalsAbout30Point2Million()
     {
+        // 30.19 M since the balancing of the Ricerca allargata (plan 3, plastic and circuits sold in the last two phases,
+        // rewards at ×3): ±5% around the total of the sheet «Bilanciamento».
         var total = Content.Structures.Sum(s => (long)(s.Unlock?.Money ?? 0));
-        Assert.InRange(total, 22_000_000L, 25_000_000L);
+        Assert.InRange(total, 28_680_000L, 31_700_000L);
     }
 
     [Fact]

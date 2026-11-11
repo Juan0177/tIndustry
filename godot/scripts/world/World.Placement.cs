@@ -11,7 +11,7 @@ public partial class World
 
     /// <summary>The tools that lay belts: the client's one list of them.</summary>
     private static bool IsBelt(BuildTool tool) =>
-        tool is BuildTool.Belt or BuildTool.BeltFast or BuildTool.BeltExpress or BuildTool.BeltArmored;
+        tool is BuildTool.Belt or BuildTool.BeltFast or BuildTool.BeltExpress or BuildTool.BeltArmored or BuildTool.BeltStack;
 
     /// <summary>Tools whose block faces a way (R, the drag).</summary>
     private static bool IsOrientable(BuildTool tool) =>
@@ -217,7 +217,7 @@ public partial class World
             _view.CoreTiles.Min(t => t.X),
             _view.CoreTiles.Min(t => t.Y));
         var minerPos = new GridPosition(
-            Math.Max(0, coreOrigin.X - Miner.Size - 2),
+            Math.Max(0, coreOrigin.X - Miner.T1Size - 2),
             coreOrigin.Y);
         void Place(BuildSpec spec)
         {
@@ -228,7 +228,7 @@ public partial class World
         }
 
         Place(new BuildSpec(Miner.BasicId, BuildingKind.Miner, minerPos, Direction.East));
-        for (var x = minerPos.X + Miner.Size; x < coreOrigin.X; x++)
+        for (var x = minerPos.X + Miner.T1Size; x < coreOrigin.X; x++)
         {
             Place(new BuildSpec(BuildSpec.DefaultConveyorId, null, new GridPosition(x, coreOrigin.Y), Direction.East));
         }

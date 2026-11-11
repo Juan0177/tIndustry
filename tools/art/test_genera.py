@@ -21,7 +21,7 @@ if ART_DIR not in sys.path:
 import carattere  # noqa: E402
 import forme  # noqa: E402
 import genera  # noqa: E402
-from blocchi import SPRITE, sprite  # noqa: E402
+from blocchi import SPRITE, potenza, sprite  # noqa: E402
 from blocchi.logistica import TIER  # noqa: E402
 from palette import ACCENTO, BAGLIORE, CELLA, ENERGIA, FERRO, METALLO, NASTRO, NUCLEO, OUT, RAME, RAMPE  # noqa: E402
 
@@ -32,14 +32,21 @@ NASTRI = ("conveyor-basic", "conveyor-fast", "conveyor-express", "conveyor-armor
 # Block footprints in cells, kept by hand: update it together with Factory.FootprintSize
 # (src/TIndustry.Shared/Factory.cs) when a block changes size. The bridge is two 1x1 ends.
 CELLE = {
-    "miner": 2, "miner-advanced": 2, "smelter": 2, "assembler": 2, "generator": 2,
+    "miner": 2, "miner-advanced": 2, "smelter": 2, "assembler": 2, "generator": 2, "combustion-generator": 2,
     "power-node-t2": 2,
+    "smelter-advanced": 2, "graphite-press": 2, "separator": 2, "plasticizer": 2,
+    "impact-drill": 3,
     "extractor": 1, "power-node": 1, "lamp": 1, "battery": 1, "conveyor-basic": 1, "conveyor-fast": 1,
     "conveyor-express": 1, "conveyor-armored": 1, "junction": 1, "router": 1, "sorter": 1, "sorter-inverted": 1, "conveyor-bridge": 1,
+    "overflow-gate": 1, "underflow-gate": 1, "bridge-long": 1, "conveyor-stack": 1, "solar": 1, "solar-large": 3, "battery-large": 3,
     "core-1": 2, "core-2": 3, "core-3": 4, "core-4": 5,
     "container": 2, "vault": 3, "core-shard": 3, "core-foundation": 4, "core-nucleus": 5, "market-screen": 2,
     # Finance modules: research nodes only, their sprite is the one-cell Research icon.
     "finance-forecast": 1, "finance-percent": 1, "finance-odds": 1,
+    # Upgrades (Ricerca allargata, plan 3): research nodes only, their sprite is the one-cell Research icon.
+    "upgrade-drone-build": 1, "upgrade-drone-hold": 1, "upgrade-drone-range": 1, "upgrade-drone-mine": 1,
+    "drone-boost": 1, "upgrade-miners-1": 1, "upgrade-miners-2": 1, "upgrade-machines-1": 1, "upgrade-machines-2": 1,
+    "upgrade-storage-1": 1, "upgrade-storage-2": 1,
 }
 # Core tiers of the game (FactoryContent.CoreTiers): sprite name -> side in cells. Each has its body
 # and its nucleus light strip; the client draws the Core from the tier.
@@ -500,26 +507,26 @@ class TestGenera(unittest.TestCase):
 
     def test_nastri_stretti(self):
         # Variant C "Mindustry": a 12 px tread (rows 10-21) between two side plates of 4-5 px (rows 5-9 and
-        # 22-25: outline, three plate tones, inner edge); everything else in the cell is transparent. Every
+        # 22-26: outline, two plate tones, inner edge); everything else in the cell is transparent. Every
         # piece of every tier keeps to those rows (the T and the side joins add the side belts' columns).
         tread = {c[:3] for c in NASTRO}
         for nastro in NASTRI:
             with self.subTest(nastro=nastro):
                 dritto = fotogrammi_di(SPRITE[nastro + "-anim"]())[0]
-                self.assertEqual((0, 5, T, 26), dritto.getchannel("A").getbbox())
+                self.assertEqual((0, 5, T, 27), dritto.getchannel("A").getbbox())
                 for y in range(T):
                     for x in range(T):
                         px = dritto.getpixel((x, y))
                         if 10 <= y <= 21:
                             self.assertIn(px[:3], tread | {OUT, TIER[nastro][1][3]}, f"{x},{y}")  # tread, chevron and its outline front
                             self.assertEqual(255, px[3])
-                        elif 5 <= y <= 25:
+                        elif 5 <= y <= 26:
                             self.assertEqual(255, px[3], f"{x},{y}")
                             self.assertNotIn(px[:3], tread, f"{x},{y}")
                         else:
                             self.assertEqual(0, px[3], f"{x},{y}")
                 self.assertEqual(OUT, dritto.getpixel((3, 5))[:3])
-                self.assertEqual(OUT, dritto.getpixel((3, 25))[:3])
+                self.assertEqual(OUT, dritto.getpixel((3, 26))[:3])
                 self.assertEqual(SPRITE[nastro]().tobytes(), dritto.tobytes())
                 for pezzo in ("corner", "t", "join-left", "join-right", "join-both"):
                     for f in fotogrammi_di(SPRITE[f"{nastro}-{pezzo}-anim"]())[:2]:
@@ -531,10 +538,31 @@ class TestGenera(unittest.TestCase):
         self.assertEqual(12, len(range(10, 22)))
         self.assertLess(BELT_ITEM, 12)
 
+    def test_nastri_simmetrici(self):
+        # The two side plates are mirror images across the flow axis (row y and row 31 - y), on every tier
+        # and piece, so a corner the client flips for a counter-clockwise turn matches the straights.
+        for nastro in NASTRI + ("conveyor-stack",):
+            with self.subTest(nastro=nastro):
+                for f in fotogrammi_di(SPRITE[nastro + "-anim"]())[:3]:
+                    for y in range(5, 10):
+                        for x in range(T):
+                            self.assertEqual(f.getpixel((x, y)), f.getpixel((x, T - 1 - y)), f"{nastro} {x},{y}")
+                if nastro in NASTRI:
+                    # Corner: the plate tone at radius r from the pivot (outer arc) equals the one at 31 - r (inner arc).
+                    c = fotogrammi_di(SPRITE[nastro + "-corner-anim"]())[0]
+                    # West and South edges of the corner, and the arc at 45 degrees (pivot bottom-left pixel).
+                    for r in range(5, 10):
+                        self.assertEqual(c.getpixel((0, T - 1 - r)), c.getpixel((0, T - 1 - (T - 1 - r))), f"{nastro} Ovest r={r}")
+                        self.assertEqual(c.getpixel((r, T - 1)), c.getpixel((T - 1 - r, T - 1)), f"{nastro} Sud r={r}")
+                    for pezzo in ("t", "join-left", "join-right", "join-both"):
+                        f = fotogrammi_di(SPRITE[f"{nastro}-{pezzo}-anim"]())[0]
+                        for y in range(5, 10):
+                            self.assertEqual(f.getpixel((T - 1, y)), f.getpixel((T - 1, T - 1 - y)), f"{nastro} {pezzo}")
+
     def test_strisce_cicliche(self):
         # Straight belt strips: 32 frames, the tread (rows 10-21) of each one is the previous one moved
         # 1 px along the flow (East), so frame 32 moved by 1 px is frame 1 again and the loop has no seam;
-        # the side plates (rows 5-9 and 22-25) stay still.
+        # the side plates (rows 5-9 and 22-26) stay still.
         for nastro in NASTRI:
             with self.subTest(nastro=nastro):
                 self.assertIn(nastro + "-anim", SPRITE)
@@ -544,14 +572,14 @@ class TestGenera(unittest.TestCase):
                     dopo = fotogrammi[(i + 1) % len(fotogrammi)]
                     self.assertEqual(_righe(ImageChops.offset(f, 1, 0), 10, 21), _righe(dopo, 10, 21),
                                      f"{nastro}: fotogramma {i + 1} scorso di 1 px != fotogramma {(i + 1) % 32 + 1}")
-                    for y0, y1 in ((5, 9), (22, 25)):
+                    for y0, y1 in ((5, 9), (22, 26)):
                         self.assertEqual(_righe(f, y0, y1), _righe(fotogrammi[0], y0, y1), f"{nastro}: piastre mosse")
 
     def test_rinforzato_diverso_dal_veloce(self):
         # The armored belt reads apart from the fast one at a glance: inside the outline its plates (rows
         # 6-8, 23-24) share no pixel with the fast belt's, and they carry rivets (more tones).
         rinforzato, veloce = SPRITE["conveyor-armored"](), SPRITE["conveyor-fast"]()
-        piastre = [(x, y) for x in range(T) for y in (6, 7, 8, 23, 24)]
+        piastre = [(x, y) for x in range(T) for y in (6, 7, 8, 23, 24, 25)]
         self.assertEqual(0, sum(rinforzato.getpixel(p) == veloce.getpixel(p) for p in piastre))
         colori = {rinforzato.getpixel(p)[:3] for p in piastre}
         self.assertIn(FERRO[4], colori)  # rivet highlight
@@ -586,8 +614,8 @@ class TestGenera(unittest.TestCase):
                     self.assertEqual((T, T), u.size)
                     self.assertEqual([d.getpixel((T - 1, y)) for y in range(10, 22)],
                                      [u.getpixel((T - 1, y)) for y in range(10, 22)], f"{nastro} {k + 1}: Est")
-                    self.assertEqual([d.getpixel((T - 1, y)) for y in range(T // 2, 26)],
-                                     [u.getpixel((T - 1, y)) for y in range(T // 2, 26)], f"{nastro} {k + 1}: Est giu")
+                    self.assertEqual([d.getpixel((T - 1, y)) for y in range(T // 2, 27)],
+                                     [u.getpixel((T - 1, y)) for y in range(T // 2, 27)], f"{nastro} {k + 1}: Est giu")
                     self.assertIsNone(u.crop((0, 0, 3, T)).getbbox(), f"{nastro}: Ovest aperto")
 
     def test_unioni_laterali(self):
@@ -624,8 +652,12 @@ class TestGenera(unittest.TestCase):
     def test_basamento_sotto_i_blocchi(self):
         # Blocks that feed or take from belts stand on a rectangular plate: their footprint is opaque
         # everywhere (no ground in the cut corners), with the dark outline on the edge.
-        for nome in ("miner", "miner-base", "miner-advanced", "miner-advanced-base", "assembler",
+        for nome in ("miner", "miner-base", "miner-advanced", "miner-advanced-base", "impact-drill",
+                     "impact-drill-base", "assembler",
                      "assembler-base", "smelter", "extractor", "generator", "generator-base",
+                     "combustion-generator", "combustion-generator-base",
+                     *(n + parte for n in ("smelter-advanced", "graphite-press", "separator", "plasticizer")
+                       for parte in ("", "-base")),
                      *(f"core-{n}" for n in range(1, CORE_TIER + 1))):
             with self.subTest(sprite=nome):
                 im = SPRITE[nome]()
@@ -682,6 +714,7 @@ class TestGenera(unittest.TestCase):
         # Layered blocks: base, animated part (frame count), composed icon = base + frame 1.
         strati = {
             "miner": ("miner-drill-anim", 8), "miner-advanced": ("miner-advanced-drill-anim", 8),
+            "impact-drill": ("impact-drill-drill-anim", 8),
             "smelter": ("smelter-glow-anim", 4), "generator": ("generator-rotor-anim", 4),
         }
         for blocco, (anim, n) in strati.items():
@@ -690,6 +723,18 @@ class TestGenera(unittest.TestCase):
                 self.assertEqual(n, len(fotogrammi))
                 icona = forme.componi(SPRITE[blocco + "-base"](), fotogrammi[0])
                 self.assertEqual(icona.tobytes(), SPRITE[blocco]().tobytes())
+        # Combustion generator: cold base, fire in the firebox (4 frames, transparent outside it, changing every
+        # frame) and the generator's rotor; the icon = base + fire frame 1 + rotor frame 1.
+        fuoco = fotogrammi_di(SPRITE["combustion-generator-fire-anim"]())
+        rotore = fotogrammi_di(SPRITE["combustion-generator-rotor-anim"]())
+        self.assertEqual((4, 4), (len(fuoco), len(rotore)))
+        x0, y0, x1, y1 = potenza.FOCOLARE
+        for f in fuoco:
+            self.assertEqual((x0, y0, x1 + 1, y1 + 1), f.getbbox())
+        for a, b in zip(fuoco, fuoco[1:] + fuoco[:1]):
+            self.assertNotEqual(a.tobytes(), b.tobytes())
+        icona = forme.componi(SPRITE["combustion-generator-base"](), fuoco[0], rotore[0])
+        self.assertEqual(icona.tobytes(), SPRITE["combustion-generator"]().tobytes())
         for nome in ("miner-advanced-lamp", "assembler-base", "assembler-arm", "assembler",
                      "extractor", "power-node", "power-node-t2", "lamp-base", "lamp-glow"):
             self.assertIn(nome, SPRITE)
@@ -705,10 +750,33 @@ class TestGenera(unittest.TestCase):
         self.assertEqual(sorted(set(accese)), accese)
         batteria = forme.componi(SPRITE["battery-base"](), tacche[-1])
         self.assertEqual(batteria.tobytes(), SPRITE["battery"]().tobytes())
+        # Large battery: the same pieces at 3x3, with 0..5 bars.
+        tacche = fotogrammi_di(SPRITE["battery-large-charge-anim"]())
+        self.assertEqual(6, len(tacche))
+        self.assertEqual((3 * T, 3 * T), tacche[0].size)
+        self.assertIsNone(tacche[0].getbbox())
+        accese = [sum(1 for p in f.getdata() if p[3]) for f in tacche]
+        self.assertEqual(sorted(set(accese)), accese)
+        batteria = forme.componi(SPRITE["battery-large-base"](), tacche[-1])
+        self.assertEqual(batteria.tobytes(), SPRITE["battery-large"]().tobytes())
         # The drill bit is clearly smaller than its frame (not a fan filling the block).
-        for anim in ("miner-drill-anim", "miner-advanced-drill-anim"):
+        for anim, massimo in (("miner-drill-anim", T), ("miner-advanced-drill-anim", T),
+                              ("impact-drill-drill-anim", 3 * T // 2)):
             x0, y0, x1, y1 = fotogrammi_di(SPRITE[anim]())[0].getbbox()
-            self.assertLessEqual(max(x1 - x0, y1 - y0), T, anim)
+            self.assertLessEqual(max(x1 - x0, y1 - y0), massimo, anim)
+
+    def test_macchine_animate(self):
+        # The machines of the «Ricerca allargata» (MachineVisual): a 4-frame working overlay over their base, the
+        # size of the block, transparent somewhere (the base shows through) and changing at every frame.
+        for macchina in ("smelter-advanced", "graphite-press", "separator", "plasticizer"):
+            with self.subTest(macchina=macchina):
+                fotogrammi = fotogrammi_di(SPRITE[macchina + "-anim"]())
+                self.assertEqual(4, len(fotogrammi))
+                self.assertEqual({(2 * T, 2 * T)}, {f.size for f in fotogrammi})
+                for f in fotogrammi:
+                    self.assertIn(0, set(f.getchannel("A").tobytes()))
+                for a, b in zip(fotogrammi, fotogrammi[1:] + fotogrammi[:1]):
+                    self.assertNotEqual(a.tobytes(), b.tobytes())
 
     def test_schermo_di_borsa(self):
         # Stock-exchange screen: an opaque 2x2 plate; the lit strip covers exactly the yellow bands of the base and

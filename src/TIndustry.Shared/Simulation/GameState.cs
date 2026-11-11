@@ -36,6 +36,24 @@ public sealed class GameState
         belts.BuildingTakesAt = TakesItemsAt;
         belts.BuildingReceives = ReceiveFromLogistics;
         belts.BuildingWouldReceive = CanReceiveFromLogistics;
+        belts.BridgePowered = BridgePowered;
+    }
+
+    /// <summary>
+    /// Whether the powered bridge whose entry is on <paramref name="entry"/> got some power in the last balance
+    /// (<see cref="BridgePower.IsPowered"/>); false when no <see cref="BridgePower"/> stands there.
+    /// </summary>
+    public bool BridgePowered(GridPosition entry)
+    {
+        foreach (var power in BridgePowers)
+        {
+            if (power.Entry == entry)
+            {
+                return power.IsPowered;
+            }
+        }
+
+        return false;
     }
 
     /// <summary>
@@ -242,6 +260,31 @@ public sealed class GameState
     /// </summary>
     public GridPosition CoreStart { get; internal set; }
 
+    /// <summary>
+    /// The builder drone of the Core's tier with the research's drone upgrades (<see cref="Upgrades.Apply(UnitDefinition, IResearchView)"/>):
+    /// what every reader of the drone's numbers uses (build speed and range, hold, hand-mining rate). Without upgrades
+    /// it is the content's own unit; it follows the research and the tier from the moment they change.
+    /// </summary>
+    public UnitDefinition EffectiveUnit
+    {
+        get
+        {
+            var unit = Content.UnitForTier(CoreTier);
+            var key = (unit, Upgrades.DroneBuildPercent(Research), Upgrades.DroneHoldPercent(Research),
+                Upgrades.DroneRangeCells(Research), Upgrades.DroneMinePercent(Research));
+            if (effectiveUnit is not { } cached || !ReferenceEquals(cached.Key.Item1, unit) || cached.Key != key)
+            {
+                // Derived data only (nothing saved or hashed): kept to spare a new record per reader per tick.
+                cached = (key, Upgrades.Apply(unit, key.Item2, key.Item3, key.Item4, key.Item5));
+                effectiveUnit = cached;
+            }
+
+            return cached.Unit;
+        }
+    }
+
+    private ((UnitDefinition, int, int, int, int) Key, UnitDefinition Unit)? effectiveUnit;
+
     /// <summary>The Core's storage: the single entry point of items into the Core stock.</summary>
     public CoreStorage Storage { get; }
     public EconomyWallet Wallet { get; }
@@ -303,11 +346,22 @@ public sealed class GameState
     public List<Miner> Miners { get; } = [];
     public List<Crafter> Smelters { get; } = [];
     public List<Crafter> Assemblers { get; } = [];
+
+    /// <summary>
+    /// Every other craft machine (advanced smelter, graphite press, separator, plasticizer), in ascending id order.
+    /// </summary>
+    public List<Crafter> Machines { get; } = [];
     public List<Generator> Generators { get; } = [];
     public List<Extractor> Extractors { get; } = [];
     public List<PowerNode> PowerNodes { get; } = [];
     public List<Lamp> Lamps { get; } = [];
     public List<Battery> Batteries { get; } = [];
+
+    /// <summary>Solar panels (small and large), in ascending id order.</summary>
+    public List<SolarPanel> SolarPanels { get; } = [];
+
+    /// <summary>The power entities of the powered bridges (the long bridge's entry), in ascending id order.</summary>
+    public List<BridgePower> BridgePowers { get; } = [];
 
     /// <summary>Lasers and power networks (<see cref="PowerGrid.Rebuild"/> after every change of power blocks or lasers).</summary>
     public PowerGrid PowerGrid { get; } = new();
@@ -344,6 +398,7 @@ public sealed class GameState
     /// <summary>True once <see cref="FirstAttackDue"/> was raised (always night): it is raised once per game.</summary>
     public bool FirstAttackRaised { get; set; }
 
+    /// <summary>Every craft machine: fornos, assemblers, then <see cref="Machines"/> (each list in id order).</summary>
     public IEnumerable<Crafter> CraftMachines()
     {
         foreach (var s in Smelters)
@@ -354,6 +409,11 @@ public sealed class GameState
         foreach (var a in Assemblers)
         {
             yield return a;
+        }
+
+        foreach (var m in Machines)
+        {
+            yield return m;
         }
     }
 

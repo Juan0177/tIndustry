@@ -64,7 +64,20 @@ public partial class World : Node2D
         Vault,
         CoreFoundation,
         CoreNucleus,
-        MarketScreen
+        MarketScreen,
+        SmelterAdvanced,
+        GraphitePress,
+        Separator,
+        Plasticizer,
+        ImpactDrill,
+        OverflowGate,
+        UnderflowGate,
+        BeltStack,
+        BridgeLong,
+        Solar,
+        SolarLarge,
+        CombustionGenerator,
+        BatteryLarge
     }
 
     // The simulation lives behind the host: the client reads IGameView and submits commands.

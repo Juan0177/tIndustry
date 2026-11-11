@@ -1,14 +1,21 @@
-"""Production sprites: miner (basic and advanced), smelter, assembler, extractor.
+"""Production sprites: miner (basic and advanced), impact drill, smelter, assembler, extractor and the machines of
+the «Ricerca allargata» (advanced smelter, graphite press, separator, plasticizer).
 
 Every block is a still base plus its moving parts, each part a full-size layer so the client
 stacks them centred on the block:
 - miner: `-base`, `-drill-anim` (8 frames of the drill bit turning), advanced `-lamp` (lit with power);
+- impact drill (3x3, 96 px): `-base` and `-drill-anim`, like the miner, with a bigger bit;
 - smelter: `-base`, `-glow-anim` (4 frames of the glowing mouth);
-- assembler: `-base`, `-arm` (left arm, mirrored by the client for the right one, moved by code).
+- assembler: `-base`, `-arm` (left arm, mirrored by the client for the right one, moved by code);
+- advanced smelter, graphite press, separator, plasticizer: `-base` and `-anim`, 4 frames of an overlay drawn over
+  the base while the machine works (MachineVisual): flames in both mouths, the ram going down, the drum turning,
+  bubbles in the vat.
 `<id>.png` is the composed icon (palette, research, plans, construction sites).
 The bases differ on purpose: chamfered grey plate (miner), red-trimmed plate with a lamp
-(advanced miner), sooty brick-red furnace with round rivets (smelter), blue steel bed on rails
-(assembler), lead-coloured octagon (extractor).
+(advanced miner), graphite deck with four titanium hammers around a wide pit (impact drill), sooty brick-red furnace with round rivets (smelter), blue steel bed on rails
+(assembler), lead-coloured octagon (extractor), titanium furnace with two glowing mouths (advanced
+smelter), graphite ram between two steel pillars (graphite press), sand drum with four ore chutes
+(separator), magenta vat with a coal hopper (plasticizer).
 """
 import math
 
@@ -16,7 +23,8 @@ from PIL import Image
 
 import forme
 from blocchi import sprite
-from palette import ACCENTO, BAGLIORE, FERRO, FULIGGINE, METALLO, NASTRO, OUT, PIOMBO, RAME, ROSSO, TITANIO
+from palette import (ACCENTO, BAGLIORE, CARBONE, FERRO, FULIGGINE, GRAFITE, METALLO, NASTRO, OUT, PIOMBO, PLASTICA,
+                     RAME, ROSSO, SABBIA_GRANI, TITANIO)
 
 T = 32
 L = 2 * T  # side of a 2x2 block
@@ -66,34 +74,37 @@ TRIVELLA_FOTOGRAMMI = 8
 TRIVELLA_PASSO = (2 * math.pi / SOLCHI) / TRIVELLA_FOTOGRAMMI
 
 
-def trivella(angolo, cono, denti, collare):
+def trivella(angolo, cono, denti, collare, lato=L, scala=1):
     """Conical drill bit seen from above, turned by `angolo`: a cone with helical flutes that
-    wind into the tip, a ring of square cutting teeth and a collar at the base of the cone."""
-    im = forme.nuova(L, L)
+    wind into the tip, a ring of square cutting teeth and a collar at the base of the cone.
+    `lato` is the frame side and `scala` the size of the bit (1 in a 2x2 miner)."""
+    im = forme.nuova(lato, lato)
+    centro = lato / 2
+    punta_r = PUNTA_R * scala
     pieni = {}
-    r_denti = PUNTA_R + 3
-    for y in range(L):
-        for x in range(L):
-            dx, dy = x + 0.5 - C, y + 0.5 - C
+    r_denti = punta_r + 3 * scala
+    for y in range(lato):
+        for x in range(lato):
+            dx, dy = x + 0.5 - centro, y + 0.5 - centro
             d = math.hypot(dx, dy)
             a = math.atan2(dy, dx) - angolo
-            if d <= PUNTA_R:
-                if d < 1.5:
+            if d <= punta_r:
+                if d < 1.5 * scala:
                     pieni[(x, y)] = cono[-1]  # the tip
                     continue
                 # Flute: an Archimedean spiral; the edge after it catches the light.
-                fase = ((a + d * 0.32) % (2 * math.pi / SOLCHI)) / (2 * math.pi / SOLCHI)
+                fase = ((a + d / scala * 0.32) % (2 * math.pi / SOLCHI)) / (2 * math.pi / SOLCHI)
                 lit = forme._luce(dx, dy)
                 k = 2 + (1 if lit > 0.3 else -1 if lit < -0.3 else 0)
-                if d < 4:
+                if d < 4 * scala:
                     k += 1  # the tip is lighter
                 if fase < 0.24:
-                    c = OUT if d > 3 else cono[0]
+                    c = OUT if d > 3 * scala else cono[0]
                 elif fase < 0.38:
                     c = cono[min(len(cono) - 1, k + 1)]
                 else:
                     c = cono[max(0, min(len(cono) - 1, k))]
-                if PUNTA_R - 1.4 < d:
+                if punta_r - 1.4 * scala < d:
                     c = collare[2] if lit > 0 else collare[1]  # collar ring at the base
                 pieni[(x, y)] = c
             elif d <= r_denti:
@@ -171,6 +182,53 @@ for _bid in _MINATORI:
     _registra_minatore(_bid)
 
 sprite("miner-advanced-lamp")(_lampada)
+
+
+# ---------------------------------------------------------------- impact drill
+
+L3 = 3 * T  # side of a 3x3 block
+C3 = L3 / 2
+TRAPANO_SCALA = 1.5  # the bit of the 3x3 drill, 1.5 times the miner's (about 40 px across)
+
+
+def _base_trapano():
+    """Graphite deck, chamfered, with a titanium-collared pit in the middle and four hammer housings
+    (titanium heads on graphite arms) pointing at the pit from the diagonals: the "impact" part."""
+    im = forme.nuova(L3, L3)
+    forme.sagoma(im, forme.smussato(0, 0, L3 - 1, L3 - 1, 13), GRAFITE)
+    forme.sagoma(im, forme.smussato(8, 8, L3 - 9, L3 - 9, 12), GRAFITE)
+    # Side vents, two per edge.
+    for a in (30, 54):
+        forme.griglia(im, 2, a, 6, a + 11, GRAFITE, 3)
+        forme.griglia(im, L3 - 7, a, L3 - 3, a + 11, GRAFITE, 3)
+        forme.griglia(im, a, 2, a + 11, 6, GRAFITE, 3)
+        forme.griglia(im, a, L3 - 7, a + 11, L3 - 3, GRAFITE, 3)
+    # Hammer housings on the diagonals: a graphite arm and a titanium head facing the pit.
+    for sx, sy in ((1, 1), (-1, 1), (1, -1), (-1, -1)):
+        ax = C3 + sx * 26
+        ay = C3 + sy * 26
+        forme.pannello(im, int(ax - 7), int(ay - 7), int(ax + 6), int(ay + 6), METALLO)
+        forme.pannello(im, int(ax - 4), int(ay - 4), int(ax + 3), int(ay + 3), TITANIO)
+        forme.bullone(im, int(ax - sx * 1), int(ay - sy * 1), TITANIO)
+    # Wide pit with a titanium collar (where the bit turns).
+    _anello(im, C3, C3, 22.5, 28.5, TITANIO)
+    _pozzo(im, C3, C3, 22.5, NASTRO)
+    # Ore chips at the bottom of the pit.
+    for x, y in ((36, 56), (58, 37), (60, 57), (35, 39), (48, 64), (47, 31)):
+        forme.pixel(im, x, y, NASTRO[3])
+    # Hazard marks on the chamfers.
+    for bx, by in ((6, 6), (L3 - 8, 6), (6, L3 - 8), (L3 - 8, L3 - 8)):
+        forme.rett(im, bx, by, bx + 1, by + 1, ACCENTO[2])
+    return forme.basamento(im, GRAFITE)
+
+
+def _trivella_trapano(k):
+    return trivella(k * TRIVELLA_PASSO, TITANIO, METALLO, ACCENTO, lato=L3, scala=TRAPANO_SCALA)
+
+
+sprite("impact-drill-base")(_base_trapano)
+sprite("impact-drill-drill-anim")(lambda: forme.striscia([_trivella_trapano(k) for k in range(TRIVELLA_FOTOGRAMMI)]))
+sprite("impact-drill")(lambda: forme.componi(_base_trapano(), _trivella_trapano(0)))
 
 
 # ---------------------------------------------------------------- smelter
@@ -340,3 +398,197 @@ def extractor():
     forme.rett(im, 9, 9, 22, 22, OUT)
     forme.rett(im, 10, 10, 21, 21, NASTRO[0])
     return forme.basamento(im, PIOMBO)
+
+
+# ---------------------------------------------------------------- machines of the «Ricerca allargata»
+
+def _angoli(im, rampa):
+    """Corner brackets with a bolt, as on the assembler."""
+    for bx, by in ((2, 2), (L - 5, 2), (2, L - 5), (L - 5, L - 5)):
+        forme.pannello(im, bx - 1, by - 1, bx + 2, by + 2, rampa)
+        forme.bullone(im, bx, by, METALLO)
+
+
+MACCHINA_FOTOGRAMMI = 4  # frames of the working overlay of each machine (`<id>-anim`)
+BOCCHE_AVANZATE = ((12, 22, 27, 41), (36, 22, 51, 41))  # the two mouths of the advanced smelter (inclusive)
+
+
+def _base_fonderia():
+    """Advanced smelter: a titanium casing with a red band and two dark mouths behind grates."""
+    im = forme.nuova(L, L)
+    forme.sagoma(im, forme.smussato(0, 0, L - 1, L - 1, 4), TITANIO)
+    forme.pannello(im, 7, 15, L - 8, L - 16, ROSSO[:4])
+    for x0, y0, x1, y1 in BOCCHE_AVANZATE:
+        forme.rett(im, x0 - 1, y0 - 1, x1 + 1, y1 + 1, OUT)
+        forme.rett(im, x0, y0, x1, y1, FULIGGINE[0])
+        forme.rett(im, x0, y1 - 2, x1, y1, FULIGGINE[1])
+    # Power socket on the North edge instead of the forno's coal hopper.
+    forme.pannello(im, 26, 3, 37, 10, METALLO)
+    forme.rett(im, 29, 5, 30, 8, OUT)
+    forme.rett(im, 33, 5, 34, 8, OUT)
+    _angoli(im, TITANIO)
+    return forme.basamento(im, TITANIO)
+
+
+def _bocche_accese():
+    """Both mouths lit, grates over them (transparent elsewhere)."""
+    im = forme.nuova(L, L)
+    for x0, y0, x1, y1 in BOCCHE_AVANZATE:
+        for y in range(y0, y1 + 1):
+            alto = y1 - y
+            c = BAGLIORE[1] if alto > 13 else BAGLIORE[2] if alto > 8 else BAGLIORE[3] if alto > 3 else BAGLIORE[4]
+            for x in range(x0, x1 + 1):
+                forme.pixel(im, x, y, c)
+        for x in range(x0 + 3, x1, 5):
+            forme.rett(im, x, y0, x, y1, OUT)
+    return im
+
+
+def _fiamme_avanzate(k):
+    """Working frame k of the advanced smelter: flame tongues in both mouths shift every frame, grates over them."""
+    im = forme.nuova(L, L)
+    for i, (x0, y0, x1, y1) in enumerate(BOCCHE_AVANZATE):
+        for x in range(x0, x1 + 1):
+            h = 10 + 3 * math.sin(x * 0.9 + (k + 2 * i) * math.pi / 2) + 2 * math.sin(x * 0.41 - k * math.pi / 2 * 3)
+            for y in range(y0, y1 + 1):
+                alto = y1 - y  # height above the floor
+                c = (BAGLIORE[0] if alto > h + 4 else BAGLIORE[1] if alto > h else BAGLIORE[2] if alto > h * 0.55
+                     else BAGLIORE[3] if alto > h * 0.2 else BAGLIORE[4])
+                forme.pixel(im, x, y, c)
+        for x in range(x0 + 3, x1, 5):
+            forme.rett(im, x, y0, x, y1, OUT)
+    return im
+
+
+sprite("smelter-advanced-base")(_base_fonderia)
+sprite("smelter-advanced-anim")(lambda: forme.striscia([_fiamme_avanzate(k) for k in range(MACCHINA_FOTOGRAMMI)]))
+sprite("smelter-advanced")(lambda: forme.componi(_base_fonderia(), _bocche_accese()))
+
+
+def _base_pressa():
+    """Graphite press: two steel pillars and a crosshead over a graphite ram pressing a coal bed."""
+    im = forme.nuova(L, L)
+    forme.sagoma(im, forme.smussato(0, 0, L - 1, L - 1, 3), FERRO)
+    # Coal bed in the middle.
+    forme.rett(im, 14, 36, L - 15, L - 10, OUT)
+    forme.rett(im, 15, 37, L - 16, L - 11, CARBONE[1])
+    for x in range(17, L - 16, 4):
+        forme.pixel(im, x, 39, CARBONE[3])
+        forme.pixel(im, x + 2, 42, CARBONE[2])
+    # Pillars and crosshead.
+    for x0 in (6, L - 13):
+        forme.pannello(im, x0, 6, x0 + 6, L - 7, METALLO)
+    forme.pannello(im, 6, 6, L - 7, 14, METALLO)
+    # The ram: a graphite block under the crosshead.
+    forme.pannello(im, 18, 15, L - 19, 33, GRAFITE)
+    forme.rett(im, 21, 18, L - 22, 18, GRAFITE[4])
+    forme.rett(im, 30, 15, 33, 33, GRAFITE[1])
+    _angoli(im, FERRO)
+    return forme.basamento(im, FERRO)
+
+
+CORSA_PRESSA = (0, 2, 4, 2)  # how far down the ram is in each working frame (px)
+
+
+def _pressa_al_lavoro(k):
+    """Working frame k of the graphite press: the ram lowered by CORSA_PRESSA[k] (the slot it leaves under the
+    crosshead dark, the rod in the middle) and coal dust squeezed out at the sides when it is down (transparent
+    elsewhere). Frame 0 matches the base, so the press starts from rest."""
+    im = forme.nuova(L, L)
+    giu = CORSA_PRESSA[k]
+    if giu:
+        forme.rett(im, 18, 15, L - 19, 14 + giu, OUT)
+        forme.rett(im, 30, 15, 33, 14 + giu, GRAFITE[1])
+    forme.pannello(im, 18, 15 + giu, L - 19, 33 + giu, GRAFITE)
+    forme.rett(im, 21, 18 + giu, L - 22, 18 + giu, GRAFITE[4])
+    forme.rett(im, 30, 15 + giu, 33, 33 + giu, GRAFITE[1])
+    if giu == max(CORSA_PRESSA):
+        for x, y in ((15, 35), (16, 34), (L - 16, 35), (L - 17, 34)):
+            forme.pixel(im, x, y, CARBONE[3])
+    return im
+
+
+sprite("graphite-press-base")(_base_pressa)
+sprite("graphite-press-anim")(lambda: forme.striscia([_pressa_al_lavoro(k) for k in range(MACCHINA_FOTOGRAMMI)]))
+sprite("graphite-press")(_base_pressa)
+
+
+def _base_separatore():
+    """Separator: a sand drum on a lead plate, with four ore chutes in the colours of what comes out."""
+    im = forme.nuova(L, L)
+    forme.sagoma(im, forme.smussato(0, 0, L - 1, L - 1, 3), PIOMBO)
+    scivoli = ((4, 4, FERRO), (L - 13, 4, RAME), (4, L - 13, PIOMBO), (L - 13, L - 13, TITANIO))
+    for x0, y0, rampa in scivoli:
+        forme.pannello(im, x0, y0, x0 + 8, y0 + 8, METALLO)
+        forme.rett(im, x0 + 2, y0 + 2, x0 + 6, y0 + 6, rampa[2])
+        forme.rett(im, x0 + 2, y0 + 2, x0 + 6, y0 + 2, rampa[3])
+    forme.cerchio(im, C, C, 18, METALLO)
+    forme.cerchio(im, C, C, 14, SABBIA_GRANI)
+    # Sieve slots across the drum.
+    for y in range(22, 43, 5):
+        forme.rett(im, 24, y, 39, y, SABBIA_GRANI[0])
+    forme.cerchio(im, C, C, 4, METALLO)
+    return forme.basamento(im, PIOMBO)
+
+
+def _tamburo(k):
+    """Working frame k of the separator: the sand drum turned by a sixteenth of a turn per frame, four spokes and
+    grains riding on it (the spokes are 4-fold symmetric, so 4 frames close the loop)."""
+    im = forme.nuova(L, L)
+    forme.cerchio(im, C, C, 14, SABBIA_GRANI)
+    angolo = k * (math.pi / 2) / MACCHINA_FOTOGRAMMI
+    for raggio in range(4):
+        a = angolo + raggio * math.pi / 2
+        for t in range(5, 13):
+            forme.pixel(im, int(C + t * math.cos(a)), int(C + t * math.sin(a)), SABBIA_GRANI[0])
+        for t, scarto in ((8, 0.45), (11, 0.3)):
+            forme.pixel(im, int(C + t * math.cos(a + scarto)), int(C + t * math.sin(a + scarto)), SABBIA_GRANI[4])
+    forme.cerchio(im, C, C, 4, METALLO)
+    return im
+
+
+sprite("separator-base")(_base_separatore)
+sprite("separator-anim")(lambda: forme.striscia([_tamburo(k) for k in range(MACCHINA_FOTOGRAMMI)]))
+sprite("separator")(_base_separatore)
+
+
+def _base_plastificatore():
+    """Plasticizer: a magenta vat in a steel frame, a coal hopper on the North edge and two pipes."""
+    im = forme.nuova(L, L)
+    forme.sagoma(im, forme.smussato(0, 0, L - 1, L - 1, 3), METALLO)
+    forme.pannello(im, 23, 2, 40, 11, METALLO)
+    forme.rett(im, 25, 4, 38, 9, CARBONE[1])
+    forme.cerchio(im, C, C + 4, 17, PLASTICA)
+    forme.cerchio(im, C, C + 4, 11, PLASTICA, pieno=False)
+    forme.bagliore(im, C - 4, C, 5, PLASTICA)
+    forme.tubo(im, 4, 40, 12, 46, METALLO)
+    forme.tubo(im, L - 13, 40, L - 5, 46, METALLO)
+    _angoli(im, METALLO)
+    return forme.basamento(im, METALLO)
+
+
+BOLLE = ((-6, 6), (5, 9), (2, -2), (-3, 13), (8, 2))  # bubble spots in the vat, from its centre (px)
+
+
+def _bolle(k):
+    """Working frame k of the plasticizer: bubbles rising and bursting in the vat, each one a frame behind the
+    last (transparent elsewhere)."""
+    im = forme.nuova(L, L)
+    for i, (dx, dy) in enumerate(BOLLE):
+        fase = (k + i) % MACCHINA_FOTOGRAMMI
+        x, y = int(C + dx), int(C + 4 + dy - fase)
+        if fase == MACCHINA_FOTOGRAMMI - 1:
+            # Burst: four specks around where the bubble was.
+            for ax, ay in ((-1, -1), (1, -1), (-1, 1), (1, 1)):
+                forme.pixel(im, x + ax, y + ay, PLASTICA[4])
+        else:
+            # A light bubble (the vat's top tones) growing as it rises, with a white-pink glint.
+            r = 1 + fase
+            forme.cerchio(im, x + 0.5, y + 0.5, r, PLASTICA[2:], pieno=r < 2)
+            forme.pixel(im, x - r // 2, y - r // 2, PLASTICA[4])
+    return im
+
+
+sprite("plasticizer-base")(_base_plastificatore)
+sprite("plasticizer-anim")(lambda: forme.striscia([_bolle(k) for k in range(MACCHINA_FOTOGRAMMI)]))
+sprite("plasticizer")(_base_plastificatore)

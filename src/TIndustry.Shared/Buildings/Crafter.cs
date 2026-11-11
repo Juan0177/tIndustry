@@ -2,8 +2,12 @@ namespace TIndustry.Shared;
 
 /// <summary>
 /// Craft machine: belt intake → timed recipe → emit onto outward belts.
-/// Used for forno (Phase C) and assembler (Phase D); the power share of its network sets the speed.
-/// Multi-recipe: auto-picks the first available recipe whose inputs are buffered (Raylib parity).
+/// Used for the forno, the assembler and the machines of the «Ricerca allargata» (advanced smelter, graphite press,
+/// separator, plasticizer); its profile (<see cref="PowerMode"/>, <see cref="CraftSpeedPercent"/>, from the building
+/// of content.json) and the power share of its network set the speed.
+/// Multi-recipe: auto-picks the first available recipe whose inputs are buffered (Raylib parity). The available
+/// recipes are those of its building whose research is done (<see cref="SetAvailableRecipes"/>). A recipe with
+/// <see cref="RecipeDefinition.RandomOutput"/> makes one piece per craft (<see cref="PickRandomOutput(RecipeDefinition, long, long, long)"/>).
 /// </summary>
 public sealed class Crafter
 {
@@ -12,6 +16,10 @@ public sealed class Crafter
     public const int OutputTileCount = Size * 4;
     public const string SmelterBuildingId = "smelter";
     public const string AssemblerBuildingId = "assembler";
+    public const string SmelterAdvancedId = "smelter-advanced";
+    public const string GraphitePressId = "graphite-press";
+    public const string SeparatorId = "separator";
+    public const string PlasticizerId = "plasticizer";
 
     /// <summary>Legacy alias — prefer <see cref="SmelterBuildingId"/>.</summary>
     public const string BuildingId = SmelterBuildingId;
@@ -31,7 +39,9 @@ public sealed class Crafter
         RecipeDefinition recipe,
         string buildingId = SmelterBuildingId,
         IReadOnlyList<RecipeDefinition>? availableRecipes = null,
-        long id = 0)
+        long id = 0,
+        CraftPowerMode? powerMode = null,
+        int craftSpeedPercent = 100)
     {
         Id = id;
         Position = position;
@@ -41,19 +51,59 @@ public sealed class Crafter
             : [recipe];
         activeRecipe = AvailableRecipes.FirstOrDefault(r => r.Id == recipe.Id) ?? AvailableRecipes[0];
         DefinitionId = string.IsNullOrWhiteSpace(buildingId) ? SmelterBuildingId : buildingId;
+        PowerMode = powerMode ?? DefaultPowerMode(DefinitionId);
+        CraftSpeedPercent = Math.Max(1, craftSpeedPercent);
     }
+
+    /// <summary>
+    /// A craft machine of <paramref name="buildingId"/> with the profile of its content definition
+    /// (<see cref="FactoryContent.RecipesFor"/>, <see cref="BuildingDefinition.PowerMode"/>,
+    /// <see cref="BuildingDefinition.CraftSpeedPercent"/>); a building without recipes in the content keeps the
+    /// <see cref="DefaultPowerMode"/> at 1×.
+    /// </summary>
+    public static Crafter Create(
+        FactoryContent content,
+        GridPosition position,
+        Direction direction,
+        RecipeDefinition recipe,
+        string buildingId,
+        long id = 0)
+    {
+        var definition = content.FindBuilding(buildingId);
+        return definition is { IsCrafter: true }
+            ? new Crafter(position, direction, recipe, buildingId, content.RecipesFor(buildingId), id,
+                definition.PowerMode, definition.CraftSpeedPercent)
+            : new Crafter(position, direction, recipe, buildingId, null, id);
+    }
+
+    /// <summary>The power mode of a crafter built without a profile: the assembler boosts, every other burns coal or uses power.</summary>
+    public static CraftPowerMode DefaultPowerMode(string buildingId) =>
+        buildingId == AssemblerBuildingId ? CraftPowerMode.Boost : CraftPowerMode.CoalOrPower;
 
     /// <summary>Stable entity id assigned by <see cref="Factory"/> at creation (saved).</summary>
     public long Id { get; }
 
     public GridPosition Position { get; private set; }
     public Direction Direction { get; private set; }
-    public IReadOnlyList<RecipeDefinition> AvailableRecipes { get; }
+    /// <summary>The recipes it can start (those of its building whose research is done), in content order.</summary>
+    public IReadOnlyList<RecipeDefinition> AvailableRecipes { get; private set; }
     public RecipeDefinition Recipe => activeRecipe;
     public string DefinitionId { get; }
+    /// <summary>Convenience: this is the assembler block (its speed and power come from <see cref="PowerMode"/>).</summary>
     public bool IsAssembler => DefinitionId == AssemblerBuildingId;
-    /// <summary>Forno only: coal-or-power gate. Assembler ignores fuel.</summary>
-    public bool UsesCoalOrPower => !IsAssembler;
+    /// <summary>How it uses power (from its building's profile).</summary>
+    public CraftPowerMode PowerMode { get; }
+    /// <summary>Its speed in percent of the recipes' durations (100 = 1×), on top of the power mode.</summary>
+    public int CraftSpeedPercent { get; }
+
+    /// <summary>
+    /// The research's machine upgrade on its speed, percent (<see cref="Upgrades.MachinePercent"/>; 0 for the machines out of
+    /// the group, <see cref="Upgrades.GetsMachineBonus"/>), set by <see cref="CraftingSystem"/> every tick. The speed is
+    /// multiplied by <c>(100 + BonusPercent) / 100f</c>: exactly 1 at 0.
+    /// </summary>
+    public int BonusPercent { get; internal set; }
+    /// <summary>Coal-or-power gate (the forno): only these take coal as fuel.</summary>
+    public bool UsesCoalOrPower => PowerMode == CraftPowerMode.CoalOrPower;
     public float Progress { get; private set; }
     public bool IsCrafting { get; private set; }
     /// <summary>True only on ticks where the craft actually progressed (derived, never saved). <see cref="IsCrafting"/> stays true while stalled.</summary>
@@ -93,6 +143,75 @@ public sealed class Crafter
         }
 
         return true;
+    }
+
+    /// <summary>
+    /// Replaces the recipes it can start and take inputs for (<see cref="Factory.RecipesAvailableTo"/>, after a
+    /// research unlock or a restore). A recipe under way finishes; an idle machine whose shown recipe is no longer
+    /// available shows the first available one.
+    /// </summary>
+    public void SetAvailableRecipes(IReadOnlyList<RecipeDefinition> recipes)
+    {
+        ArgumentNullException.ThrowIfNull(recipes);
+        AvailableRecipes = recipes;
+        if (!IsCrafting && recipes.Count > 0 && !recipes.Any(r => r.Id == activeRecipe.Id))
+        {
+            activeRecipe = recipes[0];
+        }
+    }
+
+    /// <summary>
+    /// The piece a <see cref="RecipeDefinition.RandomOutput"/> craft of this machine makes now, with the game's
+    /// <paramref name="seed"/>, its <see cref="Id"/> and <see cref="ItemsCrafted"/>.
+    /// </summary>
+    public string PickRandomOutput(RecipeDefinition recipe, long seed) =>
+        PickRandomOutput(recipe, seed, Id, ItemsCrafted);
+
+    /// <summary>
+    /// The piece of a <see cref="RecipeDefinition.RandomOutput"/> recipe (its output amounts are the weights):
+    /// <c>SplitMix64(seed ^ (id × 0x9E3779B97F4A7C15) ^ itemsCrafted)</c> modulo the sum of the weights, then the
+    /// outputs walked in content order. Integers only: the same game draws the same pieces everywhere.
+    /// </summary>
+    public static string PickRandomOutput(RecipeDefinition recipe, long seed, long id, long itemsCrafted)
+    {
+        ArgumentNullException.ThrowIfNull(recipe);
+        ulong total = 0;
+        foreach (var output in recipe.Outputs)
+        {
+            total += (ulong)Math.Max(0, output.Amount);
+        }
+
+        if (total == 0)
+        {
+            throw new InvalidOperationException($"Ricetta '{recipe.Id}': nessun peso per l'uscita a caso.");
+        }
+
+        var roll = SplitMix64(unchecked((ulong)seed ^ ((ulong)id * GoldenGamma) ^ (ulong)itemsCrafted)) % total;
+        foreach (var output in recipe.Outputs)
+        {
+            var weight = (ulong)Math.Max(0, output.Amount);
+            if (roll < weight)
+            {
+                return output.ItemId;
+            }
+
+            roll -= weight;
+        }
+
+        return recipe.Outputs[^1].ItemId; // unreachable: roll < total
+    }
+
+    private const ulong GoldenGamma = 0x9E3779B97F4A7C15UL;
+
+    private static ulong SplitMix64(ulong x)
+    {
+        unchecked
+        {
+            x += GoldenGamma;
+            x = (x ^ (x >> 30)) * 0xBF58476D1CE4E5B9UL;
+            x = (x ^ (x >> 27)) * 0x94D049BB133111EBUL;
+            return x ^ (x >> 31);
+        }
     }
 
     public void Relocate(GridPosition position, Direction direction)
@@ -294,8 +413,11 @@ public sealed class Crafter
         }
     }
 
-    /// <summary>True while a recipe is under way: the machine asks its network for its power use this tick.</summary>
-    public bool WantsPower => IsCrafting;
+    /// <summary>
+    /// True while a recipe is under way: the machine asks its network for its power use this tick (never with
+    /// <see cref="CraftPowerMode.None"/>).
+    /// </summary>
+    public bool WantsPower => IsCrafting && PowerMode != CraftPowerMode.None;
 
     /// <summary>Forno only: coal in the buffer or burning, so it can work without power.</summary>
     public bool HasCoal => UsesCoalOrPower && (FuelBuffer > 0 || BurnRemaining > 0f);
@@ -312,16 +434,19 @@ public sealed class Crafter
     public bool PrefersCoal(int powerBp) => HasCoal && 12L * powerBp < 100_000;
 
     /// <summary>
-    /// One tick with <paramref name="powerBp"/> (0–10 000) of its power use. Assembler: always works, speed
-    /// 1 + 0.2 × s. Forno: speed 1.2 × s with power; with coal and 1.2 × s &lt; 1 it burns coal at speed 1;
-    /// without either it stalls.
+    /// One tick with <paramref name="powerBp"/> (0–10 000) of its power use, by <see cref="PowerMode"/>. Boost
+    /// (assembler): always works, speed 1 + 0.2 × s. Coal or power (forno): speed 1.2 × s with power; with coal and
+    /// 1.2 × s &lt; 1 it burns coal at speed 1; without either it stalls. Required: speed s, stalled at 0. None: speed 1.
+    /// Every speed is then × <see cref="CraftSpeedPercent"/> / 100 and × (100 + <see cref="BonusPercent"/>) / 100. <paramref name="randomSeed"/> is the game's seed
+    /// (<see cref="TerrainMap.Seed"/>, 0 without terrain) for the recipes with a random output.
     /// </summary>
     public void Tick(
         float deltaSeconds,
         BeltGrid belts,
         ref long nextItemId,
         int powerBp = 0,
-        Func<string, bool>? tryDeliverAdjacent = null)
+        Func<string, bool>? tryDeliverAdjacent = null,
+        long randomSeed = 0)
     {
         TakeInputs(belts);
 
@@ -332,30 +457,45 @@ public sealed class Crafter
         {
             var canAdvance = false;
             var speed = 1f;
-            if (UsesCoalOrPower)
+            switch (PowerMode)
             {
-                if (PrefersCoal(bp) && TickFuel(deltaSeconds))
-                {
+                case CraftPowerMode.CoalOrPower:
+                    if (PrefersCoal(bp) && TickFuel(deltaSeconds))
+                    {
+                        canAdvance = true;
+                    }
+                    else if (bp > 0)
+                    {
+                        canAdvance = true;
+                        IsPowered = true;
+                        speed = 12f * bp / 100_000f;
+                    }
+
+                    break;
+                case CraftPowerMode.Boost:
                     canAdvance = true;
-                }
-                else if (bp > 0)
-                {
+                    IsPowered = bp > 0;
+                    speed = 1f + bp / 50_000f;
+                    break;
+                case CraftPowerMode.Required:
+                    if (bp > 0)
+                    {
+                        canAdvance = true;
+                        IsPowered = true;
+                        speed = bp / 10_000f;
+                    }
+
+                    break;
+                default:
                     canAdvance = true;
-                    IsPowered = true;
-                    speed = 12f * bp / 100_000f;
-                }
-            }
-            else
-            {
-                canAdvance = true;
-                IsPowered = bp > 0;
-                speed = 1f + bp / 50_000f;
+                    break;
             }
 
             if (canAdvance)
             {
                 IsWorking = true;
-                AdvanceCraft(deltaSeconds * speed);
+                // × 1 exactly at 100%: the forno and the assembler keep their arithmetic.
+                AdvanceCraft(deltaSeconds * (speed * (CraftSpeedPercent / 100f) * Upgrades.Factor(BonusPercent)), randomSeed);
             }
         }
 
@@ -408,7 +548,7 @@ public sealed class Crafter
         return true;
     }
 
-    private void AdvanceCraft(float deltaSeconds)
+    private void AdvanceCraft(float deltaSeconds, long randomSeed)
     {
         if (!IsCrafting)
         {
@@ -421,14 +561,23 @@ public sealed class Crafter
             return;
         }
 
-        foreach (var output in Recipe.Outputs)
+        if (Recipe.RandomOutput)
         {
-            for (var n = 0; n < output.Amount; n++)
+            // One piece, drawn before the count moves on (the count is part of the draw).
+            outputQueue.Enqueue(PickRandomOutput(Recipe, randomSeed));
+            ItemsCrafted++;
+        }
+        else
+        {
+            foreach (var output in Recipe.Outputs)
             {
-                outputQueue.Enqueue(output.ItemId);
-            }
+                for (var n = 0; n < output.Amount; n++)
+                {
+                    outputQueue.Enqueue(output.ItemId);
+                }
 
-            ItemsCrafted += output.Amount;
+                ItemsCrafted += output.Amount;
+            }
         }
 
         IsCrafting = false;
@@ -489,9 +638,9 @@ public sealed class Crafter
             }
 
             // Outward: next cell after belt must not re-enter footprint (a junction sends it on away from the building, a
-            // router or a sorter never hands it back where it came from).
+            // router, a sorter or a gate never hands it back where it came from).
             var next = outputPosition.Step(cell.Direction);
-            if (cell.Kind is not (LogisticsKind.Junction or LogisticsKind.Router or LogisticsKind.Sorter) && Occupies(next))
+            if (cell.Kind is not (LogisticsKind.Junction or LogisticsKind.Router) && !cell.PassesThrough && Occupies(next))
             {
                 continue;
             }

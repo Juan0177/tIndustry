@@ -77,11 +77,12 @@ public sealed class ConstructSite
     public int StalledTicks { get; internal set; }
 
     /// <summary>
-    /// The belt this site replaces (another tier on the same cell), null for an ordinary site. Its cost covers the
-    /// new one's common part (<see cref="Construction.ReplacementCredit"/>, counted in <see cref="Spent"/> while
-    /// building and taken out when cancelled: a deconstructing site with <see cref="Replaced"/> has it out already).
+    /// The blocks this site replaces (Mindustry's replace: another 1×1 logistics block on the same cell), each with its
+    /// items and state; null for an ordinary site, never empty otherwise. Their cost covers the new one's common part
+    /// (<see cref="Construction.ReplacementCredit"/>, counted in <see cref="Spent"/> while building and taken out when
+    /// cancelled: a deconstructing site with <see cref="Replaced"/> has it out already). Cancelled, it puts them back.
     /// </summary>
-    public ReplacedBelt? Replaced { get; internal set; }
+    public IReadOnlyList<ReplacedBlock>? Replaced { get; internal set; }
 
     public bool Occupies(GridPosition tile)
     {
@@ -97,5 +98,25 @@ public sealed class ConstructSite
     }
 }
 
-/// <summary>A belt taken away by a replacement site: its spec and its items, front first, with their positions.</summary>
-public sealed record ReplacedBelt(BuildSpec Spec, IReadOnlyList<TransportedItem> Items);
+/// <summary>
+/// A block taken away by a replacement site: its spec (a sorter's filter included), its items (front first, with their
+/// positions, junction queues and pack counts) and the state it needs to come back as it was (<see cref="State"/>, null
+/// when it has none). New kinds of replaceable blocks add their own <see cref="ReplacedState"/>.
+/// </summary>
+public sealed record ReplacedBlock(BuildSpec Spec, IReadOnlyList<TransportedItem> Items, ReplacedState? State = null);
+
+/// <summary>The state a replaced block keeps beyond its spec and items, one kind per family of blocks.</summary>
+public abstract record ReplacedState;
+
+/// <summary>
+/// A replaced logistics cell's state: a sorter's or gate's turn bits (<see cref="BeltGridCell.SorterTurns"/>), a router's
+/// turn, wait and side of arrival (<see cref="BeltGridCell.RouterTurn"/>, <see cref="BeltGridCell.RouterWaitTicks"/>,
+/// <see cref="BeltGridCell.RouterFrom"/>), a stack conveyor's wait (<see cref="BeltGridCell.StackWaitTicks"/>). The
+/// fields of other kinds are 0 (null).
+/// </summary>
+public sealed record ReplacedLogisticsState(
+    int SorterTurns = 0,
+    int RouterTurn = 0,
+    int RouterWaitTicks = 0,
+    Direction? RouterFrom = null,
+    int StackWaitTicks = 0) : ReplacedState;

@@ -58,7 +58,8 @@ public partial class ConstructionLayer : Node2D
     /// <summary>World layer that draws <paramref name="spec"/> once built: belts and logistics, or buildings.</summary>
     public static StructureLayers LayerOf(BuildSpec spec) =>
         spec.Kind is null or BuildingKind.Junction or BuildingKind.Router or BuildingKind.Sorter
-            or BuildingKind.SorterInverted or BuildingKind.Bridge
+            or BuildingKind.SorterInverted or BuildingKind.Bridge or BuildingKind.OverflowGate or BuildingKind.UnderflowGate
+            or BuildingKind.BridgeLong
             ? StructureLayers.Belts
             // A bigger Core changes the belts that now touch it (their joins) as well as the Core itself.
             : BuildSpec.IsCoreUpgrade(spec.Kind) ? StructureLayers.Both
@@ -258,7 +259,7 @@ public partial class ConstructionLayer : Node2D
         // The same preview as the placement ghost (a belt drag shows every planned cell like the ghost).
         var spec = plan.Spec;
         var arrow = PlacementPreview.HasDirection(spec.Kind);
-        if (spec.Kind is null or BuildingKind.Bridge)
+        if (spec.Kind is null || BuildSpec.IsBridge(spec.Kind))
         {
             // Belts: one turned sprite per cell; a bridge: both ends (the exit is where a bridge placed now would end).
             for (var i = 0; i < tiles.Count; i++)
@@ -340,7 +341,7 @@ public partial class ConstructionLayer : Node2D
         var root = new Node2D { Name = $"Site_{site.Id}", ZIndex = SitesZ };
         var spec = site.Spec;
         var tex = Sprites.For(spec.StructureId);
-        if (spec.Kind is null || spec.Kind == BuildingKind.Bridge)
+        if (spec.Kind is null || BuildSpec.IsBridge(spec.Kind))
         {
             // One cell per piece (bridge: both ends); belts turn to their direction.
             var angle = spec.Kind is null ? PlacementPreview.Angle(spec.Direction) : 0f;

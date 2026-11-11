@@ -8,21 +8,46 @@ struttura.junction.nome,Incrocio,Junction
 struttura.router.nome,Router,Router
 struttura.sorter.nome,Selezionatore,Sorter
 struttura.sorter-inverted.nome,Selezionatore invertito,Inverted sorter
+struttura.overflow-gate.nome,Overflow gate,Overflow gate
+struttura.underflow-gate.nome,Underflow gate,Underflow gate
 struttura.conveyor-bridge.nome,Nastro ponte,Bridge belt
 struttura.conveyor-express.nome,Nastro T3,Belt T3
 struttura.conveyor-armored.nome,Nastro rinforzato,Armored belt
+struttura.conveyor-stack.nome,Nastro a pacchi,Stack conveyor
+struttura.bridge-long.nome,Ponte lungo,Long bridge
 struttura.assembler.nome,Assemblatore,Assembler
 struttura.generator.nome,Generatore,Generator
 struttura.power-node.nome,Nodo T1,Power node T1
 struttura.power-node-t2.nome,Nodo T2,Power node T2
 struttura.lamp.nome,Lampada,Lamp
 struttura.battery.nome,Batteria,Battery
+struttura.solar.nome,Pannello solare,Solar panel
+struttura.solar-large.nome,Pannello solare grande,Large solar panel
+struttura.combustion-generator.nome,Generatore a combustione,Combustion generator
+struttura.battery-large.nome,Batteria grande,Large battery
 struttura.container.nome,Contenitore,Container
 struttura.vault.nome,Deposito,Vault
 struttura.market-screen.nome,Schermo di borsa,Market screen
 struttura.finance-forecast.nome,Modulo previsione,Forecast module
 struttura.finance-percent.nome,Modulo percentuale,Percent module
 struttura.finance-odds.nome,Modulo probabilità,Odds module
+struttura.graphite-press.nome,Pressa grande,Graphite press
+struttura.smelter-advanced.nome,Fonderia avanzata,Advanced smelter
+struttura.separator.nome,Separatore,Separator
+struttura.plasticizer.nome,Plastificatore,Plasticizer
+struttura.impact-drill.nome,Trapano a impatto,Impact drill
+struttura.circuit.nome,Ricetta dei circuiti,Circuit recipe
+struttura.upgrade-drone-build.nome,Drone: costruzione,Drone: building
+struttura.upgrade-drone-hold.nome,Drone: stiva,Drone: hold
+struttura.upgrade-drone-range.nome,Drone: raggio,Drone: range
+struttura.upgrade-drone-mine.nome,Drone: scavo,Drone: mining
+struttura.drone-boost.nome,Drone potenziato,Boosted drone
+struttura.upgrade-miners-1.nome,Minatori I,Miners I
+struttura.upgrade-miners-2.nome,Minatori II,Miners II
+struttura.upgrade-machines-1.nome,Macchine I,Machines I
+struttura.upgrade-machines-2.nome,Macchine II,Machines II
+struttura.upgrade-storage-1.nome,Magazzino I,Storage I
+struttura.upgrade-storage-2.nome,Magazzino II,Storage II
 struttura.core-foundation.nome,CORE Fondazione,CORE Foundation
 struttura.core-nucleus.nome,CORE Nucleo,CORE Nucleus
 struttura.core-shard.nome,CORE Frammento,CORE Shard
@@ -41,12 +66,21 @@ oggetto.titanium-ore.nome,Titanio grezzo,Titanium ore
 oggetto.titanium-plate.nome,Lastra di titanio,Titanium plate
 oggetto.graphite.nome,Grafite,Graphite
 oggetto.silicon.nome,Silicio,Silicon
+oggetto.sand.nome,Sabbia,Sand
+oggetto.glass.nome,Vetro,Glass
+oggetto.plastic.nome,Plastica,Plastic
+oggetto.circuit.nome,Circuito,Circuit
 ricetta.smelt-iron.nome,Lastra di ferro,Iron plate
 ricetta.smelt-lead.nome,Lastra di piombo,Lead plate
 ricetta.smelt-titanium.nome,Lastra di titanio,Titanium plate
 ricetta.craft-copper-wire.nome,Filo di rame,Copper wire
 ricetta.craft-graphite.nome,Grafite,Graphite
 ricetta.craft-silicon.nome,Silicio,Silicon
+ricetta.smelt-glass.nome,Vetro,Glass
+ricetta.press-graphite.nome,Grafite,Graphite
+ricetta.separate-sand.nome,Minerali dalla sabbia,Ores from sand
+ricetta.plasticize-plastic.nome,Plastica,Plastic
+ricetta.craft-circuit.nome,Circuito,Circuit
 giacimento.iron.nome,ferro,iron
 giacimento.copper.nome,rame,copper
 giacimento.coal.nome,carbone,coal
@@ -106,27 +140,52 @@ struttura.conveyor-basic.suggerimento,Nastro T1 · flusso unidirezionale · R/ro
 struttura.conveyor-fast.suggerimento,Nastro T2 · più veloce · sblocca in Ricerca,Belt T2 · faster · unlock in Research
 struttura.conveyor-express.suggerimento,Nastro T3 · max velocità · sblocca in Ricerca,Belt T3 · top speed · unlock in Research
 struttura.conveyor-armored.suggerimento,Nastro rinforzato · prende dagli edifici solo da dietro · sblocca in Ricerca,Armored belt · takes from buildings only from behind · unlock in Research
+struttura.conveyor-stack.suggerimento,Nastro a pacchi · pacchi da 10 · premio del capitolo 2 della campagna; nella partita libera si compra in Ricerca a prezzo triplo,Stack conveyor · packs of 10 · reward of chapter 2 of the campaign; in free play you buy it in Research at triple price
 struttura.junction.suggerimento,Incrocio a croce,Cross junction
 struttura.router.suggerimento,Un oggetto alla volta · a turno su ogni lato · mai indietro,One item at a time · takes turns on every side · never back
 struttura.sorter.suggerimento,Filtro col clic sul blocco · icona al centro · chi passa va dritto · gli altri a sinistra e a destra alternando · senza filtro tutto ai lati,Filter with a click on the block · icon in the middle · matches go straight · others alternate left and right · with no filter all to the sides
 struttura.sorter-inverted.suggerimento,Il selezionatore al contrario · filtro col clic · chi passa il filtro va ai lati · gli altri dritti,The sorter the other way round · filter with a click · matches go to the sides · others go straight
+struttura.overflow-gate.suggerimento,Dritto se davanti c'è posto · se no a sinistra e a destra alternando · sblocca in Ricerca,Straight on if there is room ahead · else left and right alternating · unlock in Research
+struttura.underflow-gate.suggerimento,L'overflow al contrario · prima ai lati alternando · dritto solo se i lati sono pieni · sblocca in Ricerca,The overflow the other way round · sides first alternating · straight only when the sides are full · unlock in Research
 struttura.conveyor-bridge.suggerimento,Ponte span 2–4 · I/O 3 lati · teletrasporto istantaneo,Bridge span 2–4 · I/O on 3 sides · instant teleport
-struttura.miner.suggerimento,Estrae minerali · {0} · uscita su tutti i lati · 2×2,Mines ore · {0} · output on every side · 2×2
-struttura.miner-advanced.suggerimento,Minatore T2 · {0} · 2× velocità · +20% con corrente (la consuma) · sblocca in Ricerca,Miner T2 · {0} · 2× speed · +20% with power (uses it) · unlock in Research
+struttura.bridge-long.suggerimento,Ponte lungo span 2–8 · corrente 1/s · sblocca in Ricerca,Long bridge span 2–8 · power 1/s · unlock in Research
+struttura.miner.suggerimento,Estrae minerali · {0} · sabbia dal pavimento di sabbia senza giacimento · uscita su tutti i lati · 2×2,Mines ore · {0} · sand from sand floor without a deposit · output on every side · 2×2
+struttura.miner-advanced.suggerimento,Minatore T2 · {0} · sabbia senza giacimento · 2× velocità · +20% con corrente (la consuma) · sblocca in Ricerca,Miner T2 · {0} · sand without a deposit · 2× speed · +20% with power (uses it) · unlock in Research
 struttura.smelter.suggerimento,"Lastre di ferro, piombo o titanio dal minerale che arriva · carbone o corrente (+20%) · 2×2","Iron, lead or titanium plates from the ore it gets · coal or power (+20%) · 2×2"
-struttura.assembler.suggerimento,"Filo di rame, grafite o silicio · esce su ogni nastro accanto · 2×2","Copper wire, graphite or silicon · outputs to any belt beside it · 2×2"
+struttura.assembler.suggerimento,"Filo di rame, grafite o silicio; circuiti dopo la Ricerca · esce su ogni nastro accanto · 2×2","Copper wire, graphite or silicon; circuits after Research · outputs to any belt beside it · 2×2"
 struttura.extractor.suggerimento,Prende dai blocchi accanto e passa agli altri · filtro col clic · 11 al secondo,Takes from the blocks beside it and hands to the others · filter with a click · 11 per second
 struttura.generator.suggerimento,Brucia carbone per energia · 2×2,Burns coal for power · 2×2
 struttura.power-node.suggerimento,Nodo T1 · raggio 6 · 6 collegamenti · selezionalo e clicca un blocco per collegarlo,Power node T1 · range 6 · 6 links · select it and click a block to link it
 struttura.power-node-t2.suggerimento,Nodo T2 · 2×2 · raggio 10 · 10 collegamenti · sblocca in Ricerca,Power node T2 · 2×2 · range 10 · 10 links · unlock in Research
 struttura.lamp.suggerimento,Lampada · illumina di notte · consuma 1 di energia · 1×1,Lamp · lights up the night · uses 1 power · 1×1
 struttura.battery.suggerimento,Batteria · accumula la corrente della sua rete · capacità 1000 · 1×1,Battery · stores the power of its network · capacity 1000 · 1×1
+struttura.solar.suggerimento,Pannello solare · 3 di energia al secondo con la luce del giorno · 1×1,Solar panel · 3 power per second in daylight · 1×1
+struttura.solar-large.suggerimento,Pannello solare grande · 36 di energia al secondo con la luce del giorno · 3×3,Large solar panel · 36 power per second in daylight · 3×3
+struttura.combustion-generator.suggerimento,Generatore a combustione · brucia carbone o grafite · 90 di energia al secondo · 2×2 · premio del capitolo 1 della campagna; nella partita libera si compra in Ricerca a prezzo triplo,Combustion generator · burns coal or graphite · 90 power per second · 2×2 · reward of chapter 1 of the campaign; in free play you buy it in Research at triple price
+struttura.battery-large.suggerimento,Batteria grande · accumula la corrente della sua rete · capacità 20.000 · 3×3,"Large battery · stores the power of its network · capacity 20,000 · 3×3"
 struttura.container.suggerimento,Contenitore · 2×2 · 300 per oggetto · sblocca in Ricerca,Container · 2×2 · 300 per item · unlock in Research
 struttura.vault.suggerimento,Deposito · 3×3 · 1000 per oggetto · sblocca in Ricerca,Vault · 3×3 · 1000 per item · unlock in Research
 struttura.market-screen.suggerimento,Schermo di borsa · 2×2 · attaccato al CORE accende il jackpot · sblocca in Ricerca,Market screen · 2×2 · next to the CORE it turns the jackpot on · unlock in Research
 struttura.finance-forecast.suggerimento,Modulo previsione · sullo schermo di borsa · quando arriva il picco e quando vendere · sblocca in Ricerca,Forecast module · on the market screen · when the spike comes and when to sell · unlock in Research
 struttura.finance-percent.suggerimento,Modulo percentuale · sullo schermo di borsa · il prezzo come percentuale su B · sblocca in Ricerca,Percent module · on the market screen · the price as a percentage over B · unlock in Research
 struttura.finance-odds.suggerimento,Modulo probabilità · sullo schermo di borsa · la probabilità del jackpot di un «Vendi tutto» ora · sblocca in Ricerca,Odds module · on the market screen · the jackpot odds of a «Sell all» now · unlock in Research
+struttura.graphite-press.suggerimento,Pressa grande · 2 grafite da 3 carbone · senza corrente · 2×2 · sblocca in Ricerca,Graphite press · 2 graphite from 3 coal · no power · 2×2 · unlock in Research
+struttura.smelter-advanced.suggerimento,Fonderia avanzata · le ricette del forno a velocità doppia · solo con corrente (20) · niente carbone · 2×2 · sblocca in Ricerca,Advanced smelter · the smelter's recipes at double speed · power only (20) · no coal · 2×2 · unlock in Research
+struttura.separator.suggerimento,Separatore · un minerale a caso da 2 sabbia · corrente 8 · 2×2 · sblocca in Ricerca,Separator · a random ore from 2 sand · power 8 · 2×2 · unlock in Research
+struttura.plasticizer.suggerimento,Plastificatore · plastica da 2 carbone · corrente 6 · 2×2 · sblocca in Ricerca,Plasticizer · plastic from 2 coal · power 6 · 2×2 · unlock in Research
+struttura.impact-drill.suggerimento,Trapano a impatto · {0} · fino a 4 pezzi al secondo · scava anche il titanio · corrente 30 · 3×3 · sblocca in Ricerca,Impact drill · {0} · up to 4 pieces per second · digs titanium too · power 30 · 3×3 · unlock in Research
+struttura.circuit.suggerimento,Ricetta dei circuiti · nell'assemblatore · filo di rame + silicio + lastra di piombo · premio del capitolo 3 della campagna; nella partita libera si compra in Ricerca a prezzo triplo,Circuit recipe · in the assembler · copper wire + silicon + lead plate · reward of chapter 3 of the campaign; in free play you buy it in Research at triple price
+struttura.upgrade-drone-build.suggerimento,Drone: costruzione · potenziamento · il drone costruisce il 25% più in fretta · sblocca in Ricerca,Drone: building · upgrade · the drone builds 25% faster · unlock in Research
+struttura.upgrade-drone-hold.suggerimento,Drone: stiva · potenziamento · il drone porta il 50% di pezzi in più · sblocca in Ricerca,Drone: hold · upgrade · the drone carries 50% more pieces · unlock in Research
+struttura.upgrade-drone-range.suggerimento,Drone: raggio · potenziamento · il drone costruisce e scava 5 celle più lontano · sblocca in Ricerca,Drone: range · upgrade · the drone builds and digs 5 cells farther · unlock in Research
+struttura.upgrade-drone-mine.suggerimento,Drone: scavo · potenziamento · il drone scava a mano il 25% più in fretta · sblocca in Ricerca,Drone: mining · upgrade · the drone digs by hand 25% faster · unlock in Research
+struttura.drone-boost.suggerimento,Drone potenziato · potenziamento · costruzione +50% · stiva +100% · raggio +10 celle · scavo +50% · premio del capitolo 4 della campagna; nella partita libera si compra in Ricerca a prezzo triplo,Boosted drone · upgrade · building +50% · hold +100% · range +10 cells · mining +50% · reward of chapter 4 of the campaign; in free play you buy it in Research at triple price
+struttura.upgrade-miners-1.suggerimento,Minatori I · potenziamento · tutti i minatori scavano il 10% più in fretta · sblocca in Ricerca,Miners I · upgrade · every miner digs 10% faster · unlock in Research
+struttura.upgrade-miners-2.suggerimento,Minatori II · potenziamento · tutti i minatori scavano il 20% più in fretta · sblocca in Ricerca,Miners II · upgrade · every miner digs 20% faster · unlock in Research
+struttura.upgrade-machines-1.suggerimento,"Macchine I · potenziamento · forno, fonderia avanzata e assemblatore +15% · sblocca in Ricerca","Machines I · upgrade · smelter, advanced smelter and assembler +15% · unlock in Research"
+struttura.upgrade-machines-2.suggerimento,"Macchine II · potenziamento · forno, fonderia avanzata e assemblatore +30% · sblocca in Ricerca","Machines II · upgrade · smelter, advanced smelter and assembler +30% · unlock in Research"
+struttura.upgrade-storage-1.suggerimento,Magazzino I · potenziamento · massimo per oggetto del CORE e dei depositi +25% · sblocca in Ricerca,Storage I · upgrade · maximum per item of the CORE and of storage +25% · unlock in Research
+struttura.upgrade-storage-2.suggerimento,Magazzino II · potenziamento · massimo per oggetto del CORE e dei depositi +50% · sblocca in Ricerca,Storage II · upgrade · maximum per item of the CORE and of storage +50% · unlock in Research
 struttura.core-foundation.suggerimento,CORE Fondazione · 4×4 · 4000 per oggetto · sblocca in Ricerca,CORE Foundation · 4×4 · 4000 per item · unlock in Research
 struttura.core-nucleus.suggerimento,CORE Nucleo · 5×5 · 12000 per oggetto · sblocca in Ricerca,CORE Nucleus · 5×5 · 12000 per item · unlock in Research
 struttura.scava,Scava: {0},Digs: {0}
@@ -144,9 +203,19 @@ comune.annulla,Annulla,Cancel
 blocco.costo.ok,ok,ok
 blocco.costo.manca,manca,missing
 blocco.dettaglio.testo,{0}\n\n{1}\n\n{2}\n\nCosto: {3}\n\nTasto: {4}\nR = ruota · destro o Esc = deseleziona,{0}\n\n{1}\n\n{2}\n\nCost: {3}\n\nKey: {4}\nR = rotate · right click or Esc = deselect
-blocco.io.minatore,I/O · estrae dal deposito sotto,I/O · mines the deposit below
-blocco.io.generatore,I/O · carbone → potenza,I/O · coal → power
+blocco.io.minatore,I/O · estrae dal deposito sotto (o sabbia dal pavimento) · {0} pezzi al secondo a piena efficienza,I/O · mines the deposit below (or sand from the floor) · {0} pieces per second at full efficiency
+blocco.io.generatore,I/O · {0} → {1} di energia/s,I/O · {0} → {1} power/s
+blocco.io.carburante,1 {0} ogni {1},1 {0} every {1}
+blocco.io.gate.overflow,I/O · dritto · se davanti è pieno a sinistra e a destra alternando,I/O · straight on · left and right alternating when the front is full
+blocco.io.gate.underflow,I/O · a sinistra e a destra alternando · dritto quando i lati sono pieni,I/O · left and right alternating · straight on when the sides are full
+blocco.io.pacchi,I/O · pacchi da {0} pezzi · {1} celle/s · carica solo la prima cella,I/O · packs of {0} pieces · {1} cells/s · only the first cell loads
+blocco.io.ponte,I/O · portata {0} celle · corrente {1}/s,I/O · reach {0} cells · power {1}/s
+blocco.io.solare,I/O · luce del giorno → {0} di energia/s · 0 di notte,I/O · daylight → {0} power/s · 0 at night
+blocco.io.batteria,I/O · accumula fino a {0},I/O · stores up to {0}
+blocco.io.deposito,I/O · tiene {0} pezzi per oggetto,I/O · holds {0} pieces per item
+blocco.io.core,I/O · massimo {0} per oggetto (più i depositi collegati),I/O · max {0} per item (plus linked storage)
 blocco.io.trasporto,I/O · trasporto oggetti,I/O · moves items
+blocco.io.caso,{0} {1}%,{0} {1}%
 menu.menu,Menu,Menu
 menu.ricerca,Ricerca,Research
 menu.mercato,Mercato,Market
@@ -264,6 +333,8 @@ rifiuto.MiningCovered,Sul giacimento c'è già qualcosa,Something already stands
 rifiuto.MiningHoldFull,La stiva è piena: svuotala vicino al CORE,The hold is full: empty it near the Core
 rifiuto.MarketScreenNotTouchingCore,Lo schermo di borsa va messo a contatto col CORE,The market screen must touch the CORE
 rifiuto.MarketScreenAlreadyPresent,C'è già uno schermo di borsa: se ne può avere uno solo,There is already a market screen: you can have only one
+rifiuto.CampaignRewardOnly,Si ottiene chiudendo il capitolo {0} della campagna,You get it by finishing chapter {0} of the campaign
+rifiuto.UpgradeSuperseded,Superato da un livello più alto già sbloccato.,Superseded by a higher level already unlocked.
 scavo.attesa.cantiere,"Lo scavo aspetta: il cantiere non ha materiali (annulla il piano o allontanati)","Mining waits: the site is short of materials (cancel the plan or fly away)"
 rifiuto.NothingToRemove,Niente da rimuovere.,Nothing to remove.
 home.suggerimento.continua,Riprendi l'ultima partita salvata.,Resume the last saved game.
@@ -405,6 +476,7 @@ borsa.suggerimento.clic,Clic: scegli l'oggetto da seguire,Click: choose the item
 ricerca.albero.vuoto,Nessuna struttura nell'albero.,No structures in the tree.
 ricerca.suggerimento,Trascina = muovi · rotella = zoom · clic = dettagli · H = vista intera · T / Esc chiude,Drag = move · wheel = zoom · click = details · H = whole tree · T / Esc closes
 ricerca.legenda,Bordo dorato = puoi sbloccarlo · lucchetto = prima sblocca il precedente,Gold border = you can unlock it · lock = unlock the one before first
+ricerca.legenda.campagna,Bordo dorato = puoi sbloccarlo · lucchetto = prima sblocca il precedente · numero nell'angolo = premio di quel capitolo della campagna,Gold border = you can unlock it · lock = unlock the one before first · number in the corner = reward of that campaign chapter
 ricerca.sblocca,Conferma sblocco,Confirm unlock
 ricerca.fondi,Fondi: ${0},Funds: ${0}
 ricerca.zoom,Zoom {0}×,Zoom {0}×
@@ -414,6 +486,8 @@ ricerca.stato.segnaposto,Stato: sbloccato (segnaposto),State: unlocked (placehol
 ricerca.stato.sbloccato,Stato: sbloccato,State: unlocked
 ricerca.stato.disponibile,Stato: disponibile,State: available
 ricerca.stato.bloccato,Stato: bloccato,State: locked
+ricerca.stato.premio,Stato: premio del capitolo {0},State: reward of chapter {0}
+ricerca.stato.superato,Stato: superato,State: superseded
 ricerca.costi,Sblocco: {0}\nCostruzione: {1},Unlock: {0}\nBuild: {1}
 ricerca.segnaposto,Segnaposto: non costruibile ancora.,Placeholder: cannot be built yet.
 ricerca.gia.sbloccato,Già sbloccato,Already unlocked
@@ -428,31 +502,67 @@ ricerca.gratis,gratis,free
 ricerca.prerequisiti,Prerequisiti: {0},Prerequisites: {0}
 ricerca.prerequisiti.nessuno,nessuno,none
 ricerca.prerequisito.manca,{0} (manca),{0} (missing)
-struttura.miner.descrizione,Estrae minerali dal deposito sotto · {0} · uscita su tutti i lati · 2×2,Mines ore from the deposit below · {0} · output on every side · 2×2
-struttura.miner-advanced.descrizione,T2 · {0} · 2× velocità · +25% efficienza · +20% con corrente (la consuma) · uscita multi-lato,T2 · {0} · 2× speed · +25% efficiency · +20% with power (uses it) · multi-side output
+ricerca.premio,Premio del capitolo {0},Chapter {0} reward
+ricerca.superato,Superato,Superseded
+ricerca.effetto,Effetto:,Effect:
+ricerca.effetto.costruzione,Velocità di costruzione del drone: +{0}% → +{1}%,Drone build speed: +{0}% → +{1}%
+ricerca.effetto.stiva,Stiva del drone: {0} → {1},Drone hold: {0} → {1}
+ricerca.effetto.raggio,Raggio del drone: {0} → {1} celle,Drone range: {0} → {1} cells
+ricerca.effetto.scavo,Scavo a mano: +{0}% → +{1}%,Hand mining: +{0}% → +{1}%
+ricerca.effetto.minatori,Velocità dei minatori: +{0}% → +{1}%,Miner speed: +{0}% → +{1}%
+ricerca.effetto.macchine,"Forno, fonderia avanzata e assemblatore: +{0}% → +{1}%","Smelter, advanced smelter and assembler: +{0}% → +{1}%"
+ricerca.effetto.core,Massimo del CORE per oggetto: {0} → {1},CORE max per item: {0} → {1}
+ricerca.effetto.depositi,Contenitori e depositi a sé: +{0}% → +{1}%,Standalone containers and vaults: +{0}% → +{1}%
+struttura.miner.descrizione,Estrae minerali dal deposito sotto · {0} · senza giacimento scava sabbia dal pavimento di sabbia · uscita su tutti i lati · 2×2,Mines ore from the deposit below · {0} · without a deposit digs sand from sand floor · output on every side · 2×2
+struttura.miner-advanced.descrizione,T2 · {0} · senza giacimento scava sabbia dal pavimento di sabbia · 2× velocità · +25% efficienza · +20% con corrente (la consuma) · uscita multi-lato,T2 · {0} · without a deposit digs sand from sand floor · 2× speed · +25% efficiency · +20% with power (uses it) · multi-side output
 struttura.smelter.descrizione,"Fonde 2 ferro grezzo, 2 piombo grezzo o 3 titanio grezzo in una lastra · carbone o corrente · +20% se alimentato · 2×2","Smelts 2 iron ore, 2 lead ore or 3 titanium ore into a plate · coal or power · +20% when powered · 2×2"
-struttura.assembler.descrizione,"Fa filo di rame (rame + lastra di ferro), grafite (carbone) o silicio (lastra di piombo + carbone) · esce su ogni nastro accanto · 2×2","Makes copper wire (copper + iron plate), graphite (coal) or silicon (lead plate + coal) · outputs to any belt beside it · 2×2"
+struttura.assembler.descrizione,"Fa filo di rame (rame + lastra di ferro), grafite (carbone) o silicio (lastra di piombo + carbone); dopo la Ricetta dei circuiti in Ricerca anche circuiti (filo di rame + silicio + lastra di piombo) · esce su ogni nastro accanto · 2×2","Makes copper wire (copper + iron plate), graphite (coal) or silicon (lead plate + coal); after the Circuit recipe in Research also circuits (copper wire + silicon + lead plate) · outputs to any belt beside it · 2×2"
 struttura.extractor.descrizione,Prende 11 oggetti al secondo da CORE · magazzini o uscite delle macchine accanto e li passa a turno agli altri blocchi accanto · col filtro solo quell'oggetto · senza filtro tutti a turno,Takes 11 items a second from the CORE · storage or machine outputs beside it and hands them in turn to the other blocks beside it · with a filter only that item · with none every item in turn
 struttura.conveyor-basic.descrizione,Nastro T1 · flusso unidirezionale · R/rotella,Belt T1 · one-way flow · R/wheel
 struttura.conveyor-fast.descrizione,Nastro T2 · più veloce · R/rotella,Belt T2 · faster · R/wheel
 struttura.conveyor-express.descrizione,Nastro T3 · max velocità · R/rotella,Belt T3 · top speed · R/wheel
 struttura.conveyor-armored.descrizione,"Nastro rinforzato · come il T2, non raccoglie di lato · R/rotella","Armored belt · like T2, never picks up from the side · R/wheel"
+struttura.conveyor-stack.descrizione,"La prima cella fa pacchi fino a 10 pezzi dello stesso oggetto (parte pieno o dopo 1 s) · 21,6 celle/s · l'ultima scarica solo in un edificio o nel CORE · R/rotella",The first cell packs up to 10 pieces of one item (leaves full or after 1 s) · 21.6 cells/s · the last one unloads only into a building or the CORE · R/wheel
 struttura.junction.descrizione,Incrocio a croce per nastri,Cross junction for belts
 struttura.router.descrizione,Distribuisce gli oggetti a turno su tutti i lati · mai verso il lato da cui arrivano,Hands items out in turn on every side · never back to the side they came from
 struttura.sorter.descrizione,Filtro col clic sul blocco · icona al centro · chi passa va dritto · gli altri a sinistra e a destra alternando · senza filtro tutto ai lati,Filter with a click on the block · icon in the middle · matches go straight · others alternate left and right · with no filter all to the sides
 struttura.sorter-inverted.descrizione,Chi passa il filtro esce a sinistra e a destra alternando · gli altri vanno dritti · senza filtro tutto dritto,Items matching the filter leave left and right alternating · the others go straight · with no filter everything goes straight
+struttura.overflow-gate.descrizione,Nessuna direzione · l'oggetto va dritto se il blocco davanti lo prende · se no a sinistra e a destra alternando · se nessuno lo prende aspetta sul nastro · mai in un altro gate o selezionatore,No direction · items go straight on if the block ahead takes them · else left and right alternating · if nothing takes them they wait on the belt · never into another gate or sorter
+struttura.underflow-gate.descrizione,Nessuna direzione · l'oggetto va a sinistra e a destra alternando · dritto solo se nessun lato lo prende · se nessuno lo prende aspetta sul nastro · mai in un altro gate o selezionatore,No direction · items go left and right alternating · straight on only if neither side takes them · if nothing takes them they wait on the belt · never into another gate or sorter
 struttura.conveyor-bridge.descrizione,Ponte span 2–4 · I/O 3 lati · teletrasporto istantaneo,Bridge span 2–4 · I/O on 3 sides · instant teleport
+struttura.bridge-long.descrizione,"Ponte span 2–8 · I/O 3 lati · corrente 1/s sull'entrata, anche fermo · senza corrente gli oggetti aspettano sull'entrata",Bridge span 2–8 · I/O on 3 sides · power 1/s on the entry even when idle · without power items wait on the entry
 struttura.generator.descrizione,Brucia carbone per energia · 2×2,Burns coal for power · 2×2
 struttura.power-node.descrizione,Nodo T1 · 1×1 · raggio 6 · 6 collegamenti · si collega da solo ai blocchi vicini,Power node T1 · 1×1 · range 6 · 6 links · links to the nearby blocks by itself
 struttura.power-node-t2.descrizione,Nodo T2 · 2×2 · raggio 10 · 10 collegamenti · si collega da solo ai blocchi vicini,Power node T2 · 2×2 · range 10 · 10 links · links to the nearby blocks by itself
 struttura.lamp.descrizione,Lampada · illumina di notte se alimentata · consumo 1 · 1×1,Lamp · lights up the night when powered · uses 1 · 1×1
 struttura.battery.descrizione,Batteria · tiene la corrente avanzata e la rende quando i generatori non bastano · capacità 1000 · 1×1,Battery · keeps the spare power and gives it back when the generators fall short · capacity 1000 · 1×1
+struttura.solar.descrizione,Pannello solare · produce 3 al secondo per la luce del mondo: tutto di giorno · niente di notte · a metà al tramonto · senza carburante · 1×1,Solar panel · makes 3 per second times the world's light: all of it by day · nothing at night · half at mid-dusk · no fuel · 1×1
+struttura.solar-large.descrizione,Pannello solare grande · produce 36 al secondo per la luce del mondo: tutto di giorno · niente di notte · senza carburante · 3×3,Large solar panel · makes 36 per second times the world's light: all of it by day · nothing at night · no fuel · 3×3
+struttura.combustion-generator.descrizione,Generatore a combustione · 90 al secondo mentre brucia: 1 carbone ogni 2 s oppure 1 grafite ogni 4 s · prima il carbone · scorta di 8 pezzi in tutto · 2×2,Combustion generator · 90 per second while burning: 1 coal every 2 s or 1 graphite every 4 s · coal first · holds 8 pieces in all · 2×2
+struttura.battery-large.descrizione,Batteria grande · tiene la corrente avanzata e la rende quando i generatori non bastano · capacità 20.000 · divide la carica con le altre batterie in proporzione · 3×3,"Large battery · keeps the spare power and gives it back when the generators fall short · capacity 20,000 · shares the charge with the other batteries in proportion · 3×3"
 struttura.container.descrizione,Contenitore · 2×2 · tiene 300 pezzi per oggetto,Container · 2×2 · holds 300 pieces per item
 struttura.vault.descrizione,Deposito · 3×3 · tiene 1000 pezzi per oggetto,Vault · 3×3 · holds 1000 pieces per item
 struttura.market-screen.descrizione,Schermo di borsa · 2×2 · uno solo · a contatto col CORE · mostra il mercato di un oggetto e rende possibile il jackpot del «Vendi tutto»,Market screen · 2×2 · only one · touching the CORE · shows the market of one item and makes the «Sell all» jackpot possible
 struttura.finance-forecast.descrizione,Modulo previsione · niente da piazzare · con lo schermo di borsa attivo dice fra quanto arriva il picco o finisce il crollo e consiglia «aspetta» o «vendi ora»,Forecast module · nothing to place · with an active market screen it tells when the spike comes or the crash ends and advises «wait» or «sell now»
 struttura.finance-percent.descrizione,Modulo percentuale · niente da piazzare · con lo schermo di borsa attivo mostra il prezzo come «+N% su B»,Percent module · nothing to place · with an active market screen it shows the price as «+N% over B»
 struttura.finance-odds.descrizione,Modulo probabilità · niente da piazzare · con lo schermo di borsa attivo mostra la probabilità del jackpot se ora vendessi tutto quell'oggetto,Odds module · nothing to place · with an active market screen it shows the jackpot odds if you sold all of that item now
+struttura.graphite-press.descrizione,"Pressa grande · pressa 3 carbone in 2 grafite in 1,5 s · non usa corrente · 2×2",Graphite press · presses 3 coal into 2 graphite in 1.5 s · uses no power · 2×2
+struttura.smelter-advanced.descrizione,"Fonderia avanzata · fonde come il forno (2 ferro grezzo, 2 piombo grezzo o 3 titanio grezzo in una lastra, 2 sabbia in vetro) al doppio della velocità · consuma 20 di corrente · senza corrente si ferma · non brucia carbone · 2×2","Advanced smelter · smelts like the smelter (2 iron ore, 2 lead ore or 3 titanium ore into a plate, 2 sand into glass) at double speed · uses 20 power · stops without power · burns no coal · 2×2"
+struttura.separator.descrizione,"Separatore · separa 2 sabbia in un minerale a caso: ferro, rame o piombo grezzo (30% ciascuno) o titanio grezzo (10%) · consuma 8 di corrente · senza corrente si ferma · 2×2","Separator · separates 2 sand into a random ore: iron, copper or lead ore (30% each) or titanium ore (10%) · uses 8 power · stops without power · 2×2"
+struttura.plasticizer.descrizione,Plastificatore · fa 1 plastica da 2 carbone in 2 s · consuma 6 di corrente · senza corrente si ferma · 2×2,Plasticizer · makes 1 plastic from 2 coal in 2 s · uses 6 power · stops without power · 2×2
+struttura.impact-drill.descrizione,T3 · {0} · 4 pezzi al secondo a piena efficienza (il Minatore T2 senza corrente ne fa 1) · scava ogni giacimento (senza giacimento: sabbia dal pavimento di sabbia) · consuma 30 di corrente · senza corrente si ferma · 3×3 · uscita sui 12 lati,T3 · {0} · 4 pieces per second at full efficiency (an unpowered Miner T2 makes 1) · digs every deposit (without one: sand from sand floor) · uses 30 power · stops without power · 3×3 · output on all 12 sides
+struttura.circuit.descrizione,"Ricetta dei circuiti · niente da piazzare · l'assemblatore fa un circuito da filo di rame, silicio e lastra di piombo in 3 s","Circuit recipe · nothing to place · the assembler makes a circuit from copper wire, silicon and lead plate in 3 s"
+struttura.upgrade-drone-build.descrizione,Drone: costruzione · niente da piazzare · velocità di costruzione del drone +25% (Drone potenziato: +50%),Drone: building · nothing to place · drone build speed +25% (Boosted drone: +50%)
+struttura.upgrade-drone-hold.descrizione,"Drone: stiva · niente da piazzare · stiva del drone +50%, per difetto (Drone potenziato: +100%)","Drone: hold · nothing to place · drone hold +50%, rounded down (Boosted drone: +100%)"
+struttura.upgrade-drone-range.descrizione,Drone: raggio · niente da piazzare · raggio del drone +5 celle per costruire e scavare (Drone potenziato: +10 celle),Drone: range · nothing to place · drone range +5 cells for building and digging (Boosted drone: +10 cells)
+struttura.upgrade-drone-mine.descrizione,Drone: scavo · niente da piazzare · ritmo dello scavo a mano +25% (Drone potenziato: +50%),Drone: mining · nothing to place · hand-mining rate +25% (Boosted drone: +50%)
+struttura.drone-boost.descrizione,"Drone potenziato · niente da piazzare · il livello 2 dei quattro potenziamenti del drone insieme: costruzione +50%, stiva +100%, raggio +10 celle, scavo a mano +50% (al posto del livello 1)","Boosted drone · nothing to place · level 2 of the four drone upgrades together: building +50%, hold +100%, range +10 cells, hand mining +50% (instead of level 1)"
+struttura.upgrade-miners-1.descrizione,"Minatori I · niente da piazzare · Minatore T1, Minatore T2 e Trapano a impatto +10% di velocità","Miners I · nothing to place · Miner T1, Miner T2 and Impact drill +10% speed"
+struttura.upgrade-miners-2.descrizione,"Minatori II · niente da piazzare · Minatore T1, Minatore T2 e Trapano a impatto +20% di velocità (al posto del +10% di Minatori I)","Miners II · nothing to place · Miner T1, Miner T2 and Impact drill +20% speed (instead of the +10% of Miners I)"
+struttura.upgrade-machines-1.descrizione,"Macchine I · niente da piazzare · forno, fonderia avanzata e assemblatore lavorano il 15% più in fretta; pressa, separatore e plastificatore no","Machines I · nothing to place · smelter, advanced smelter and assembler work 15% faster; press, separator and plasticizer do not"
+struttura.upgrade-machines-2.descrizione,"Macchine II · niente da piazzare · forno, fonderia avanzata e assemblatore lavorano il 30% più in fretta (al posto del +15% di Macchine I)","Machines II · nothing to place · smelter, advanced smelter and assembler work 30% faster (instead of the +15% of Machines I)"
+struttura.upgrade-storage-1.descrizione,"Magazzino I · niente da piazzare · massimo per oggetto +25%, per difetto: il CORE con i depositi collegati (Frammento 1000 → 1250) e i contenitori e depositi a sé (300 → 375)","Storage I · nothing to place · maximum per item +25%, rounded down: the CORE with its linked storage (Shard 1000 → 1250) and standalone containers and vaults (300 → 375)"
+struttura.upgrade-storage-2.descrizione,"Magazzino II · niente da piazzare · massimo per oggetto +50%, per difetto, al posto del +25% di Magazzino I: il CORE con i depositi collegati (Frammento 1000 → 1500) e i contenitori e depositi a sé (300 → 450)","Storage II · nothing to place · maximum per item +50%, rounded down, instead of the +25% of Storage I: the CORE with its linked storage (Shard 1000 → 1500) and standalone containers and vaults (300 → 450)"
 struttura.core-foundation.descrizione,CORE Fondazione · 4×4 · 4000 per oggetto · vende 25 pezzi al secondo · drone beta,CORE Foundation · 4×4 · 4000 per item · sells 25 pieces per second · beta drone
 struttura.core-nucleus.descrizione,CORE Nucleo · 5×5 · 12000 per oggetto · vende 60 pezzi al secondo · drone gamma,CORE Nucleus · 5×5 · 12000 per item · sells 60 pieces per second · gamma drone
 tutorial.passo.1,"Il drone sei tu: muovilo con WASD, la visuale lo segue. Tieni premuto il tasto centrale e trascina per guardare lontano (al rilascio torna sul drone). Rotella = zoom · H torna sul drone.","You are the drone: move it with WASD, the view follows it. Hold the middle button and drag to look away (on release it goes back to the drone). Wheel = zoom · H goes back to the drone."
@@ -480,3 +590,4 @@ salvataggi.errore.MapsFolderMissing,"Mappa della campagna ""{0}"" non disponibil
 salvataggi.errore.CampaignMapMissing,"Mappa della campagna ""{0}"" mancante o non valida: il salvataggio si carica di nuovo quando la mappa torna al suo posto.","Campaign map ""{0}"" missing or invalid: the save loads again once the map is back."
 salvataggi.errore.CampaignMapChanged,"La mappa della campagna ""{0}"" ha cambiato misura dopo il salvataggio.","Campaign map ""{0}"" changed size after the save."
 formato.decimale,",",.
+formato.migliaia,.,","

@@ -1,6 +1,6 @@
 # Logistica
 
-Come si spostano gli oggetti: nastri e loro tier, curve e unioni, incrocio, router, selezionatore, estrattore, ponte e nastro rinforzato.
+Come si spostano gli oggetti: nastri e loro tier, curve e unioni, incrocio, router, selezionatore, overflow e underflow gate, estrattore, ponte e ponte lungo, nastro rinforzato e nastro a pacchi.
 
 ## Nastri
 
@@ -12,6 +12,7 @@ In una cella di nastro stanno fino a **3 oggetti**, a 0,4 di cella l'uno dall'al
 | Nastro T2 (`conveyor-fast`) | 4,8 | 12 | 1 Ferro grezzo, 1 Piombo grezzo, 1 Titanio grezzo | dopo il Nastro T1 |
 | Nastro T3 (`conveyor-express`) | 7,2 | 18 | 1 Titanio grezzo, 1 Silicio, 1 Grafite | dopo il Nastro T2 |
 | Nastro rinforzato (`conveyor-armored`) | 4,8 | 12 | 1 Ferro grezzo, 1 Piombo grezzo, 2 Titanio grezzo, 1 Grafite | dopo il Nastro T2 |
+| Nastro a pacchi (`conveyor-stack`) | 21,6 | fino a 216 pezzi con più carichi che si uniscono (un solo carico arriva a circa 40–50 pezzi) | 1 Plastica, 1 Silicio, 1 Grafite | dopo il Nastro T3; premio del capitolo 2 della campagna |
 
 ## Pezzi speciali
 
@@ -21,12 +22,15 @@ In una cella di nastro stanno fino a **3 oggetti**, a 0,4 di cella l'uno dall'al
 | Router (`router`) | 1 oggetto alla volta, 8 tick ciascuno: 7,5 oggetti/s | 3 Ferro grezzo | dopo l'Incrocio | Distribuisce gli oggetti a turno su tutti i lati, mai verso il lato da cui arrivano |
 | Selezionatore (`sorter`) | istantaneo, passa al ritmo del nastro | 2 Ferro grezzo, 2 Piombo grezzo | dopo l'Incrocio | L'oggetto del filtro va dritto, gli altri di lato, alternando |
 | Selezionatore invertito (`sorter-inverted`) | istantaneo, passa al ritmo del nastro | 2 Ferro grezzo, 2 Piombo grezzo | dopo il Selezionatore | Il contrario: l'oggetto del filtro di lato, gli altri dritti |
+| Overflow gate (`overflow-gate`) | istantaneo, passa al ritmo del nastro | 4 Lastre di piombo, 2 Fili di rame | dopo il Router | Dritto; ai lati, alternando, solo quando davanti non accetta |
+| Underflow gate (`underflow-gate`) | istantaneo, passa al ritmo del nastro | 4 Lastre di piombo, 2 Fili di rame | dopo l'Overflow gate | Il contrario: ai lati alternando, dritto solo quando i lati non accettano |
 | Estrattore (`extractor`) | 11 oggetti/s | 2 Lastre di ferro | Ricerca | Tira un oggetto fuori da un magazzino o da una macchina e lo dà al blocco accanto |
 | Nastro ponte (`conveyor-bridge`) | 5,25 oggetti/s | 6 Ferro grezzo, 6 Piombo grezzo **per estremo** (12 e 12 in tutto) | dopo l'Incrocio | Scavalca da 1 a 3 celle |
+| Ponte lungo (`bridge-long`) | 5,25 oggetti/s | 6 Lastre di titanio, 6 Lastre di piombo, 2 Silicio **per estremo** (12, 12 e 4 in tutto) | dopo il Nastro ponte | Scavalca da 1 a 7 celle; consuma 1 di corrente al secondo |
 
 I costi di sblocco sono in [Economia e Ricerca](Economia-e-Ricerca).
 
-I nastri hanno la forma **stretta** di Mindustry (la variante C): il binario occupa solo il mezzo della cella e le curve, le unioni e le T si leggono a colpo d'occhio. Incrocio, router, selezionatori ed estrattore non hanno direzione e non si ruotano con `R`.
+I nastri hanno la forma **stretta** di Mindustry (la variante C): il binario occupa solo il mezzo della cella e le curve, le unioni e le T si leggono a colpo d'occhio. Incrocio, router, selezionatori, gate ed estrattore non hanno direzione e non si ruotano con `R`.
 
 ## Curve, unioni e T
 
@@ -63,11 +67,24 @@ Come il *Sorter* di Mindustry: non ha direzione (`R` non lo gira) e passa l'ogge
 - Col cursore, un **clic** su un selezionatore, un invertito o un estrattore apre sopra il blocco la griglia delle icone degli oggetti e **Nessuno**: la scelta cambia il filtro e chiude il pannello; l'oggetto già scelto, cliccato di nuovo, toglie il filtro. `Esc`, un clic altrove o un altro strumento lo chiudono.
 - Il filtro è l'icona al centro del blocco; i blocchi si piazzano senza filtro.
 
+## Overflow e underflow gate
+
+Come l'*Overflow Gate* e l'*Underflow Gate* di Mindustry: 1×1, senza direzione (`R` non li gira), si trascinano in fila come il router e non tengono oggetti, li passano subito come il selezionatore.
+
+- L'**overflow gate** manda l'oggetto **dritto**, nella direzione in cui viaggia. Solo se davanti non c'è niente o il blocco davanti non accetta (un nastro pieno, una macchina piena), lo manda **a sinistra o a destra, alternando**. Così una linea con un overflow gate riempie prima quello che ha davanti e dà ai lati solo l'avanzo.
+- L'**underflow gate** fa il contrario: prima **ai lati, alternando**, e dritto solo quando nessuno dei due lati accetta.
+- Se nessuna uscita accetta, il gate rifiuta e l'oggetto **aspetta sul nastro che lo porta**: non se ne perde nessuno.
+- Il turno di sinistra e destra è tenuto **per ogni direzione di viaggio** e cambia solo quando entrambi i lati accettano (se ne accetta uno solo, l'oggetto va lì e il turno resta), come nel selezionatore. Si salva con la partita.
+- Danno anche a edifici e CORE (un gate accanto al CORE ci versa dentro), ma non prendono da un altro gate o da un selezionatore e non gli passano niente: davanti a un altro gate l'overflow manda di lato. Serve sapere da dove arriva l'oggetto, quindi un gate riceve solo da un blocco accanto (un nastro, un edificio, un router).
+- Si riconoscono dal cappuccio: ambra con le frecce verso l'esterno l'overflow, rosso con le frecce verso il cappuccio l'underflow.
+
 ## Ponte
 
 Un ponte ha due estremi 1×1 a una distanza da 2 a 4 celle, come in Mindustry, quindi scavalca da 1 a 3 celle; l'uscita è la prima cella libera in quella direzione. Le celle in mezzo restano libere: un nastro ci può passare sotto. L'ingresso prende oggetti da tre lati (non da quello della campata), li passa subito all'uscita, che li dà sui suoi tre lati liberi (davanti, sinistra, destra).
 
 Il ponte passa sopra pareti e acqua profonda, purché i due estremi stiano su celle costruibili. Smontando un estremo si smonta tutto il ponte.
+
+**Ponte lungo.** Come il ponte, ma gli estremi stanno da 2 a 8 celle (scavalca fino a 7 celle) e l'entrata è un blocco di corrente 1×1 che consuma 1 al secondo, anche quando non passa niente: si collega a un generatore, a una batteria o a un nodo per contatto o col laser di un nodo (cliccando una delle due estremità). Senza corrente (soddisfazione 0) gli oggetti aspettano sull'entrata e non se ne perde nessuno; con corrente anche parziale passano subito, come nel ponte. I due estremi sono sempre dello stesso ponte e il ponte automatico dei nastri usa solo il ponte normale.
 
 **Ponte automatico.** Col ponte sbloccato, una retta di nastri trascinata che incontra pareti, acqua profonda o edifici li scavalca da sola con un ponte (fino a 3 celle di ostacolo); un ostacolo più lungo resta rosso. Non succede con una direzione fissata con `R` di lato.
 
@@ -79,9 +96,19 @@ Veloce come il Nastro T2, ma come l'*Armored Conveyor* di Mindustry prende ogget
 
 *Sopra una linea T2 che raccoglie da tre minatori; sotto una linea rinforzata accanto agli stessi blocchi, che resta vuota.*
 
+## Nastro a pacchi
+
+Come lo *Stack Conveyor* di Mindustry: porta **pacchi** di fino a **10 pezzi dello stesso oggetto**, uno per cella, a **21,6 celle al secondo** (tre volte il Nastro T3). Si piazza e si trascina come un nastro, con la sua direzione; si sblocca dopo il Nastro T3 e costa 1 Plastica, 1 Silicio e 1 Grafite per cella. Una linea a pacchi non mette mai incroci né ponti automatici; sopra una cella a pacchi la gira come un nastro, ma non sostituisce un nastro normale come un cambio di tier (la cella è occupata: prima si smonta il nastro).
+
+- **Carico.** Solo la **prima cella** della linea (quella a cui nessuna cella a pacchi consegna) prende oggetti: da dietro e dai lati, da nastri, edifici e logistica, come un nastro normale (mai dal blocco che ha di fronte). Ogni pezzo entra nel pacco in formazione se è lo stesso oggetto e il pacco ha meno di 10 pezzi; un oggetto diverso aspetta. Il pacco parte quando ha **10 pezzi** oppure **un secondo (60 tick) dopo l'ultimo pezzo entrato**, anche mezzo vuoto.
+- **In mezzo.** Le altre celle prendono solo pacchi dalla cella a pacchi dietro di loro: prendono anche i pacchi di una linea a pacchi che arriva di lato, mentre un nastro o un router di lato non ci entra (e un gate vede libera solo la prima cella).
+- **Scarico.** Solo l'**ultima cella** (davanti non ha un'altra cella a pacchi) scarica, e solo in un **edificio o nel CORE** davanti: consegna i pezzi uno alla volta finché l'edificio li prende, anche più pezzi nello stesso tick, e il pacco resta finché non è vuoto. Davanti a un nastro, un router, un incrocio o un gate la linea si ferma: per tornare su nastri normali serve un edificio in mezzo più un estrattore che lo svuota (per esempio un contenitore e un estrattore). Gli edifici non tirano niente dalle celle a pacchi.
+- **Smontare** una cella a pacchi perde il suo pacco, come un nastro perde i suoi oggetti (ma qui sono fino a 10 pezzi). Due celle a pacchi testa a testa si fermano, come due nastri.
+- Nel mondo la cella si disegna sempre dritta e il pacco è lo sprite dell'oggetto con dietro da 0 a 3 copie più scure (1 pezzo, da 2 a 4, da 5 a 9, 10); il conto degli oggetti sui nastri dell'HUD somma i pezzi.
+
 ## Container e vault
 
-Due magazzini che si mettono sui nastri e accanto agli edifici. Il **Contenitore** (`container`, 2×2) tiene 300 per oggetto, il **Deposito** (`vault`, 3×3) 1.000; costano 40 Lastre di ferro e 20 Lastre di piombo il primo, 60 Lastre di titanio e 40 Lastre di ferro il secondo (sblocchi in [Economia e Ricerca](Economia-e-Ricerca#container-e-vault)).
+Due magazzini che si mettono sui nastri e accanto agli edifici. Il **Contenitore** (`container`, 2×2) tiene 300 per oggetto, il **Deposito** (`vault`, 3×3) 1.000; costano 40 Lastre di ferro e 20 Lastre di piombo il primo, 60 Lastre di titanio e 40 Lastre di ferro il secondo (sblocchi in [Economia e Ricerca](Economia-e-Ricerca#container-e-vault)). I potenziamenti Magazzino I e II alzano questi spazi del 25% e del 50% (vedi [I potenziamenti](Economia-e-Ricerca#i-potenziamenti)).
 
 - **A contatto con il CORE** (lato contro lato) allargano il suo magazzino: il loro spazio si somma al massimo di ogni oggetto e i nastri che vi consegnano consegnano al CORE.
 - **Lontani dal CORE** sono depositi a sé: accettano qualsiasi oggetto da nastri ed edifici finché c'è posto, e un Estrattore attaccato li svuota (prima dal CORE, se anche lui è a contatto e ha l'oggetto, poi dal deposito con l'id più basso).

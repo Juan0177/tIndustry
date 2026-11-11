@@ -1,5 +1,5 @@
-"""Power sprites: generator (base + turning rotor), power node (1x1), power node T2 (2x2), lamp (1x1), battery
-(1x1) and the light texture of the night (`luce`).
+"""Power sprites: generator and combustion generator (base + turning rotor), power node (1x1), power node T2 (2x2),
+lamp (1x1), battery (1x1), large battery (3x3), solar panels and the light texture of the night (`luce`).
 
 The generator base has rounded corners, yellow-and-black hazard bands and cooling fins, so it
 reads apart from the production blocks; the rotor strip (4 frames) turns in its round housing.
@@ -7,14 +7,18 @@ reads apart from the production blocks; the rotor strip (4 frames) turns in its 
 copper windings and a yellow cap. The lamp is a plate with a glass dome: `lamp-base` has it dark, `lamp-glow`
 is the lit dome the client shows over it while powered (`lamp` = both, the icon). The battery is a lead cell with
 a window: `battery-base` has it empty, `battery-charge-anim` holds 0 to 3 lit bars (the client shows its charge),
-`battery` = full, the icon. `luce` is not a block: a soft
+`battery` = full, the icon. The combustion generator (`combustion-generator`, 2x2) shares the generator's rotor
+and housing on an iron body with a firebox: `combustion-generator-base` has it cold, `combustion-generator-fire-anim`
+(4 frames) is the fire the client shows over it while it burns (the icon has frame 0); the large battery (`battery-large`, 3x3) is a wide lead cell
+whose `battery-large-charge-anim` holds 0 to 5 bars. The solar panels (`solar` 1x1, `solar-large` 3x3) are static: a steel frame holding
+deep blue photovoltaic cells in a grid, with a glint on the top-left cells. `luce` is not a block: a soft
 128x128 white disc fading to transparent, the texture of every PointLight2D at night (the client tints it).
 """
 import math
 
 import forme
 from blocchi import sprite
-from palette import ENERGIA, FERRO, FULIGGINE, METALLO, NASTRO, OUT, PIOMBO, RAME
+from palette import BAGLIORE, ENERGIA, FERRO, FULIGGINE, METALLO, NASTRO, OUT, PIOMBO, RAME, SOLARE
 
 T = 32
 L = 2 * T
@@ -40,7 +44,12 @@ def _base_generatore():
     forme.sagoma(im, forme.arrotondato(0, 0, L - 1, L - 1, 9), FULIGGINE)
     _strisce_pericolo(im, 10, 2, L - 11, 7)
     _strisce_pericolo(im, 10, L - 8, L - 11, L - 3)
-    # Cooling fins on the sides.
+    _alloggiamento_rotore(im)
+    return forme.basamento(im, FULIGGINE)
+
+
+def _alloggiamento_rotore(im):
+    """Cooling fins on the sides, the rotor housing with its bolts and the four yellow corner terminals."""
     for x0 in (2, L - 9):
         forme.rett(im, x0, 12, x0 + 6, L - 13, OUT)
         for y in range(13, L - 13):
@@ -68,7 +77,59 @@ def _base_generatore():
     for cx, cy in ((7, 10), (L - 8, 10), (7, L - 11), (L - 8, L - 11)):
         forme.cerchio(im, cx, cy, 2.5, ENERGIA)
         forme.pixel(im, int(cx), int(cy), OUT)
-    return forme.basamento(im, FULIGGINE)
+
+
+FOCOLARE = (11, L - 7, L - 12, L - 4)  # inside of the firebox (inclusive), drawn by the base and the fire frames
+FUOCO_FOTOGRAMMI = 4
+
+
+def _sbarra(x):
+    """True on the columns of the firebox grate (the bars stand in front of the fire)."""
+    return x >= 12 and (x - 12) % 3 == 0
+
+
+def _base_combustione():
+    """The combustion generator: an iron body with the same rotor housing, a hazard band on top and, at the bottom,
+    the firebox where the coal or graphite burns, cold here: dark grate bars over a sooty well (the fire frames light
+    it while the generator burns)."""
+    im = forme.nuova(L, L)
+    forme.sagoma(im, forme.arrotondato(0, 0, L - 1, L - 1, 9), FERRO)
+    _strisce_pericolo(im, 10, 2, L - 11, 7)
+    x0, y0, x1, y1 = FOCOLARE
+    forme.rett(im, x0 - 1, y0 - 1, x1 + 1, y1 + 1, OUT)
+    forme.rett(im, x0, y0, x1, y1, FULIGGINE[0])
+    for x in range(x0, x1 + 1):
+        if _sbarra(x):
+            forme.rett(im, x, y0, x, y1, FULIGGINE[2])
+    _alloggiamento_rotore(im)
+    return forme.basamento(im, FERRO)
+
+
+def _fuoco(k):
+    """Frame `k` of the fire in the firebox (transparent elsewhere): flames between the grate bars, each gap with its
+    own height that changes every frame, white-hot at the bottom; the bars glow red with the heat."""
+    im = forme.nuova(L, L)
+    x0, y0, x1, y1 = FOCOLARE
+    for x in range(x0, x1 + 1):
+        if _sbarra(x):
+            forme.rett(im, x, y0, x, y1, BAGLIORE[0])
+            continue
+        # Flame height of this column in this frame: 2 to 4 pixels, from a fixed per-column pattern.
+        h = 2 + (x * 5 + k * 3 + (x // 3) * k) % 3
+        for y in range(y0, y1 + 1):
+            sopra = y1 - y  # 0 = bottom row
+            if sopra >= h:
+                continue
+            if sopra == 0 and (x + k) % 2 == 0:
+                c = BAGLIORE[4]
+            elif sopra <= h - 3:
+                c = BAGLIORE[3]
+            elif sopra < h - 1:
+                c = BAGLIORE[2]
+            else:
+                c = BAGLIORE[1]  # the flame's tip
+            forme.pixel(im, x, y, c)
+    return im
 
 
 def rotore(angolo):
@@ -100,6 +161,11 @@ def rotore(angolo):
 sprite("generator-base")(_base_generatore)
 sprite("generator-rotor-anim")(lambda: forme.striscia([rotore(k * ROTORE_PASSO) for k in range(ROTORE_FOTOGRAMMI)]))
 sprite("generator")(lambda: forme.componi(_base_generatore(), rotore(0)))
+sprite("combustion-generator-base")(_base_combustione)
+sprite("combustion-generator-rotor-anim")(
+    lambda: forme.striscia([rotore(k * ROTORE_PASSO) for k in range(ROTORE_FOTOGRAMMI)]))
+sprite("combustion-generator-fire-anim")(lambda: forme.striscia([_fuoco(k) for k in range(FUOCO_FOTOGRAMMI)]))
+sprite("combustion-generator")(lambda: forme.componi(_base_combustione(), _fuoco(0), rotore(0)))
 
 
 # ---------------------------------------------------------------- power nodes
@@ -226,6 +292,94 @@ sprite("battery-charge-anim")(lambda: forme.striscia([tacche(k) for k in range(B
 @sprite("battery")
 def battery():
     return forme.componi(battery_base(), tacche(BATTERIA_TACCHE))
+
+
+# The large battery (3x3): a wide lead cell with three terminals and a tall window of five bars.
+G = 3 * T
+BATTERIA_GRANDE_TACCHE = 5
+
+
+@sprite("battery-large-base")
+def battery_large_base():
+    im = forme.nuova(G, G)
+    forme.sagoma(im, forme.arrotondato(3, 8, G - 4, G - 3, 8), PIOMBO)
+    for tx in (16, 44, 72):
+        forme.pannello(im, tx, 1, tx + 7, 10, RAME)
+    for bx, by in ((9, 14), (G - 12, 14), (9, G - 10), (G - 12, G - 10)):
+        forme.bullone(im, bx, by, METALLO)
+    forme.rett(im, 26, 20, G - 27, G - 14, OUT)
+    forme.rett(im, 27, 21, G - 28, G - 15, FULIGGINE[0])
+    return im
+
+
+def tacche_grandi(n):
+    """The n lowest charge bars of the large battery's window, transparent elsewhere."""
+    im = forme.nuova(G, G)
+    for i in range(n):
+        y0 = G - 18 - i * 12
+        forme.rett(im, 29, y0 - 8, G - 30, y0, ENERGIA[min(4, 2 + i // 2)])
+    return im
+
+
+sprite("battery-large-charge-anim")(
+    lambda: forme.striscia([tacche_grandi(k) for k in range(BATTERIA_GRANDE_TACCHE + 1)]))
+
+
+@sprite("battery-large")
+def battery_large():
+    return forme.componi(battery_large_base(), tacche_grandi(BATTERIA_GRANDE_TACCHE))
+
+
+# ---------------------------------------------------------------- solar panels
+
+SOLARE_CELLA = 6  # side of one photovoltaic cell, grid line included
+
+
+def _pannello_solare(celle):
+    """A solar panel `celle` x `celle` blocks: steel frame, cell grid and a glint."""
+    lato = T * celle
+    im = forme.nuova(lato, lato)
+    forme.sagoma(im, forme.arrotondato(0, 0, lato - 1, lato - 1, 3 + celle), METALLO)
+    bordo = 3
+    x0, y0, x1, y1 = bordo, bordo, lato - 1 - bordo, lato - 1 - bordo
+    forme.rett(im, x0, y0, x1, y1, OUT)
+    n = (x1 - x0 - 1) // SOLARE_CELLA
+    pad = (x1 - x0 - 1 - n * SOLARE_CELLA) // 2
+    for j in range(n):
+        for i in range(n):
+            cx0 = x0 + 1 + pad + i * SOLARE_CELLA
+            cy0 = y0 + 1 + pad + j * SOLARE_CELLA
+            # Light from the top-left: the cells nearer that corner catch the sky.
+            lume = 3 if i + j < n // 3 else 2 if i + j < n else 1
+            forme.rett(im, cx0, cy0, cx0 + SOLARE_CELLA - 2, cy0 + SOLARE_CELLA - 2, SOLARE[lume])
+            forme.pixel(im, cx0, cy0, SOLARE[lume + 1])
+            forme.rett(im, cx0 + 1, cy0 + SOLARE_CELLA // 2 - 1, cx0 + SOLARE_CELLA - 3, cy0 + SOLARE_CELLA // 2 - 1,
+                       SOLARE[max(0, lume - 1)])
+    # A diagonal glint across the top-left cells.
+    for k in range(lato // 4):
+        forme.pixel(im, x0 + 2 + k, y0 + lato // 4 - k, SOLARE[4])
+    for k in range(1, celle):
+        # The large panel is three by three modules: steel bars between them.
+        m = T * k
+        forme.rett(im, m - 2, y0, m + 1, y1, OUT)
+        forme.rett(im, x0, m - 2, x1, m + 1, OUT)
+        forme.rett(im, m - 1, y0 + 1, m, y1 - 1, METALLO[3])
+        forme.rett(im, x0 + 1, m - 1, x1 - 1, m, METALLO[3])
+    if celle > 1:
+        # The large panel's junction box in the middle of its bottom edge.
+        forme.pannello(im, lato // 2 - 7, lato - 9, lato // 2 + 6, lato - 2, METALLO)
+        forme.rett(im, lato // 2 - 3, lato - 6, lato // 2 + 2, lato - 5, ENERGIA[2])
+    return im
+
+
+@sprite("solar")
+def solar():
+    return _pannello_solare(1)
+
+
+@sprite("solar-large")
+def solar_large():
+    return _pannello_solare(3)
 
 
 LUCE = 128

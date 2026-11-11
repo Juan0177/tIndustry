@@ -61,7 +61,8 @@ public interface IResearchView
 
     ResearchNodeState GetNodeState(StructureDefinition structure);
 
-    bool CanUnlock(StructureDefinition structure, IWalletView wallet);
+    /// <param name="inCampaign">True in a campaign game: its rewards (<see cref="StructureDefinition.CampaignReward"/>) are not for sale.</param>
+    bool CanUnlock(StructureDefinition structure, IWalletView wallet, bool inCampaign = false);
 
     bool MeetsPrerequisites(StructureDefinition structure);
 }
@@ -90,7 +91,10 @@ public interface IGameView
     /// <summary>Auto-junction rule for a dragged belt facing <paramref name="direction"/> on <paramref name="position"/>.</summary>
     BeltCrossing BeltCrossingAt(GridPosition position, Direction direction);
 
-    /// <summary>What the plain belt <paramref name="conveyorId"/> facing <paramref name="direction"/> does over the belt on <paramref name="cell"/>.</summary>
+    /// <summary>
+    /// What the 1×1 logistics block <paramref name="conveyorId"/> (a structure id: any belt tier, junction, router, sorter
+    /// or gate) facing <paramref name="direction"/> does over the 1×1 logistics block on <paramref name="cell"/>.
+    /// </summary>
     BeltOverBelt BeltOverBeltAt(GridPosition cell, Direction direction, string conveyorId);
 
     /// <summary>Direction of the belt feeding the position (visual only).</summary>
@@ -105,6 +109,9 @@ public interface IGameView
 
     IReadOnlyList<Crafter> Assemblers { get; }
 
+    /// <summary>The other craft machines (advanced smelter, graphite press, separator, plasticizer), in id order.</summary>
+    IReadOnlyList<Crafter> Machines { get; }
+
     IReadOnlyList<Generator> Generators { get; }
 
     IReadOnlyList<Extractor> Extractors { get; }
@@ -116,6 +123,15 @@ public interface IGameView
 
     /// <summary>Batteries, in id order.</summary>
     IReadOnlyList<Battery> Batteries { get; }
+
+    /// <summary>Solar panels (small and large), in id order: what each produced in the last balance.</summary>
+    IReadOnlyList<SolarPanel> SolarPanels { get; }
+
+    /// <summary>
+    /// Power entities of the powered bridges (the long bridge's entry), in id order: satisfaction of the last balance;
+    /// items cross only while it is above 0.
+    /// </summary>
+    IReadOnlyList<BridgePower> BridgePowers { get; }
 
     /// <summary>Containers and vaults, in id order (linked to the Core or standalone with their contents).</summary>
     IReadOnlyList<StorageBlock> Storages { get; }
@@ -202,6 +218,12 @@ public interface IGameView
 
     /// <summary>Core tier (0 shard, 1 foundation, 2 nucleus), index in <see cref="FactoryContent.CoreTiers"/>.</summary>
     int CoreTier { get; }
+
+    /// <summary>
+    /// The builder drone of <see cref="CoreTier"/> with the research upgrades (<see cref="GameState.EffectiveUnit"/>):
+    /// its build range, hold and rates as the simulation uses them.
+    /// </summary>
+    UnitDefinition EffectiveUnit { get; }
 
     /// <summary>Maximum Core stock of <paramref name="itemId"/> (<see cref="CoreStorage.Capacity"/>).</summary>
     int CoreCapacity(string itemId);

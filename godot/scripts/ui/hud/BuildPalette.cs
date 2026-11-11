@@ -23,11 +23,15 @@ public partial class BuildPalette : PanelContainer
         new(ToolKind.BeltFast, "conveyor-fast", ""),
         new(ToolKind.BeltExpress, "conveyor-express", ""),
         new(ToolKind.BeltArmored, "conveyor-armored", ""),
+        new(ToolKind.BeltStack, "conveyor-stack", ""),
         new(ToolKind.Junction, "junction", "5"),
         new(ToolKind.Router, "router", "6"),
         new(ToolKind.Sorter, "sorter", "8"),
         new(ToolKind.SorterInverted, "sorter-inverted", ""),
-        new(ToolKind.Bridge, "conveyor-bridge", "9")
+        new(ToolKind.OverflowGate, Factory.OverflowGateId, ""),
+        new(ToolKind.UnderflowGate, Factory.UnderflowGateId, ""),
+        new(ToolKind.Bridge, "conveyor-bridge", "9"),
+        new(ToolKind.BridgeLong, Factory.BridgeLongId, "")
     ];
 
     private static readonly PaletteEntry[] ProductionEntries =
@@ -36,16 +40,25 @@ public partial class BuildPalette : PanelContainer
         new(ToolKind.MinerAdvanced, "miner-advanced", ""),
         new(ToolKind.Smelter, "smelter", "3"),
         new(ToolKind.Assembler, "assembler", "4"),
-        new(ToolKind.Extractor, "extractor", "")
+        new(ToolKind.Extractor, "extractor", ""),
+        new(ToolKind.SmelterAdvanced, Crafter.SmelterAdvancedId, ""),
+        new(ToolKind.GraphitePress, Crafter.GraphitePressId, ""),
+        new(ToolKind.Separator, Crafter.SeparatorId, ""),
+        new(ToolKind.Plasticizer, Crafter.PlasticizerId, ""),
+        new(ToolKind.ImpactDrill, Miner.ImpactDrillId, "")
     ];
 
     private static readonly PaletteEntry[] PowerEntries =
     [
         new(ToolKind.Generator, "generator", "7"),
+        new(ToolKind.CombustionGenerator, Generator.CombustionId, ""),
         new(ToolKind.PowerNode, "power-node", ""),
         new(ToolKind.PowerNodeT2, "power-node-t2", ""),
         new(ToolKind.Lamp, "lamp", ""),
-        new(ToolKind.Battery, "battery", "")
+        new(ToolKind.Battery, "battery", ""),
+        new(ToolKind.BatteryLarge, Battery.LargeId, ""),
+        new(ToolKind.Solar, SolarPanel.SmallId, ""),
+        new(ToolKind.SolarLarge, SolarPanel.LargeId, "")
     ];
 
     // Mindustry's cores, containers and vaults: a Core block shows only while it is the next tier (see World.SyncResearchLocks).
@@ -222,7 +235,7 @@ public partial class BuildPalette : PanelContainer
     /// </summary>
     internal static string Hint(PaletteEntry entry, FactoryContent? content) => entry.Tool switch
     {
-        ToolKind.Miner or ToolKind.MinerAdvanced =>
+        ToolKind.Miner or ToolKind.MinerAdvanced or ToolKind.ImpactDrill =>
             Testi.F($"struttura.{entry.StructureId}.suggerimento", Testi.Scava(content, entry.StructureId)),
         _ => Testi.T($"struttura.{entry.StructureId}.suggerimento")
     };
@@ -514,12 +527,17 @@ public partial class BuildPalette : PanelContainer
 
     private static BuildCategory CategoryFor(ToolKind tool) => tool switch
     {
-        ToolKind.Belt or ToolKind.BeltFast or ToolKind.BeltExpress or ToolKind.BeltArmored or ToolKind.Junction or ToolKind.Router
-            or ToolKind.Sorter or ToolKind.SorterInverted or ToolKind.Bridge
+        ToolKind.Belt or ToolKind.BeltFast or ToolKind.BeltExpress or ToolKind.BeltArmored or ToolKind.BeltStack
+            or ToolKind.Junction or ToolKind.Router
+            or ToolKind.Sorter or ToolKind.SorterInverted or ToolKind.OverflowGate or ToolKind.UnderflowGate or ToolKind.Bridge
+            or ToolKind.BridgeLong
             => BuildCategory.Logistics,
         ToolKind.Miner or ToolKind.MinerAdvanced or ToolKind.Smelter or ToolKind.Assembler or ToolKind.Extractor
+            or ToolKind.SmelterAdvanced or ToolKind.GraphitePress or ToolKind.Separator or ToolKind.Plasticizer
+            or ToolKind.ImpactDrill
             => BuildCategory.Production,
         ToolKind.Generator or ToolKind.PowerNode or ToolKind.PowerNodeT2 or ToolKind.Lamp or ToolKind.Battery
+            or ToolKind.Solar or ToolKind.SolarLarge or ToolKind.CombustionGenerator or ToolKind.BatteryLarge
             => BuildCategory.Power,
         ToolKind.Container or ToolKind.Vault or ToolKind.CoreFoundation or ToolKind.CoreNucleus or ToolKind.MarketScreen
             => BuildCategory.Storage,

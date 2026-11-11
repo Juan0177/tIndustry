@@ -70,7 +70,7 @@ public partial class World
             return;
         }
 
-        var radius = _view!.Content.UnitForTier(_view.CoreTier).BuildRange * TileSize;
+        var radius = _view!.EffectiveUnit.BuildRange * TileSize;
         canvas.DrawCircle(centre, radius, UiColors.RaggioDrone with { A = 0.04f });
         var under = UiColors.SottoSegno;
         for (var i = 0; i < DroneRangeSegments; i += 2)
@@ -216,8 +216,8 @@ public partial class World
     }
 
     private readonly HashSet<GridPosition> _buildingTiles = [];
-    private readonly long[] _buildingTilesKey = new long[18];
-    private readonly long[] _structureKey = new long[18];
+    private readonly long[] _buildingTilesKey = new long[22];
+    private readonly long[] _structureKey = new long[22];
     private IGameView? _buildingTilesView;
 
     /// <summary>
@@ -247,7 +247,7 @@ public partial class World
             _buildingTiles.UnionWith(miner.OccupiedTiles());
         }
 
-        foreach (var crafter in view.Smelters.Concat(view.Assemblers))
+        foreach (var crafter in view.Smelters.Concat(view.Assemblers).Concat(view.Machines))
         {
             _buildingTiles.UnionWith(crafter.OccupiedTiles());
         }
@@ -274,7 +274,12 @@ public partial class World
 
         foreach (var battery in view.Batteries)
         {
-            _buildingTiles.Add(battery.Position);
+            _buildingTiles.UnionWith(battery.OccupiedTiles());
+        }
+
+        foreach (var panel in view.SolarPanels)
+        {
+            _buildingTiles.UnionWith(panel.OccupiedTiles());
         }
 
         return _buildingTiles;
@@ -318,6 +323,13 @@ public partial class World
 
         Add(view.Assemblers.Count, max);
         max = 0;
+        foreach (var c in view.Machines)
+        {
+            max = Math.Max(max, c.Id);
+        }
+
+        Add(view.Machines.Count, max);
+        max = 0;
         foreach (var g in view.Generators)
         {
             max = Math.Max(max, g.Id);
@@ -352,6 +364,13 @@ public partial class World
         }
 
         Add(view.Batteries.Count, max);
+        max = 0;
+        foreach (var p in view.SolarPanels)
+        {
+            max = Math.Max(max, p.Id);
+        }
+
+        Add(view.SolarPanels.Count, max);
     }
 
     /// <summary>Cell size on screen from which deposits show their ore icon instead of plain colour.</summary>
@@ -408,7 +427,7 @@ public partial class World
             var rect = new Rect2(placement.Cell.X * TileSize, placement.Cell.Y * TileSize, size * TileSize, size * TileSize);
             PlacementPreview.Draw(canvas, spec.StructureId, rect, placement.Direction, turnSprite: spec.Kind is null,
                 arrow: PlacementPreview.HasDirection(spec.Kind), valid);
-            if (spec.Kind == BuildingKind.Bridge)
+            if (BuildSpec.IsBridge(spec.Kind))
             {
                 DrawBridgeGhost(canvas, spec, refused: !valid);
             }
@@ -471,21 +490,38 @@ public partial class World
         BuildTool.CoreFoundation => BuildingKind.CoreFoundation,
         BuildTool.CoreNucleus => BuildingKind.CoreNucleus,
         BuildTool.MarketScreen => BuildingKind.MarketScreen,
+        BuildTool.SmelterAdvanced => BuildingKind.SmelterAdvanced,
+        BuildTool.GraphitePress => BuildingKind.GraphitePress,
+        BuildTool.Separator => BuildingKind.Separator,
+        BuildTool.Plasticizer => BuildingKind.Plasticizer,
+        BuildTool.ImpactDrill => BuildingKind.ImpactDrill,
+        BuildTool.OverflowGate => BuildingKind.OverflowGate,
+        BuildTool.UnderflowGate => BuildingKind.UnderflowGate,
+        BuildTool.BridgeLong => BuildingKind.BridgeLong,
+        BuildTool.Solar => BuildingKind.Solar,
+        BuildTool.SolarLarge => BuildingKind.SolarLarge,
+        BuildTool.CombustionGenerator => BuildingKind.CombustionGenerator,
+        BuildTool.BatteryLarge => BuildingKind.BatteryLarge,
         _ => null
     };
 
     /// <summary>Footprint edge of the block the current tool places.</summary>
     private int GhostSize() => _tool switch
     {
-        BuildTool.Miner or BuildTool.MinerAdvanced => Miner.Size,
+        BuildTool.Miner or BuildTool.MinerAdvanced => Miner.T1Size,
         BuildTool.Smelter => Crafter.Size,
         BuildTool.Assembler => Crafter.Size,
-        BuildTool.Generator => Generator.Size,
+        BuildTool.SmelterAdvanced or BuildTool.GraphitePress or BuildTool.Separator or BuildTool.Plasticizer => Crafter.Size,
+        BuildTool.ImpactDrill => Miner.ImpactDrillSize,
+        BuildTool.Generator or BuildTool.CombustionGenerator => Generator.Size,
+        BuildTool.BatteryLarge => Battery.LargeSize,
         BuildTool.PowerNode => 1,
         BuildTool.PowerNodeT2 => 2,
         BuildTool.Extractor => Extractor.Size,
         BuildTool.Container or BuildTool.Vault => StorageBlock.SizeOf(KindOf(_tool)),
         BuildTool.MarketScreen => MarketScreen.Size,
+        BuildTool.Solar => SolarPanel.SmallSize,
+        BuildTool.SolarLarge => SolarPanel.LargeSize,
         BuildTool.CoreFoundation or BuildTool.CoreNucleus when _view is not null
             => _view.Content.CoreTiers[BuildSpec.CoreTierOf(KindOf(_tool))].Size,
         _ => 1

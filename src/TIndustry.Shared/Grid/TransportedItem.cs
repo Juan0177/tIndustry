@@ -13,6 +13,13 @@ public sealed class TransportedItem
 
     public long Id { get; }
     public string ItemId { get; }
+
+    /// <summary>
+    /// Pieces of <see cref="ItemId"/> it stands for: 1 for an item, 1 to <see cref="BeltGrid.StackPackSize"/> for a pack on
+    /// a stack conveyor (<see cref="LogisticsKind.Stack"/>). Only stack cells ever hold more than one.
+    /// </summary>
+    public int Count { get; set; } = 1;
+
     public float Progress { get; set; }
     /// <summary>Direction of travel through a junction: the queue the item is in, and the side it leaves by. Null on belts.</summary>
     public Direction? Travel { get; set; }

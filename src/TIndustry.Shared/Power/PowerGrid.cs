@@ -7,7 +7,7 @@ public enum PowerBlockKind
     Node,
     Battery,
 
-    /// <summary>A block with a power use: forno, assembler, Miner T2, lamp.</summary>
+    /// <summary>A block with a power use: forno, assembler, Miner T2, lamp, the long bridge's entry.</summary>
     Consumer
 }
 
@@ -263,7 +263,9 @@ public sealed class PowerGrid
             batteryById[battery.Id] = battery;
         }
 
-        var batteryCapacity = Battery.CapacityOf(s.Content);
+        // Each battery stores what its own definition holds (a small and a large one share by capacity).
+        var smallCapacity = Battery.CapacityOf(s.Content, Battery.BuildingId);
+        var largeCapacity = Battery.CapacityOf(s.Content, Battery.LargeId);
         foreach (var root in rootOrder)
         {
             var network = new PowerNetwork(networks.Count, membersOfRoot[root]);
@@ -279,15 +281,17 @@ public sealed class PowerGrid
 
                 if (kind == PowerBlockKind.Battery)
                 {
-                    network.AddBattery(batteryById[id], batteryCapacity);
+                    var battery = batteryById[id];
+                    network.AddBattery(battery, battery.DefinitionId == Battery.LargeId ? largeCapacity : smallCapacity);
                 }
             }
         }
     }
 
     /// <summary>
-    /// The power blocks of <paramref name="s"/> in id order: generators, nodes, batteries and the blocks with a power
-    /// use (forno, assembler, Miner T2, lamp). Belts, Miner T1, extractor, storage and the Core are not.
+    /// The power blocks of <paramref name="s"/> in id order: generators (the solar panels too), nodes, batteries and the blocks with a power
+    /// use (craft machines but the graphite press, Miner T2, impact drill, lamp, the long bridge's entry). Belts, Miner T1, extractor, graphite press, storage
+    /// and the Core are not.
     /// </summary>
     public static List<PowerBlock> Blocks(GameState s)
     {
@@ -305,25 +309,39 @@ public sealed class PowerGrid
 
         foreach (var b in s.Batteries)
         {
-            blocks.Add(new PowerBlock(b.Id, b.Position, Battery.Size, PowerBlockKind.Battery));
+            blocks.Add(new PowerBlock(b.Id, b.Position, b.Size, PowerBlockKind.Battery));
+        }
+
+        foreach (var p in s.SolarPanels)
+        {
+            blocks.Add(new PowerBlock(p.Id, p.Position, p.Size, PowerBlockKind.Generator));
         }
 
         foreach (var c in s.CraftMachines())
         {
-            blocks.Add(new PowerBlock(c.Id, c.Position, Crafter.Size, PowerBlockKind.Consumer));
+            // A machine that never uses power (the graphite press) is not on any network.
+            if (c.PowerMode != CraftPowerMode.None)
+            {
+                blocks.Add(new PowerBlock(c.Id, c.Position, Crafter.Size, PowerBlockKind.Consumer));
+            }
         }
 
         foreach (var m in s.Miners)
         {
-            if (m.DefinitionId == Miner.AdvancedId)
+            if (m.CanReceivePower)
             {
-                blocks.Add(new PowerBlock(m.Id, m.Position, Miner.Size, PowerBlockKind.Consumer));
+                blocks.Add(new PowerBlock(m.Id, m.Position, m.Size, PowerBlockKind.Consumer));
             }
         }
 
         foreach (var l in s.Lamps)
         {
             blocks.Add(new PowerBlock(l.Id, l.Position, Lamp.Size, PowerBlockKind.Consumer));
+        }
+
+        foreach (var b in s.BridgePowers)
+        {
+            blocks.Add(new PowerBlock(b.Id, b.Entry, BridgePower.Size, PowerBlockKind.Consumer));
         }
 
         blocks.Sort((a, b) => a.Id.CompareTo(b.Id));

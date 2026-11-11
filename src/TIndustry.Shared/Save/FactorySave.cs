@@ -4,7 +4,19 @@ using System.Text.Json.Serialization;
 namespace TIndustry.Shared;
 
 /// <summary>
-/// Full game state as stored in the canonical snapshot (see <see cref="Snapshot"/>). Version 20: the stock-exchange
+/// Full game state as stored in the canonical snapshot (see <see cref="Snapshot"/>). Version 23: a replacement site
+/// remembers a list of replaced blocks, each with its state (<see cref="SiteSaveDto.Replaced"/>: every 1×1 logistics block
+/// replaces another, a sorter's filter and turns, a router's state and a stack conveyor's packs come back when it is
+/// cancelled); since 22 the stack conveyor's
+/// packs (<see cref="ItemSaveDto.Count"/>), the wait of the pack being formed (<see cref="BeltSaveDto.StackWaitTicks"/>),
+/// the long bridge's power (<see cref="BeltSaveDto.PowerId"/>), the solar panels (<see cref="SolarPanels"/>), the
+/// combustion generator (<see cref="GeneratorSaveDto.DefinitionId"/>, its pieces per fuel in
+/// <see cref="GeneratorSaveDto.Fuels"/>) and the large battery (<see cref="BatterySaveDto.DefinitionId"/>);
+/// since 21 the machines of the
+/// wider research (<see cref="Machines"/>: advanced smelter, graphite press, separator, plasticizer, each with its
+/// <see cref="CraftSaveDto.DefinitionId"/>), the impact drill among the <see cref="Miners"/> (by its
+/// <see cref="MinerSaveDto.DefinitionId"/>) and each miner's covered cells (<see cref="MinerSaveDto.CoveredDepositTiles"/>);
+/// since 20 the stock-exchange
 /// screen (<see cref="MarketScreen"/>: cell, watched item and last "sell all" shown); since 19 the drone flown by its
 /// player (<see cref="BuilderSaveDto"/>: held input, hand-mining cell and progress, hold); since 18 the Mindustry-style logistics (junction queues, router item and turn, sorter turns and optional filter,
 /// extractor accumulator and turns); since 17 the power network's
@@ -17,10 +29,10 @@ namespace TIndustry.Shared;
 /// </summary>
 public sealed class FactorySaveData
 {
-    public const int CurrentVersion = 20;
+    public const int CurrentVersion = 23;
 
     /// <summary>Oldest version still read: only the current one.</summary>
-    public const int MinReadableVersion = 20;
+    public const int MinReadableVersion = 23;
 
     /// <summary><see cref="Generator"/> of a campaign map file (<see cref="MapId"/> names it).</summary>
     public const string CampaignGenerator = "campagna";
@@ -88,6 +100,12 @@ public sealed class FactorySaveData
     public List<MinerSaveDto> Miners { get; set; } = [];
     public List<CraftSaveDto> Smelters { get; set; } = [];
     public List<CraftSaveDto> Assemblers { get; set; } = [];
+    /// <summary>
+    /// Craft machines other than the forno and the assembler (<see cref="Factory.Machines"/>), in id order, each with
+    /// its <see cref="CraftSaveDto.DefinitionId"/>: null when there are none. A definition that is not such a machine
+    /// makes the save unreadable.
+    /// </summary>
+    public List<CraftSaveDto>? Machines { get; set; }
     public List<GeneratorSaveDto> Generators { get; set; } = [];
     public List<ExtractorSaveDto> Extractors { get; set; } = [];
     public List<PowerNodeSaveDto> PowerNodes { get; set; } = [];
@@ -95,6 +113,11 @@ public sealed class FactorySaveData
     public List<LampSaveDto>? Lamps { get; set; }
     /// <summary>Batteries: null when there are none.</summary>
     public List<BatterySaveDto>? Batteries { get; set; }
+    /// <summary>
+    /// Solar panels (small and large, by <see cref="SolarPanelSaveDto.DefinitionId"/>), in id order: null when there are
+    /// none. Another definition makes the save unreadable.
+    /// </summary>
+    public List<SolarPanelSaveDto>? SolarPanels { get; set; }
     /// <summary>
     /// Lasers of the power network as entity id pairs (<c>A &lt; B</c>, ordered by A then B, like
     /// <see cref="PowerGrid.Links"/>): null when there are none. Each must join two power blocks of this save, at least
@@ -158,8 +181,22 @@ public sealed class BatterySaveDto
     public long Id { get; set; }
     public int X { get; set; }
     public int Y { get; set; }
+
+    /// <summary>Its definition (<see cref="Battery.DefinitionId"/>); null = <see cref="Battery.BuildingId"/>.</summary>
+    public string? DefinitionId { get; set; }
+
     /// <summary>Stored energy, sixty-thousandths of a unit (<see cref="Battery.Charge"/>).</summary>
     public long Charge { get; set; }
+}
+
+/// <summary>A solar panel: id, top-left cell and definition (what it produces is recomputed every tick).</summary>
+public sealed class SolarPanelSaveDto
+{
+    public long Id { get; set; }
+    public int X { get; set; }
+    public int Y { get; set; }
+    /// <summary><see cref="SolarPanel.SmallId"/> or <see cref="SolarPanel.LargeId"/>.</summary>
+    public string DefinitionId { get; set; } = SolarPanel.SmallId;
 }
 
 /// <summary>One laser of the power network: the entity ids of its two ends, <c>A &lt; B</c>.</summary>
@@ -288,15 +325,33 @@ public sealed class SiteSaveDto
     public int RefundBasisPoints { get; set; }
     public int Owner { get; set; }
 
-    /// <summary>The belt a replacement site took away (written only for replacement sites).</summary>
-    public ReplacedSaveDto? Replaced { get; set; }
+    /// <summary>The blocks a replacement site took away (written only for replacement sites; <see cref="ConstructSite.Replaced"/>).</summary>
+    public List<ReplacedSaveDto>? Replaced { get; set; }
 }
 
-/// <summary>A belt taken away by a replacement site: its spec and items (front first).</summary>
+/// <summary>
+/// A block taken away by a replacement site (<see cref="ReplacedBlock"/>): its spec (a sorter's filter included), its
+/// items (front first) and its state, each field written only when not at rest.
+/// </summary>
 public sealed class ReplacedSaveDto
 {
     public BuildSpecSaveDto Spec { get; set; } = new();
     public List<ItemSaveDto> Items { get; set; } = [];
+
+    /// <summary>Sorter or gate: the four turn bits (<see cref="BeltGridCell.SorterTurns"/>); null = 0.</summary>
+    public int? SorterTurns { get; set; }
+
+    /// <summary>Router: first side to try (<see cref="BeltGridCell.RouterTurn"/>); null = 0.</summary>
+    public int? RouterTurn { get; set; }
+
+    /// <summary>Router: ticks its item has waited (<see cref="BeltGridCell.RouterWaitTicks"/>); null = 0.</summary>
+    public int? RouterWaitTicks { get; set; }
+
+    /// <summary>Router: the side its item came from (<see cref="BeltGridCell.RouterFrom"/>); null = unknown.</summary>
+    public string? RouterFrom { get; set; }
+
+    /// <summary>Stack conveyor: the wait of the pack being formed (<see cref="BeltGridCell.StackWaitTicks"/>); null = 0.</summary>
+    public int? StackWaitTicks { get; set; }
 }
 
 /// <summary>One cost line of a site: <see cref="ItemId"/> null means money.</summary>
@@ -354,6 +409,11 @@ public sealed class MinerSaveDto
     public int EjectIndex { get; set; }
     public string OutputItemId { get; set; } = Miner.DefaultOutputItemId;
     public string DefinitionId { get; set; } = Miner.BasicId;
+    /// <summary>
+    /// Cells of its footprint on what it digs (<see cref="Miner.CoveredDepositTiles"/>, fixed when placed), clamped to
+    /// the footprint on load; null (an absent key) is the whole footprint.
+    /// </summary>
+    public int? CoveredDepositTiles { get; set; }
 }
 
 public sealed class CraftSaveDto
@@ -382,9 +442,24 @@ public sealed class GeneratorSaveDto
     public int X { get; set; }
     public int Y { get; set; }
     public string Direction { get; set; } = "East";
+
+    /// <summary>Its definition (<see cref="Generator.DefinitionId"/>); null = <see cref="Generator.BuildingId"/>.</summary>
+    public string? DefinitionId { get; set; }
+
+    /// <summary>Pieces held, of all its fuels together; all of its first fuel when <see cref="Fuels"/> is null.</summary>
     public int FuelBuffer { get; set; }
+
+    /// <summary>Pieces held of each fuel, in content order; null when they are all of its first fuel.</summary>
+    public List<FuelCountSaveDto>? Fuels { get; set; }
     public float BurnRemaining { get; set; }
     public long FuelConsumed { get; set; }
+}
+
+/// <summary>Pieces of one fuel held by a generator.</summary>
+public sealed class FuelCountSaveDto
+{
+    public string ItemId { get; set; } = "";
+    public int Count { get; set; }
 }
 
 public sealed class BeltSaveDto
@@ -412,6 +487,24 @@ public sealed class BeltSaveDto
     /// <summary>Sorter: the four turn bits, one per direction of travel (<see cref="BeltGridCell.SorterTurns"/>); null = 0.</summary>
     public int? SorterTurns { get; set; }
 
+    /// <summary>
+    /// Stack conveyor: ticks the pack being formed on the loading cell has waited (<see cref="BeltGridCell.StackWaitTicks"/>,
+    /// below <see cref="BeltGrid.StackWaitTicks"/>); null = 0, and on other cells.
+    /// </summary>
+    public int? StackWaitTicks { get; set; }
+
+    /// <summary>
+    /// Entry of a powered bridge (the long bridge): the id of its power entity (<see cref="BridgePower.Id"/>), so the node
+    /// lasers that point at it survive the load; null on every other cell (the exit included).
+    /// </summary>
+    public long? PowerId { get; set; }
+
+    /// <summary>
+    /// Entry of a powered bridge: the share of power it got in the last balance (<see cref="BridgePower.SatisfactionBp"/>,
+    /// 1–10 000; null = 0). The next tick's belts move before its balance, so a loaded game must start from it.
+    /// </summary>
+    public int? PowerSatisfactionBp { get; set; }
+
     public List<ItemSaveDto> Items { get; set; } = [];
 }
 
@@ -419,6 +512,10 @@ public sealed class ItemSaveDto
 {
     public long Id { get; set; }
     public string ItemId { get; set; } = "";
+
+    /// <summary>Pieces of a stack conveyor's pack (<see cref="TransportedItem.Count"/>, 2 to <see cref="BeltGrid.StackPackSize"/>); null = 1.</summary>
+    public int? Count { get; set; }
+
     public float Progress { get; set; }
     public string? Travel { get; set; }
 

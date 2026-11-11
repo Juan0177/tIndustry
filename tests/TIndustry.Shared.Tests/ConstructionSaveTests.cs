@@ -212,7 +212,7 @@ public sealed class ConstructionSaveTests
         Assert.Equal(Construction.FullRefundBasisPoints, site.RefundBasisPoints);
         Assert.Equal([4], site.Spent);
         Assert.Equal([0], site.Refunded);
-        Assert.Equal(Miner.Size * Miner.Size, site.Tiles.Count);
+        Assert.Equal(Miner.T1Size * Miner.T1Size, site.Tiles.Count);
         Assert.Contains(new GridPosition(25, 21), site.Tiles);
 
         dto.Progress = -3f;
@@ -357,8 +357,9 @@ public sealed class ConstructionSaveTests
         Assert.Contains($"\"version\": {FactorySaveData.CurrentVersion}", File.ReadAllText(FactorySaveStore.SlotPath("v13-sostituzione")));
         Assert.Equal(host.Checksum(), loaded.Checksum());
         var restored = Assert.Single(loaded.State.Sites);
-        Assert.Equal("conveyor-basic", restored.Replaced!.Spec.StructureId);
-        Assert.Equal(77, Assert.Single(restored.Replaced.Items).Id);
+        var old = Assert.Single(restored.Replaced!);
+        Assert.Equal("conveyor-basic", old.Spec.StructureId);
+        Assert.Equal(77, Assert.Single(old.Items).Id);
 
         host.AdvanceTicks(600);
         loaded.AdvanceTicks(600);
@@ -402,7 +403,7 @@ public sealed class ConstructionSaveTests
     }
 
     [Fact]
-    public void ReplacementSiteWhoseOldBeltIsNoLongerABeltIsDroppedWithItsItemsToTheCore()
+    public void ReplacementSiteWhoseOldBlockIsNoLongerReplaceableIsDroppedWithItsItemsToTheCore()
     {
         var factory = NewFactory(new GameRules());
         factory.Wallet.AddMaterial("titanium-ore", 100);
@@ -417,7 +418,8 @@ public sealed class ConstructionSaveTests
         }
 
         var data = factory.Capture();
-        data.Sites[0].Replaced!.Spec.StructureId = "junction";
+        // A junction is replaceable now, but not as a belt spec (its kind must be the one its id names).
+        Assert.Single(data.Sites[0].Replaced!).Spec.StructureId = "junction";
         var coal = factory.Wallet.MaterialCount("coal");
 
         var restored = Factory.Restore(Content, data);
