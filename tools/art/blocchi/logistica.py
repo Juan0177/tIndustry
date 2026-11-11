@@ -4,8 +4,8 @@ conveyor (icon and straight strip: its cells are always drawn straight), junctio
 router, sorter, inverted sorter, overflow and underflow gates, bridge end and bridge span, long bridge end and span.
 
 Every directional sprite faces East (flow towards +x); the client rotates it. The belt is as wide as
-Mindustry's at 32 px: a 12 px tread (rows 10-21) between side plates of 4 px (outline, three rail tones
-and an inner edge: rows 5-9 above, 22-25 below); the rest of the cell is transparent. Belt strips have
+Mindustry's at 32 px: a 12 px tread (rows 10-21) between side plates of 5 px (outline, two rail tones
+and an inner edge: rows 5-9 above, 22-26 below, mirror images); the rest of the cell is transparent. Belt strips have
 32 frames that move the tread 1 px along the flow each, so the loop has no seam and the tread scrolls
 smoothly next to items moving every tick. The plates stay still; on the tread a small chevron repeats
 every 16 px and a rib every 8 px, so each step shows a different phase and the direction reads.
@@ -24,11 +24,13 @@ FOTOGRAMMI = T // PASSO
 
 # Rows across a straight belt (0 = left of the flow, North for an East belt): "o" outline, "r<k>" plate
 # tone k of the tier's rail ramp, "e" inner edge (the tier's accent, else rail tone 1), "t" tread.
-RIGHE = {5: "o", 6: "r4", 7: "r3", 8: "r2", 9: "e", **{v: "t" for v in range(10, 22)},
-         22: "e", 23: "r2", 24: "r1", 25: "o"}
+# The two plates mirror each other across the flow axis (row v and row 31 - v are alike), so a belt
+# rotated or flipped by the client (counter-clockwise corners) always matches the straight pieces.
+RIGHE = {5: "o", 6: "r3", 7: "r3", 8: "r2", 9: "e", **{v: "t" for v in range(10, 22)},
+         22: "e", 23: "r2", 24: "r3", 25: "r3", 26: "o"}
 TREAD_RIGHE = range(10, 22)  # the 12 px tread
 PIASTRE_SU = range(5, 10)  # top side plate
-PIASTRE_GIU = range(22, 26)  # bottom side plate
+PIASTRE_GIU = range(22, 27)  # bottom side plate
 CHEVRON = 18  # chevron column on the axis in frame 0 (2 px colour then outline in front)
 PERIODO_FRECCIA = 16
 PERIODO_COSTA = 8
@@ -69,7 +71,7 @@ def _colore(tier, u, v, spostamento=0, passo_u=1.0, frecce=True):
         k = min(int(tipo[1:]), len(binario) - 1)
         i = math.floor(u)
         if tier in RINFORZATI and v in (7, 24) and i % 8 in (3, 4):
-            return 0, FERRO[4] if i % 8 == 3 else FERRO[0]  # rivet on the armour plate, lit from the left
+            return 0, FERRO[4] if i % 8 == 3 else FERRO[0]  # rivet on the armour plate, the same on both plates
         return 0, binario[max(0, k - 2) if i % 8 == 7 else k]  # roller joint every 8 px
     m = u - spostamento
     dv = int(abs(v + 0.5 - T / 2))

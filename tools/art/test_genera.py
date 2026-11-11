@@ -507,26 +507,26 @@ class TestGenera(unittest.TestCase):
 
     def test_nastri_stretti(self):
         # Variant C "Mindustry": a 12 px tread (rows 10-21) between two side plates of 4-5 px (rows 5-9 and
-        # 22-25: outline, three plate tones, inner edge); everything else in the cell is transparent. Every
+        # 22-26: outline, two plate tones, inner edge); everything else in the cell is transparent. Every
         # piece of every tier keeps to those rows (the T and the side joins add the side belts' columns).
         tread = {c[:3] for c in NASTRO}
         for nastro in NASTRI:
             with self.subTest(nastro=nastro):
                 dritto = fotogrammi_di(SPRITE[nastro + "-anim"]())[0]
-                self.assertEqual((0, 5, T, 26), dritto.getchannel("A").getbbox())
+                self.assertEqual((0, 5, T, 27), dritto.getchannel("A").getbbox())
                 for y in range(T):
                     for x in range(T):
                         px = dritto.getpixel((x, y))
                         if 10 <= y <= 21:
                             self.assertIn(px[:3], tread | {OUT, TIER[nastro][1][3]}, f"{x},{y}")  # tread, chevron and its outline front
                             self.assertEqual(255, px[3])
-                        elif 5 <= y <= 25:
+                        elif 5 <= y <= 26:
                             self.assertEqual(255, px[3], f"{x},{y}")
                             self.assertNotIn(px[:3], tread, f"{x},{y}")
                         else:
                             self.assertEqual(0, px[3], f"{x},{y}")
                 self.assertEqual(OUT, dritto.getpixel((3, 5))[:3])
-                self.assertEqual(OUT, dritto.getpixel((3, 25))[:3])
+                self.assertEqual(OUT, dritto.getpixel((3, 26))[:3])
                 self.assertEqual(SPRITE[nastro]().tobytes(), dritto.tobytes())
                 for pezzo in ("corner", "t", "join-left", "join-right", "join-both"):
                     for f in fotogrammi_di(SPRITE[f"{nastro}-{pezzo}-anim"]())[:2]:
@@ -538,10 +538,31 @@ class TestGenera(unittest.TestCase):
         self.assertEqual(12, len(range(10, 22)))
         self.assertLess(BELT_ITEM, 12)
 
+    def test_nastri_simmetrici(self):
+        # The two side plates are mirror images across the flow axis (row y and row 31 - y), on every tier
+        # and piece, so a corner the client flips for a counter-clockwise turn matches the straights.
+        for nastro in NASTRI + ("conveyor-stack",):
+            with self.subTest(nastro=nastro):
+                for f in fotogrammi_di(SPRITE[nastro + "-anim"]())[:3]:
+                    for y in range(5, 10):
+                        for x in range(T):
+                            self.assertEqual(f.getpixel((x, y)), f.getpixel((x, T - 1 - y)), f"{nastro} {x},{y}")
+                if nastro in NASTRI:
+                    # Corner: the plate tone at radius r from the pivot (outer arc) equals the one at 31 - r (inner arc).
+                    c = fotogrammi_di(SPRITE[nastro + "-corner-anim"]())[0]
+                    # West and South edges of the corner, and the arc at 45 degrees (pivot bottom-left pixel).
+                    for r in range(5, 10):
+                        self.assertEqual(c.getpixel((0, T - 1 - r)), c.getpixel((0, T - 1 - (T - 1 - r))), f"{nastro} Ovest r={r}")
+                        self.assertEqual(c.getpixel((r, T - 1)), c.getpixel((T - 1 - r, T - 1)), f"{nastro} Sud r={r}")
+                    for pezzo in ("t", "join-left", "join-right", "join-both"):
+                        f = fotogrammi_di(SPRITE[f"{nastro}-{pezzo}-anim"]())[0]
+                        for y in range(5, 10):
+                            self.assertEqual(f.getpixel((T - 1, y)), f.getpixel((T - 1, T - 1 - y)), f"{nastro} {pezzo}")
+
     def test_strisce_cicliche(self):
         # Straight belt strips: 32 frames, the tread (rows 10-21) of each one is the previous one moved
         # 1 px along the flow (East), so frame 32 moved by 1 px is frame 1 again and the loop has no seam;
-        # the side plates (rows 5-9 and 22-25) stay still.
+        # the side plates (rows 5-9 and 22-26) stay still.
         for nastro in NASTRI:
             with self.subTest(nastro=nastro):
                 self.assertIn(nastro + "-anim", SPRITE)
@@ -551,14 +572,14 @@ class TestGenera(unittest.TestCase):
                     dopo = fotogrammi[(i + 1) % len(fotogrammi)]
                     self.assertEqual(_righe(ImageChops.offset(f, 1, 0), 10, 21), _righe(dopo, 10, 21),
                                      f"{nastro}: fotogramma {i + 1} scorso di 1 px != fotogramma {(i + 1) % 32 + 1}")
-                    for y0, y1 in ((5, 9), (22, 25)):
+                    for y0, y1 in ((5, 9), (22, 26)):
                         self.assertEqual(_righe(f, y0, y1), _righe(fotogrammi[0], y0, y1), f"{nastro}: piastre mosse")
 
     def test_rinforzato_diverso_dal_veloce(self):
         # The armored belt reads apart from the fast one at a glance: inside the outline its plates (rows
         # 6-8, 23-24) share no pixel with the fast belt's, and they carry rivets (more tones).
         rinforzato, veloce = SPRITE["conveyor-armored"](), SPRITE["conveyor-fast"]()
-        piastre = [(x, y) for x in range(T) for y in (6, 7, 8, 23, 24)]
+        piastre = [(x, y) for x in range(T) for y in (6, 7, 8, 23, 24, 25)]
         self.assertEqual(0, sum(rinforzato.getpixel(p) == veloce.getpixel(p) for p in piastre))
         colori = {rinforzato.getpixel(p)[:3] for p in piastre}
         self.assertIn(FERRO[4], colori)  # rivet highlight
@@ -593,8 +614,8 @@ class TestGenera(unittest.TestCase):
                     self.assertEqual((T, T), u.size)
                     self.assertEqual([d.getpixel((T - 1, y)) for y in range(10, 22)],
                                      [u.getpixel((T - 1, y)) for y in range(10, 22)], f"{nastro} {k + 1}: Est")
-                    self.assertEqual([d.getpixel((T - 1, y)) for y in range(T // 2, 26)],
-                                     [u.getpixel((T - 1, y)) for y in range(T // 2, 26)], f"{nastro} {k + 1}: Est giu")
+                    self.assertEqual([d.getpixel((T - 1, y)) for y in range(T // 2, 27)],
+                                     [u.getpixel((T - 1, y)) for y in range(T // 2, 27)], f"{nastro} {k + 1}: Est giu")
                     self.assertIsNone(u.crop((0, 0, 3, T)).getbbox(), f"{nastro}: Ovest aperto")
 
     def test_unioni_laterali(self):
