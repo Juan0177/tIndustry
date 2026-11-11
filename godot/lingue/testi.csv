@@ -140,7 +140,7 @@ struttura.conveyor-basic.suggerimento,Nastro T1 · flusso unidirezionale · R/ro
 struttura.conveyor-fast.suggerimento,Nastro T2 · più veloce · sblocca in Ricerca,Belt T2 · faster · unlock in Research
 struttura.conveyor-express.suggerimento,Nastro T3 · max velocità · sblocca in Ricerca,Belt T3 · top speed · unlock in Research
 struttura.conveyor-armored.suggerimento,Nastro rinforzato · prende dagli edifici solo da dietro · sblocca in Ricerca,Armored belt · takes from buildings only from behind · unlock in Research
-struttura.conveyor-stack.suggerimento,Nastro a pacchi · pacchi da 10 · sblocca in Ricerca,Stack conveyor · packs of 10 · unlock in Research
+struttura.conveyor-stack.suggerimento,Nastro a pacchi · pacchi da 10 · premio del capitolo 2 della campagna; nella partita libera si compra in Ricerca a prezzo triplo,Stack conveyor · packs of 10 · reward of chapter 2 of the campaign; in free play you buy it in Research at triple price
 struttura.junction.suggerimento,Incrocio a croce,Cross junction
 struttura.router.suggerimento,Un oggetto alla volta · a turno su ogni lato · mai indietro,One item at a time · takes turns on every side · never back
 struttura.sorter.suggerimento,Filtro col clic sul blocco · icona al centro · chi passa va dritto · gli altri a sinistra e a destra alternando · senza filtro tutto ai lati,Filter with a click on the block · icon in the middle · matches go straight · others alternate left and right · with no filter all to the sides
@@ -161,7 +161,7 @@ struttura.lamp.suggerimento,Lampada · illumina di notte · consuma 1 di energia
 struttura.battery.suggerimento,Batteria · accumula la corrente della sua rete · capacità 1000 · 1×1,Battery · stores the power of its network · capacity 1000 · 1×1
 struttura.solar.suggerimento,Pannello solare · 3 di energia al secondo con la luce del giorno · 1×1,Solar panel · 3 power per second in daylight · 1×1
 struttura.solar-large.suggerimento,Pannello solare grande · 36 di energia al secondo con la luce del giorno · 3×3,Large solar panel · 36 power per second in daylight · 3×3
-struttura.combustion-generator.suggerimento,Generatore a combustione · brucia carbone o grafite · 90 di energia al secondo · 2×2,Combustion generator · burns coal or graphite · 90 power per second · 2×2
+struttura.combustion-generator.suggerimento,Generatore a combustione · brucia carbone o grafite · 90 di energia al secondo · 2×2 · premio del capitolo 1 della campagna; nella partita libera si compra in Ricerca a prezzo triplo,Combustion generator · burns coal or graphite · 90 power per second · 2×2 · reward of chapter 1 of the campaign; in free play you buy it in Research at triple price
 struttura.battery-large.suggerimento,Batteria grande · accumula la corrente della sua rete · capacità 20.000 · 3×3,"Large battery · stores the power of its network · capacity 20,000 · 3×3"
 struttura.container.suggerimento,Contenitore · 2×2 · 300 per oggetto · sblocca in Ricerca,Container · 2×2 · 300 per item · unlock in Research
 struttura.vault.suggerimento,Deposito · 3×3 · 1000 per oggetto · sblocca in Ricerca,Vault · 3×3 · 1000 per item · unlock in Research
@@ -174,12 +174,12 @@ struttura.smelter-advanced.suggerimento,Fonderia avanzata · le ricette del forn
 struttura.separator.suggerimento,Separatore · un minerale a caso da 2 sabbia · corrente 8 · 2×2 · sblocca in Ricerca,Separator · a random ore from 2 sand · power 8 · 2×2 · unlock in Research
 struttura.plasticizer.suggerimento,Plastificatore · plastica da 2 carbone · corrente 6 · 2×2 · sblocca in Ricerca,Plasticizer · plastic from 2 coal · power 6 · 2×2 · unlock in Research
 struttura.impact-drill.suggerimento,Trapano a impatto · {0} · fino a 4 pezzi al secondo · scava anche il titanio · corrente 30 · 3×3 · sblocca in Ricerca,Impact drill · {0} · up to 4 pieces per second · digs titanium too · power 30 · 3×3 · unlock in Research
-struttura.circuit.suggerimento,Ricetta dei circuiti · nell'assemblatore · filo di rame + silicio + lastra di piombo · sblocca in Ricerca,Circuit recipe · in the assembler · copper wire + silicon + lead plate · unlock in Research
+struttura.circuit.suggerimento,Ricetta dei circuiti · nell'assemblatore · filo di rame + silicio + lastra di piombo · premio del capitolo 3 della campagna; nella partita libera si compra in Ricerca a prezzo triplo,Circuit recipe · in the assembler · copper wire + silicon + lead plate · reward of chapter 3 of the campaign; in free play you buy it in Research at triple price
 struttura.upgrade-drone-build.suggerimento,Drone: costruzione · potenziamento · il drone costruisce il 25% più in fretta · sblocca in Ricerca,Drone: building · upgrade · the drone builds 25% faster · unlock in Research
 struttura.upgrade-drone-hold.suggerimento,Drone: stiva · potenziamento · il drone porta il 50% di pezzi in più · sblocca in Ricerca,Drone: hold · upgrade · the drone carries 50% more pieces · unlock in Research
 struttura.upgrade-drone-range.suggerimento,Drone: raggio · potenziamento · il drone costruisce e scava 5 celle più lontano · sblocca in Ricerca,Drone: range · upgrade · the drone builds and digs 5 cells farther · unlock in Research
 struttura.upgrade-drone-mine.suggerimento,Drone: scavo · potenziamento · il drone scava a mano il 25% più in fretta · sblocca in Ricerca,Drone: mining · upgrade · the drone digs by hand 25% faster · unlock in Research
-struttura.drone-boost.suggerimento,Drone potenziato · potenziamento · costruzione +50% · stiva +100% · raggio +10 celle · scavo +50% · sblocca in Ricerca,Boosted drone · upgrade · building +50% · hold +100% · range +10 cells · mining +50% · unlock in Research
+struttura.drone-boost.suggerimento,Drone potenziato · potenziamento · costruzione +50% · stiva +100% · raggio +10 celle · scavo +50% · premio del capitolo 4 della campagna; nella partita libera si compra in Ricerca a prezzo triplo,Boosted drone · upgrade · building +50% · hold +100% · range +10 cells · mining +50% · reward of chapter 4 of the campaign; in free play you buy it in Research at triple price
 struttura.upgrade-miners-1.suggerimento,Minatori I · potenziamento · tutti i minatori scavano il 10% più in fretta · sblocca in Ricerca,Miners I · upgrade · every miner digs 10% faster · unlock in Research
 struttura.upgrade-miners-2.suggerimento,Minatori II · potenziamento · tutti i minatori scavano il 20% più in fretta · sblocca in Ricerca,Miners II · upgrade · every miner digs 20% faster · unlock in Research
 struttura.upgrade-machines-1.suggerimento,"Macchine I · potenziamento · forno, fonderia avanzata e assemblatore +15% · sblocca in Ricerca","Machines I · upgrade · smelter, advanced smelter and assembler +15% · unlock in Research"
@@ -334,6 +334,7 @@ rifiuto.MiningHoldFull,La stiva è piena: svuotala vicino al CORE,The hold is fu
 rifiuto.MarketScreenNotTouchingCore,Lo schermo di borsa va messo a contatto col CORE,The market screen must touch the CORE
 rifiuto.MarketScreenAlreadyPresent,C'è già uno schermo di borsa: se ne può avere uno solo,There is already a market screen: you can have only one
 rifiuto.CampaignRewardOnly,Si ottiene chiudendo il capitolo {0} della campagna,You get it by finishing chapter {0} of the campaign
+rifiuto.UpgradeSuperseded,Superato da un livello più alto già sbloccato.,Superseded by a higher level already unlocked.
 scavo.attesa.cantiere,"Lo scavo aspetta: il cantiere non ha materiali (annulla il piano o allontanati)","Mining waits: the site is short of materials (cancel the plan or fly away)"
 rifiuto.NothingToRemove,Niente da rimuovere.,Nothing to remove.
 home.suggerimento.continua,Riprendi l'ultima partita salvata.,Resume the last saved game.
@@ -485,6 +486,8 @@ ricerca.stato.segnaposto,Stato: sbloccato (segnaposto),State: unlocked (placehol
 ricerca.stato.sbloccato,Stato: sbloccato,State: unlocked
 ricerca.stato.disponibile,Stato: disponibile,State: available
 ricerca.stato.bloccato,Stato: bloccato,State: locked
+ricerca.stato.premio,Stato: premio del capitolo {0},State: reward of chapter {0}
+ricerca.stato.superato,Stato: superato,State: superseded
 ricerca.costi,Sblocco: {0}\nCostruzione: {1},Unlock: {0}\nBuild: {1}
 ricerca.segnaposto,Segnaposto: non costruibile ancora.,Placeholder: cannot be built yet.
 ricerca.gia.sbloccato,Già sbloccato,Already unlocked
@@ -500,6 +503,7 @@ ricerca.prerequisiti,Prerequisiti: {0},Prerequisites: {0}
 ricerca.prerequisiti.nessuno,nessuno,none
 ricerca.prerequisito.manca,{0} (manca),{0} (missing)
 ricerca.premio,Premio del capitolo {0},Chapter {0} reward
+ricerca.superato,Superato,Superseded
 ricerca.effetto,Effetto:,Effect:
 ricerca.effetto.costruzione,Velocità di costruzione del drone: +{0}% → +{1}%,Drone build speed: +{0}% → +{1}%
 ricerca.effetto.stiva,Stiva del drone: {0} → {1},Drone hold: {0} → {1}

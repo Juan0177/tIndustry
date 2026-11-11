@@ -57,15 +57,29 @@ public static class Upgrades
     /// <summary>Maximum per item of the Core (tier plus linked blocks) and of standalone storage blocks, percent: +25 / +50.</summary>
     public static int StoragePercent(IResearchView research) => Level(research, StorageOneId, 25, StorageTwoId, 50);
 
+    /// <summary>
+    /// The level-2 node that replaces the level-1 upgrade <paramref name="nodeId"/> (null for any other node):
+    /// buying the level 1 once its level 2 is unlocked would add nothing.
+    /// </summary>
+    public static string? LevelTwoOf(string nodeId) => nodeId switch
+    {
+        DroneBuildId or DroneHoldId or DroneRangeId or DroneMineId => DroneBoostId,
+        MinersOneId => MinersTwoId,
+        MachinesOneId => MachinesTwoId,
+        StorageOneId => StorageTwoId,
+        _ => null
+    };
+
+    /// <summary>True for a level-1 upgrade whose level 2 is already unlocked: superseded, not to be bought.</summary>
+    public static bool IsSuperseded(string nodeId, IResearchView research) =>
+        LevelTwoOf(nodeId) is { } levelTwo && research.IsUnlocked(levelTwo);
+
     /// <summary>True for the machines of the machine group: forno, advanced smelter, assembler.</summary>
     public static bool GetsMachineBonus(string definitionId) =>
         definitionId is Crafter.SmelterBuildingId or Crafter.SmelterAdvancedId or Crafter.AssemblerBuildingId;
 
     /// <summary><c>value × (100 + percent) / 100</c> in integers, rounded down: <paramref name="value"/> itself at 0.</summary>
     public static int Scale(int value, int percent) => (int)((long)value * (100 + percent) / 100);
-
-    /// <summary><c>value × (100 + percent) / 100</c> in integers, rounded down: <paramref name="value"/> itself at 0.</summary>
-    public static long Scale(long value, int percent) => value * (100 + percent) / 100;
 
     /// <summary><c>(100 + percent) / 100f</c>: the factor on today's floats, exactly 1 at 0.</summary>
     public static float Factor(int percent) => (100 + percent) / 100f;

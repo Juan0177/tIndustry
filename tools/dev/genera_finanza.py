@@ -93,6 +93,7 @@ NODES = [
 # Campaign rewards (Ricerca allargata, plan 3): node id -> the chapter whose end gives it for free (content.json
 # «campaignReward», checked by the tests). In the campaign they are never sold; in free play they cost REWARD_FACTOR
 # times what the sheet gives for their minutes, money and materials alike, and the hours count that price.
+# The chain test checks the prices as written (x3 for a reward), so a reward's x1 sheet price may sit below its parent on purpose.
 REWARDS = {"combustion-generator": 1, "conveyor-stack": 2, "circuit": 3, "drone-boost": 4}
 REWARD_FACTOR = 3
 

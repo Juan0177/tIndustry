@@ -91,8 +91,52 @@ public sealed class UpgradeTests
 
     // ---------------------------------------------------------------- Content and reader
 
+    [Theory]
+    [InlineData(Upgrades.DroneBuildId, Upgrades.DroneBoostId)]
+    [InlineData(Upgrades.DroneMineId, Upgrades.DroneBoostId)]
+    [InlineData(Upgrades.MinersOneId, Upgrades.MinersTwoId)]
+    [InlineData(Upgrades.MachinesOneId, Upgrades.MachinesTwoId)]
+    [InlineData(Upgrades.StorageOneId, Upgrades.StorageTwoId)]
+    public void ALevelOneUpgradeIsRefusedOnceItsLevelTwoIsUnlocked(string levelOne, string levelTwo)
+    {
+        var factory = NewFactory();
+        var node = Content.RequireStructure(levelOne);
+        foreach (var prerequisite in node.Prerequisites)
+        {
+            factory.Research.ForceUnlock(prerequisite);
+        }
+
+        factory.Wallet.AddMoney(node.Unlock!.Money + 1000);
+        foreach (var m in node.Unlock.Materials)
+        {
+            factory.Wallet.AddMaterial(m.ItemId, m.Amount + 10);
+        }
+
+        factory.Research.ForceUnlock(levelTwo);
+        Assert.True(Upgrades.IsSuperseded(levelOne, factory.Research));
+
+        var host = new SimHost(factory);
+        Refusal? refused = null;
+        host.CommandRejected += (_, r) => refused = r;
+        host.Submit(new UnlockStructure(Player, levelOne));
+        host.AdvanceTicks(1);
+
+        Assert.Equal(RefusalCode.UpgradeSuperseded, refused!.Code);
+        Assert.False(factory.Research.IsUnlocked(levelOne));
+    }
+
     [Fact]
-    public void ContentHasTheTenUpgradeNodes()
+    public void OnlyLevelOnesCanBeSuperseded()
+    {
+        var factory = NewFactory();
+        factory.Research.ForceUnlock(Upgrades.DroneBoostId);
+        factory.Research.ForceUnlock(Upgrades.MinersTwoId);
+        Assert.Null(Upgrades.LevelTwoOf(Upgrades.DroneBoostId));
+        Assert.False(Upgrades.IsSuperseded(Upgrades.MinersTwoId, factory.Research));
+    }
+
+    [Fact]
+    public void ContentHasTheElevenUpgradeNodes()
     {
         var expected = new (string Id, string Name, string[] Prerequisites)[]
         {

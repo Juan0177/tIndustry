@@ -609,6 +609,11 @@ public sealed class SimHost
             return new Refusal(RefusalCode.CampaignRewardOnly, StructureId: structure.Id);
         }
 
+        if (Upgrades.IsSuperseded(structure.Id, factory.Research))
+        {
+            return RefusalCode.UpgradeSuperseded;
+        }
+
         if (!factory.Research.MeetsPrerequisites(structure))
         {
             return RefusalCode.MissingPrerequisites;

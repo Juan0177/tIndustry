@@ -63,7 +63,8 @@ public partial class ResearchPanel : Control
         // Default focus: the first thing you can research now (Mindustry draws the eye there too).
         _selectedId ??= _graph.Nodes
             .Where(n => !n.IsRoot)
-            .FirstOrDefault(n => factory.Research.GetNodeState(n.Structure) == ResearchNodeState.Available)
+            .FirstOrDefault(n => factory.Research.GetNodeState(n.Structure) == ResearchNodeState.Available
+                && !RewardOnly(n.Structure, factory) && !Upgrades.IsSuperseded(n.Structure.Id, factory.Research))
             ?.Structure.Id ?? TechTreeLayout.RootId;
         if (_canvas is not null)
         {
@@ -414,15 +415,21 @@ public partial class ResearchPanel : Control
         _detailEffect.Text = FormatUpgradeEffect(structure.Id, _view);
         // Only upgrades have it: no empty line under the other nodes' usage.
         _detailEffect.Visible = _detailEffect.Text.Length > 0;
+        // A reward still to come in the campaign, or a level 1 replaced by its unlocked level 2, is never «available».
+        var pendingReward = state != ResearchNodeState.Unlocked && RewardOnly(structure, _view);
+        var superseded = state != ResearchNodeState.Unlocked && Upgrades.IsSuperseded(structure.Id, _view.Research);
         _detailState.Text = state switch
         {
             ResearchNodeState.Unlocked => Testi.T(structure.IsStub ? "ricerca.stato.segnaposto" : "ricerca.stato.sbloccato"),
+            _ when pendingReward => Testi.F("ricerca.stato.premio", Testi.Capitolo(structure.Id, _view.Content)),
+            _ when superseded => Testi.T("ricerca.stato.superato"),
             ResearchNodeState.Available => Testi.T("ricerca.stato.disponibile"),
             _ => Testi.T("ricerca.stato.bloccato")
         };
         _detailState.ThemeTypeVariation = state switch
         {
             ResearchNodeState.Unlocked => UiTheme.TestoVerde,
+            _ when pendingReward || superseded => UiTheme.TestoTenue,
             ResearchNodeState.Available => UiTheme.TestoAccento,
             _ => UiTheme.TestoTenue
         };
@@ -447,9 +454,11 @@ public partial class ResearchPanel : Control
             _detailManca.Text = "";
         }
 
-        var canUnlock = _view.Research.CanUnlock(structure, _view.Wallet, InCampaign(_view));
+        var canUnlock = _view.Research.CanUnlock(structure, _view.Wallet, InCampaign(_view)) && !superseded;
         _unlockButton.Disabled = !canUnlock;
-        _unlockButton.Text = !_view.Research.IsUnlocked(structure.Id) && RewardOnly(structure, _view)
+        _unlockButton.Text = superseded
+            ? Testi.T("ricerca.superato")
+            : !_view.Research.IsUnlocked(structure.Id) && RewardOnly(structure, _view)
             ? Testi.F("ricerca.premio", Testi.Capitolo(structure.Id, _view.Content))
             : Testi.T(_view.Research.IsUnlocked(structure.Id)
                 ? "ricerca.gia.sbloccato"

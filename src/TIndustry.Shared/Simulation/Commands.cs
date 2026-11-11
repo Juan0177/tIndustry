@@ -247,7 +247,10 @@ public enum RefusalCode
     /// Research, in the campaign: the node (<see cref="Refusal.StructureId"/>) is the reward of a chapter
     /// (<see cref="StructureDefinition.CampaignReward"/>), given when the chapter closes and never sold.
     /// </summary>
-    CampaignRewardOnly
+    CampaignRewardOnly,
+
+    /// <summary>Research: a level-1 upgrade whose level 2 is already unlocked (the level 2 replaces it).</summary>
+    UpgradeSuperseded
 }
 
 /// <summary>Shape of a dragged belt line, for the auto-junction (<see cref="Factory.BeltCrossingAt"/>).</summary>

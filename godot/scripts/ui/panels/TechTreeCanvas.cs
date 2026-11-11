@@ -302,7 +302,14 @@ public partial class TechTreeCanvas : Control
         // Edges first: extra prerequisites dashed underneath, tree edges on top.
         foreach (var edge in Graph.Edges.OrderBy(e => e.Primary))
         {
-            var toState = StateOf(byId[edge.ToId]);
+            var toNode = byId[edge.ToId];
+            var toState = StateOf(toNode);
+            // A reward still to come is not something to research next: no gold edge.
+            if (toState == ResearchNodeState.Available && PendingReward(toNode, toState) is not null)
+            {
+                toState = ResearchNodeState.Locked;
+            }
+
             var onPath = TechTreeLayout.IsEdgeOnPath(edge, pathIds);
             var color = onPath
                 ? PathEdge
