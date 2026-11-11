@@ -107,6 +107,8 @@ public partial class World
         BuildTool.BridgeLong => Hud.ToolKind.BridgeLong,
         BuildTool.Solar => Hud.ToolKind.Solar,
         BuildTool.SolarLarge => Hud.ToolKind.SolarLarge,
+        BuildTool.CombustionGenerator => Hud.ToolKind.CombustionGenerator,
+        BuildTool.BatteryLarge => Hud.ToolKind.BatteryLarge,
         _ => Hud.ToolKind.None
     };
 
@@ -148,6 +150,8 @@ public partial class World
         Hud.ToolKind.BridgeLong => BuildTool.BridgeLong,
         Hud.ToolKind.Solar => BuildTool.Solar,
         Hud.ToolKind.SolarLarge => BuildTool.SolarLarge,
+        Hud.ToolKind.CombustionGenerator => BuildTool.CombustionGenerator,
+        Hud.ToolKind.BatteryLarge => BuildTool.BatteryLarge,
         _ => BuildTool.None
     };
 

@@ -1,7 +1,7 @@
 namespace TIndustry.Shared;
 
 /// <summary>
-/// Second half of the power tick: the generators burn their coal, then every network makes its balance in integers
+/// Second half of the power tick: the generators burn their fuel, then every network makes its balance in integers
 /// (spec «Rete di corrente», «La rete»):
 /// <list type="bullet">
 /// <item>produced = the output of its burning generators and of its solar panels (output × the world's light / 1000,
@@ -31,12 +31,14 @@ public sealed class PowerSystem : ISimulationSystem
         var requested = new long[count];
         var coalFornoRequest = new long[count];
 
-        var outputRate = Generator.OutputRateOf(state.Content);
+        // Each burning generator gives its own definition's output.
+        var generatorRate = Generator.OutputRateOf(state.Content, Generator.BuildingId);
+        var combustionRate = Generator.OutputRateOf(state.Content, Generator.CombustionId);
         foreach (var gen in state.Generators)
         {
             if (gen.Tick(ctx.Dt, state.Belts) && grid.NetworkOf(gen.Id) is { } network)
             {
-                produced[network.Index] += outputRate;
+                produced[network.Index] += gen.DefinitionId == Generator.CombustionId ? combustionRate : generatorRate;
             }
         }
 

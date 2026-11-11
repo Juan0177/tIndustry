@@ -54,6 +54,8 @@ public sealed class ResearchTreeContentTests
         { "battery", "power-node" },
         { "solar", "power-node" },
         { "solar-large", "solar" },
+        { "combustion-generator", "generator" },
+        { "battery-large", "battery" },
         // CORE e magazzini
         { "container", "junction" },
         { "vault", "container" },

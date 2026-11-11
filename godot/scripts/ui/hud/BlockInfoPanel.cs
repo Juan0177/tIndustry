@@ -301,6 +301,7 @@ public partial class BlockInfoPanel : Control
             {
                 "miner" or Miner.ImpactDrillId => Testi.T("blocco.io.minatore"),
                 "generator" => Testi.T("blocco.io.generatore"),
+                Generator.CombustionId => Testi.T("blocco.io.combustione"),
                 "conveyor-basic" or "junction" or "router" or "sorter" or "conveyor-bridge"
                     or Factory.OverflowGateId or Factory.UnderflowGateId or "conveyor-stack" or Factory.BridgeLongId
                     => Testi.T("blocco.io.trasporto"),

@@ -6,7 +6,9 @@ namespace TIndustry.Shared;
 /// <summary>
 /// Full game state as stored in the canonical snapshot (see <see cref="Snapshot"/>). Version 22: the stack conveyor's
 /// packs (<see cref="ItemSaveDto.Count"/>), the wait of the pack being formed (<see cref="BeltSaveDto.StackWaitTicks"/>),
-/// the long bridge's power (<see cref="BeltSaveDto.PowerId"/>) and the solar panels (<see cref="SolarPanels"/>);
+/// the long bridge's power (<see cref="BeltSaveDto.PowerId"/>), the solar panels (<see cref="SolarPanels"/>), the
+/// combustion generator (<see cref="GeneratorSaveDto.DefinitionId"/>, its pieces per fuel in
+/// <see cref="GeneratorSaveDto.Fuels"/>) and the large battery (<see cref="BatterySaveDto.DefinitionId"/>);
 /// since 21 the machines of the
 /// wider research (<see cref="Machines"/>: advanced smelter, graphite press, separator, plasticizer, each with its
 /// <see cref="CraftSaveDto.DefinitionId"/>), the impact drill among the <see cref="Miners"/> (by its
@@ -176,6 +178,10 @@ public sealed class BatterySaveDto
     public long Id { get; set; }
     public int X { get; set; }
     public int Y { get; set; }
+
+    /// <summary>Its definition (<see cref="Battery.DefinitionId"/>); null = <see cref="Battery.BuildingId"/>.</summary>
+    public string? DefinitionId { get; set; }
+
     /// <summary>Stored energy, sixty-thousandths of a unit (<see cref="Battery.Charge"/>).</summary>
     public long Charge { get; set; }
 }
@@ -415,9 +421,24 @@ public sealed class GeneratorSaveDto
     public int X { get; set; }
     public int Y { get; set; }
     public string Direction { get; set; } = "East";
+
+    /// <summary>Its definition (<see cref="Generator.DefinitionId"/>); null = <see cref="Generator.BuildingId"/>.</summary>
+    public string? DefinitionId { get; set; }
+
+    /// <summary>Pieces held, of all its fuels together; all of its first fuel when <see cref="Fuels"/> is null.</summary>
     public int FuelBuffer { get; set; }
+
+    /// <summary>Pieces held of each fuel, in content order; null when they are all of its first fuel.</summary>
+    public List<FuelCountSaveDto>? Fuels { get; set; }
     public float BurnRemaining { get; set; }
     public long FuelConsumed { get; set; }
+}
+
+/// <summary>Pieces of one fuel held by a generator.</summary>
+public sealed class FuelCountSaveDto
+{
+    public string ItemId { get; set; } = "";
+    public int Count { get; set; }
 }
 
 public sealed class BeltSaveDto

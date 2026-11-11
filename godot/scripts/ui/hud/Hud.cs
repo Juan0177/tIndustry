@@ -49,7 +49,9 @@ public partial class Hud : Control
         BeltStack,
         BridgeLong,
         Solar,
-        SolarLarge
+        SolarLarge,
+        CombustionGenerator,
+        BatteryLarge
     }
 
     internal enum BuildCategory
@@ -457,6 +459,8 @@ public partial class Hud : Control
         ToolKind.BridgeLong => Factory.BridgeLongId,
         ToolKind.Solar => SolarPanel.SmallId,
         ToolKind.SolarLarge => SolarPanel.LargeId,
+        ToolKind.CombustionGenerator => Generator.CombustionId,
+        ToolKind.BatteryLarge => Battery.LargeId,
         _ => "conveyor-basic"
     };
 

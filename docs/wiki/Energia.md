@@ -1,6 +1,6 @@
 # Energia
 
-Come si produce e si porta la corrente: generatore, reti di nodi T1 e T2, Batteria, Lampada, e cosa cambia nei blocchi alimentati.
+Come si produce e si porta la corrente: generatori, pannelli solari, reti di nodi T1 e T2, batterie, Lampada, e cosa cambia nei blocchi alimentati.
 
 ## A cosa serve
 
@@ -27,7 +27,7 @@ Il Minatore T1, la Pressa grande e l'Estrattore non usano corrente. Un blocco ch
 
 ## Blocchi di corrente
 
-Fanno parte della rete il Generatore, i Pannelli solari, i Nodi T1 e T2, la Batteria e ogni blocco che consuma corrente (Forno, Assemblatore, Minatore T2, Lampada, Fonderia avanzata, Separatore, Plastificatore, Trapano a impatto, l'entrata del Ponte lungo). Gli altri nastri, Minatore T1, Pressa grande, Estrattore, magazzini e **CORE** non ne fanno parte: il CORE non produce né conserva corrente.
+Fanno parte della rete il Generatore, il Generatore a combustione, i Pannelli solari, i Nodi T1 e T2, le Batterie e ogni blocco che consuma corrente (Forno, Assemblatore, Minatore T2, Lampada, Fonderia avanzata, Separatore, Plastificatore, Trapano a impatto, l'entrata del Ponte lungo). Gli altri nastri, Minatore T1, Pressa grande, Estrattore, magazzini e **CORE** non ne fanno parte: il CORE non produce né conserva corrente.
 
 ## Generatore
 
@@ -41,6 +41,19 @@ Fanno parte della rete il Generatore, i Pannelli solari, i Nodi T1 e T2, la Batt
 | Produzione | **30 unità al secondo** mentre brucia |
 
 Un generatore è **acceso** finché ha carbone da bruciare: il rotore gira e, di notte, fa luce. Accetta solo carbone.
+
+## Generatore a combustione
+
+| Generatore a combustione (`combustion-generator`) | |
+|---|---|
+| Misura | 2×2 |
+| Costo | 20 Lastre di ferro, 10 Lastre di piombo, 6 Fili di rame |
+| Sblocco | $5.700, 60 Lastre di ferro, 30 Lastre di piombo, 18 Fili di rame (dopo il Generatore) |
+| Combustibile | Carbone o Grafite portati da un nastro; scorta di 8 pezzi in tutto |
+| Consumo | 1 Carbone ogni 2 secondi oppure 1 Grafite ogni 4 secondi |
+| Produzione | **90 unità al secondo** mentre brucia |
+
+Brucia sempre **prima il carbone**: la grafite solo quando di carbone non ne ha. La scorta tiene 8 pezzi fra carbone e grafite insieme. In `data/content.json` ogni generatore elenca i suoi combustibili (`fuels`: oggetto e secondi per pezzo, il primo bruciato per primo); il Generatore ha solo il carbone da 8 secondi.
 
 ## Pannelli solari
 
@@ -84,7 +97,7 @@ Clicca un **nodo**: si mostrano il raggio e i collegamenti usati (per esempio *3
 
 Ogni rete fa il suo conto a ogni istante, senza aiutare le altre:
 
-- **Produzione** = 30 al secondo per ogni generatore acceso.
+- **Produzione** = 30 al secondo per ogni generatore acceso, 90 per ogni generatore a combustione acceso, più i pannelli solari.
 - **Richiesta** = somma dei consumi delle macchine che in quel momento vogliono lavorare.
 - Se la produzione basta, tutte le macchine ricevono il **100%** e quello che avanza riempie le batterie della rete.
 - Se non basta, le batterie danno la differenza finché hanno carica.
@@ -103,16 +116,16 @@ Con una soddisfazione `s` (da 0% a 100%):
 - **Fonderia avanzata, Separatore, Plastificatore, Trapano a impatto**: velocità della macchina × `s`, ferme a 0.
 - **Forno**: con la corrente va a `1,2 × s`. Se ha carbone e `1,2 × s` è sotto 1, brucia il carbone e va a velocità 1, senza chiedere corrente in quel momento. Senza carbone e senza corrente è fermo.
 
-## Batteria
+## Batterie
 
-| Batteria (`battery`) | |
-|---|---|
-| Misura | 1×1 |
-| Costo | 10 Lastre di piombo, 4 Fili di rame |
-| Sblocco | $91.000, 30 Lastre di piombo, 15 Fili di rame (dopo il Nodo T1), in Ricerca |
-| Capacità | 1.000 unità |
+| | Batteria (`battery`) | Batteria grande (`battery-large`) |
+|---|---|---|
+| Misura | 1×1 | 3×3 |
+| Costo | 10 Lastre di piombo, 4 Fili di rame | 40 Lastre di piombo, 20 Lastre di titanio, 10 Silicio |
+| Sblocco | $91.000, 30 Lastre di piombo, 15 Fili di rame (dopo il Nodo T1), in Ricerca | $92.000, 160 Lastre di piombo, 80 Lastre di titanio, 40 Silicio (dopo la Batteria) |
+| Capacità | 1.000 unità | 20.000 unità |
 
-Si carica con la corrente che avanza e la rende quando i generatori non bastano, così la rete resta accesa anche quando il carbone finisce. La carica di una rete si divide fra le sue batterie in proporzione alla capacità; se la rete si spezza o si unisce, ogni batteria tiene la sua carica. Lo sprite mostra la carica con una barra. Passando il mouse su un blocco di corrente il suggerimento riassume la rete: blocchi, produzione, consumo, soddisfazione e batterie.
+Si carica con la corrente che avanza e la rende quando i generatori non bastano, così la rete resta accesa anche quando il carbone finisce. La carica di una rete si divide fra le sue batterie in proporzione alla capacità (una piccola e una grande: 1 parte su 21 alla piccola, 20 alla grande); se la rete si spezza o si unisce, ogni batteria tiene la sua carica. Lo sprite mostra la carica con una barra. Passando il mouse su un blocco di corrente il suggerimento riassume la rete: blocchi, produzione, consumo, soddisfazione e batterie.
 
 ## Lampada
 

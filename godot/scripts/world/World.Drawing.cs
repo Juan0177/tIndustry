@@ -274,7 +274,7 @@ public partial class World
 
         foreach (var battery in view.Batteries)
         {
-            _buildingTiles.Add(battery.Position);
+            _buildingTiles.UnionWith(battery.OccupiedTiles());
         }
 
         foreach (var panel in view.SolarPanels)
@@ -500,6 +500,8 @@ public partial class World
         BuildTool.BridgeLong => BuildingKind.BridgeLong,
         BuildTool.Solar => BuildingKind.Solar,
         BuildTool.SolarLarge => BuildingKind.SolarLarge,
+        BuildTool.CombustionGenerator => BuildingKind.CombustionGenerator,
+        BuildTool.BatteryLarge => BuildingKind.BatteryLarge,
         _ => null
     };
 
@@ -511,7 +513,8 @@ public partial class World
         BuildTool.Assembler => Crafter.Size,
         BuildTool.SmelterAdvanced or BuildTool.GraphitePress or BuildTool.Separator or BuildTool.Plasticizer => Crafter.Size,
         BuildTool.ImpactDrill => Miner.ImpactDrillSize,
-        BuildTool.Generator => Generator.Size,
+        BuildTool.Generator or BuildTool.CombustionGenerator => Generator.Size,
+        BuildTool.BatteryLarge => Battery.LargeSize,
         BuildTool.PowerNode => 1,
         BuildTool.PowerNodeT2 => 2,
         BuildTool.Extractor => Extractor.Size,

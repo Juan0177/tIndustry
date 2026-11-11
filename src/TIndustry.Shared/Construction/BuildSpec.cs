@@ -86,6 +86,8 @@ public sealed record BuildSpec(
         BuildingKind.BridgeLong => Factory.BridgeLongId,
         BuildingKind.Solar => SolarPanel.SmallId,
         BuildingKind.SolarLarge => SolarPanel.LargeId,
+        BuildingKind.CombustionGenerator => Generator.CombustionId,
+        BuildingKind.BatteryLarge => Battery.LargeId,
         _ => null
     };
 

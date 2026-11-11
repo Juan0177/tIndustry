@@ -33,7 +33,7 @@ Il nucleus si sblocca dopo il foundation. Non c'è più il pulsante «Potenzia C
 | Blocco | Misura | Spazio per oggetto | Ricerca | Costruzione |
 |---|---|---|---|---|
 | Contenitore (`container`) | 2×2 | 300 | $110.000, 60 Lastre di ferro, 30 Lastre di piombo (dopo l'Incrocio) | 40 Lastre di ferro, 20 Lastre di piombo |
-| Deposito (`vault`) | 3×3 | 1.000 | $1.500.000, 80 Lastre di titanio (dopo il Contenitore) | 60 Lastre di titanio, 40 Lastre di ferro |
+| Deposito (`vault`) | 3×3 | 1.000 | $1.400.000, 80 Lastre di titanio (dopo il Contenitore) | 60 Lastre di titanio, 40 Lastre di ferro |
 
 Un magazzino che **tocca il CORE** (lato contro lato) è *collegato*: il suo spazio si somma al massimo di ogni oggetto e fa parte del magazzino del CORE (vendite, «Vendi tutto» e costruzioni vedono un magazzino solo). Uno che non lo tocca è un **deposito a sé**, con un contenuto suo per oggetto: accetta da nastri ed edifici qualsiasi oggetto finché c'è posto, e l'estrattore attaccato lo svuota. Smontarlo perde il contenuto (il rimborso dei materiali è quello normale). Se il CORE cresce fino a toccare un deposito a sé, questo versa il suo contenuto nel CORE fino al massimo. Se smonti un magazzino collegato e il massimo scende sotto quanto c'è, niente sparisce: l'oggetto resta «pieno» finché non scende sotto il nuovo massimo.
 
@@ -127,7 +127,7 @@ Sbloccare costa **soldi e materiali**, presi dal CORE; poi il blocco compare nel
 | Nastro T3 (`conveyor-express`) | Logistica | Nastro T2 | $1.300.000, 32 Titanio grezzo, 32 Silicio, 32 Grafite |
 | Nastro a pacchi (`conveyor-stack`) | Logistica | Nastro T3 | $1.400.000, 48 Plastica, 48 Silicio, 48 Grafite |
 | Contenitore (`container`) | Logistica | Incrocio | $110.000, 60 Lastre di ferro, 30 Lastre di piombo |
-| Deposito (`vault`) | Logistica | Contenitore | $1.500.000, 80 Lastre di titanio |
+| Deposito (`vault`) | Logistica | Contenitore | $1.400.000, 80 Lastre di titanio |
 | CORE foundation (`core-foundation`) | CORE | CORE | $1.500.000, 800 Lastre di ferro, 400 Fili di rame |
 | CORE nucleus (`core-nucleus`) | CORE | CORE foundation | $7.000.000, 2.400 Lastre di titanio, 1.800 Silicio |
 | Minatore T1 (`miner`) | Produzione | — | iniziale |
@@ -142,9 +142,11 @@ Sbloccare costa **soldi e materiali**, presi dal CORE; poi il blocco compare nel
 | Fonderia avanzata (`smelter-advanced`) | Produzione | Forno | $360.000, 160 Lastre di titanio, 80 Fili di rame |
 | Separatore (`separator`) | Produzione | Fonderia avanzata | $390.000, 160 Lastre di titanio, 80 Grafite |
 | Generatore (`generator`) | Energia | — | $5.500, 24 Lastre di ferro |
+| Generatore a combustione (`combustion-generator`) | Energia | Generatore | $5.700, 60 Lastre di ferro, 30 Lastre di piombo, 18 Fili di rame |
 | Nodo T1 (`power-node`) | Energia | Generatore | $8.300, 8 Lastre di ferro, 4 Fili di rame |
 | Lampada (`lamp`) | Energia | Nodo T1 | $11.000, 8 Lastre di ferro, 4 Fili di rame |
 | Batteria (`battery`) | Energia | Nodo T1 | $91.000, 30 Lastre di piombo, 15 Fili di rame |
+| Batteria grande (`battery-large`) | Energia | Batteria | $92.000, 160 Lastre di piombo, 80 Lastre di titanio, 40 Silicio |
 | Pannello solare (`solar`) | Energia | Nodo T1 | $9.100, 18 Fili di rame, 12 Silicio |
 | Pannello solare grande (`solar-large`) | Energia | Pannello solare | $12.000, 120 Lastre di piombo, 100 Silicio, 40 Lastre di titanio |
 | Nodo T2 (`power-node-t2`) | Energia | Nodo T1 | $910.000, 48 Lastre di ferro, 24 Fili di rame |

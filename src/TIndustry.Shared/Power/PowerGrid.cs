@@ -263,7 +263,9 @@ public sealed class PowerGrid
             batteryById[battery.Id] = battery;
         }
 
-        var batteryCapacity = Battery.CapacityOf(s.Content);
+        // Each battery stores what its own definition holds (a small and a large one share by capacity).
+        var smallCapacity = Battery.CapacityOf(s.Content, Battery.BuildingId);
+        var largeCapacity = Battery.CapacityOf(s.Content, Battery.LargeId);
         foreach (var root in rootOrder)
         {
             var network = new PowerNetwork(networks.Count, membersOfRoot[root]);
@@ -279,7 +281,8 @@ public sealed class PowerGrid
 
                 if (kind == PowerBlockKind.Battery)
                 {
-                    network.AddBattery(batteryById[id], batteryCapacity);
+                    var battery = batteryById[id];
+                    network.AddBattery(battery, battery.DefinitionId == Battery.LargeId ? largeCapacity : smallCapacity);
                 }
             }
         }
@@ -306,7 +309,7 @@ public sealed class PowerGrid
 
         foreach (var b in s.Batteries)
         {
-            blocks.Add(new PowerBlock(b.Id, b.Position, Battery.Size, PowerBlockKind.Battery));
+            blocks.Add(new PowerBlock(b.Id, b.Position, b.Size, PowerBlockKind.Battery));
         }
 
         foreach (var p in s.SolarPanels)

@@ -32,13 +32,13 @@ NASTRI = ("conveyor-basic", "conveyor-fast", "conveyor-express", "conveyor-armor
 # Block footprints in cells, kept by hand: update it together with Factory.FootprintSize
 # (src/TIndustry.Shared/Factory.cs) when a block changes size. The bridge is two 1x1 ends.
 CELLE = {
-    "miner": 2, "miner-advanced": 2, "smelter": 2, "assembler": 2, "generator": 2,
+    "miner": 2, "miner-advanced": 2, "smelter": 2, "assembler": 2, "generator": 2, "combustion-generator": 2,
     "power-node-t2": 2,
     "smelter-advanced": 2, "graphite-press": 2, "separator": 2, "plasticizer": 2,
     "impact-drill": 3,
     "extractor": 1, "power-node": 1, "lamp": 1, "battery": 1, "conveyor-basic": 1, "conveyor-fast": 1,
     "conveyor-express": 1, "conveyor-armored": 1, "junction": 1, "router": 1, "sorter": 1, "sorter-inverted": 1, "conveyor-bridge": 1,
-    "overflow-gate": 1, "underflow-gate": 1, "bridge-long": 1, "conveyor-stack": 1, "solar": 1, "solar-large": 3,
+    "overflow-gate": 1, "underflow-gate": 1, "bridge-long": 1, "conveyor-stack": 1, "solar": 1, "solar-large": 3, "battery-large": 3,
     "core-1": 2, "core-2": 3, "core-3": 4, "core-4": 5,
     "container": 2, "vault": 3, "core-shard": 3, "core-foundation": 4, "core-nucleus": 5, "market-screen": 2,
     # Finance modules: research nodes only, their sprite is the one-cell Research icon.
@@ -630,6 +630,7 @@ class TestGenera(unittest.TestCase):
         for nome in ("miner", "miner-base", "miner-advanced", "miner-advanced-base", "impact-drill",
                      "impact-drill-base", "assembler",
                      "assembler-base", "smelter", "extractor", "generator", "generator-base",
+                     "combustion-generator", "combustion-generator-base",
                      *(n + parte for n in ("smelter-advanced", "graphite-press", "separator", "plasticizer")
                        for parte in ("", "-base")),
                      *(f"core-{n}" for n in range(1, CORE_TIER + 1))):
@@ -690,6 +691,7 @@ class TestGenera(unittest.TestCase):
             "miner": ("miner-drill-anim", 8), "miner-advanced": ("miner-advanced-drill-anim", 8),
             "impact-drill": ("impact-drill-drill-anim", 8),
             "smelter": ("smelter-glow-anim", 4), "generator": ("generator-rotor-anim", 4),
+            "combustion-generator": ("combustion-generator-rotor-anim", 4),
         }
         for blocco, (anim, n) in strati.items():
             with self.subTest(blocco=blocco):
@@ -712,6 +714,15 @@ class TestGenera(unittest.TestCase):
         self.assertEqual(sorted(set(accese)), accese)
         batteria = forme.componi(SPRITE["battery-base"](), tacche[-1])
         self.assertEqual(batteria.tobytes(), SPRITE["battery"]().tobytes())
+        # Large battery: the same pieces at 3x3, with 0..5 bars.
+        tacche = fotogrammi_di(SPRITE["battery-large-charge-anim"]())
+        self.assertEqual(6, len(tacche))
+        self.assertEqual((3 * T, 3 * T), tacche[0].size)
+        self.assertIsNone(tacche[0].getbbox())
+        accese = [sum(1 for p in f.getdata() if p[3]) for f in tacche]
+        self.assertEqual(sorted(set(accese)), accese)
+        batteria = forme.componi(SPRITE["battery-large-base"](), tacche[-1])
+        self.assertEqual(batteria.tobytes(), SPRITE["battery-large"]().tobytes())
         # The drill bit is clearly smaller than its frame (not a fan filling the block).
         for anim, massimo in (("miner-drill-anim", T), ("miner-advanced-drill-anim", T),
                               ("impact-drill-drill-anim", 3 * T // 2)):

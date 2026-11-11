@@ -331,11 +331,10 @@ public partial class World
             _buildingsLayer.AddChild(node);
         }
 
-        var batteryCapacity = Battery.CapacityOf(_view.Content);
         foreach (var battery in _view.Batteries)
         {
-            var node = BatteryVisual.Create(battery, batteryCapacity, TileSize);
-            node.Position = FootprintCenter(battery.Position, Battery.Size);
+            var node = BatteryVisual.Create(battery, Battery.CapacityOf(_view.Content, battery.DefinitionId), TileSize);
+            node.Position = FootprintCenter(battery.Position, battery.Size);
             _buildingsLayer.AddChild(node);
         }
 
@@ -427,7 +426,8 @@ public partial class World
             _buildingsDirty = true;
         }
 
-        var batteryCapacity = Battery.CapacityOf(_view.Content);
+        var batteryCapacity = Battery.CapacityOf(_view.Content, Battery.BuildingId);
+        var largeBatteryCapacity = Battery.CapacityOf(_view.Content, Battery.LargeId);
         foreach (var child in _buildingsLayer.GetChildren())
         {
             // A rebuild frees the old visuals at the end of the frame: they must not keep their emitters alive.
@@ -509,7 +509,8 @@ public partial class World
                     {
                         if (battery.Position.Equals(batteryVis.Origin))
                         {
-                            batteryVis.Sync(battery, batteryCapacity);
+                            batteryVis.Sync(
+                                battery, battery.DefinitionId == Battery.LargeId ? largeBatteryCapacity : batteryCapacity);
                             break;
                         }
                     }

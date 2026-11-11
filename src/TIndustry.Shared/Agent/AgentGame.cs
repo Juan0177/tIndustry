@@ -65,7 +65,7 @@ public sealed class AgentGame : IDisposable
         ('T', "trapano a impatto"), ('O', "overflow gate"), ('U', "underflow gate"),
         ('8', "nastro a pacchi verso nord"), ('6', "nastro a pacchi verso est"), ('2', "nastro a pacchi verso sud"),
         ('4', "nastro a pacchi verso ovest"), ('Z', "ponte lungo"), ('D', "pannello solare"),
-        ('J', "pannello solare grande"),
+        ('J', "pannello solare grande"), ('%', "generatore a combustione"), ('&', "batteria grande"),
         ('!', "struttura senza simbolo"),
         ('#', "parete"), ('~', "acqua profonda"), (',', "acqua bassa"), ('s', "pavimento di sabbia"),
         ('i', "giacimento di ferro"), ('r', "giacimento di rame"), ('k', "giacimento di carbone"),
@@ -1047,6 +1047,8 @@ public sealed class AgentGame : IDisposable
         BuildingKind.BridgeLong => 'Z',
         BuildingKind.Solar => 'D',
         BuildingKind.SolarLarge => 'J',
+        BuildingKind.CombustionGenerator => '%',
+        BuildingKind.BatteryLarge => '&',
         _ => '!'
     };
 
@@ -1129,7 +1131,8 @@ public sealed class AgentGame : IDisposable
 
         foreach (var g in View.Generators)
         {
-            yield return (Generator.BuildingId, BuildingKind.Generator, g.Position, g.Direction);
+            var kind = g.DefinitionId == Generator.CombustionId ? BuildingKind.CombustionGenerator : BuildingKind.Generator;
+            yield return (g.DefinitionId, kind, g.Position, g.Direction);
         }
 
         foreach (var e in View.Extractors)
@@ -1150,7 +1153,8 @@ public sealed class AgentGame : IDisposable
 
         foreach (var b in View.Batteries)
         {
-            yield return (Battery.BuildingId, BuildingKind.Battery, b.Position, Direction.East);
+            var kind = b.DefinitionId == Battery.LargeId ? BuildingKind.BatteryLarge : BuildingKind.Battery;
+            yield return (b.DefinitionId, kind, b.Position, Direction.East);
         }
 
         foreach (var p in View.SolarPanels)

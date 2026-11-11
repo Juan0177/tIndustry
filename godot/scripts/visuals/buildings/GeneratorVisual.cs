@@ -4,7 +4,8 @@ using TIndustry.Shared;
 namespace TIndustry.Godot;
 
 /// <summary>
-/// 2×2 generator in layers: still base (<c>generator-base</c>) and the rotor (<c>generator-rotor-anim</c>)
+/// 2×2 generator (the combustion generator too, with its own <c>&lt;id&gt;-</c> sprites) in layers: still base
+/// (<c>generator-base</c>) and the rotor (<c>generator-rotor-anim</c>)
 /// that turns while a fuel block burns and stops where it is when the generator is idle; steam rises while it
 /// generates (G3 effect <c>vapore-generatore</c>).
 /// </summary>
@@ -31,9 +32,10 @@ public partial class GeneratorVisual : Node2D
             _clock = BuildingPad.Phase(gen.Position),
             _steamAt = new Vector2(0f, -tileSize * 0.4f)
         };
-        BuildingPad.AddShadow(root, Sprites.For("generator-base"), Generator.Size, tileSize);
-        root.AddChild(BuildingPad.Layer("Base", Sprites.For("generator-base"), Generator.Size, tileSize, 0));
-        root._frames = Sprites.Frames("generator-rotor");
+        var id = gen.DefinitionId;
+        BuildingPad.AddShadow(root, Sprites.For(id + "-base"), Generator.Size, tileSize);
+        root.AddChild(BuildingPad.Layer("Base", Sprites.For(id + "-base"), Generator.Size, tileSize, 0));
+        root._frames = Sprites.Frames(id + "-rotor");
         root._rotor = BuildingPad.Layer("Rotor", root.Frame(), Generator.Size, tileSize, 1);
         root.AddChild(root._rotor);
         root.Sync(gen, 0f, null);

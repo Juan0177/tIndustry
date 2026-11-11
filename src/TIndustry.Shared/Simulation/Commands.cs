@@ -46,7 +46,9 @@ public enum BuildingKind
     UnderflowGate,
     BridgeLong,
     Solar,
-    SolarLarge
+    SolarLarge,
+    CombustionGenerator,
+    BatteryLarge
 }
 
 /// <summary>

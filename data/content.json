@@ -1179,6 +1179,60 @@
       ]
     },
     {
+      "id": "combustion-generator",
+      "displayName": "Generatore a combustione",
+      "kind": "building",
+      "unlockedByDefault": false,
+      "unlock": {
+        "money": 5700,
+        "materials": [
+          {
+            "itemId": "iron-plate",
+            "amount": 60
+          },
+          {
+            "itemId": "lead-plate",
+            "amount": 30
+          },
+          {
+            "itemId": "copper-wire",
+            "amount": 18
+          }
+        ]
+      },
+      "isStub": false,
+      "prerequisites": [
+        "generator"
+      ]
+    },
+    {
+      "id": "battery-large",
+      "displayName": "Batteria grande",
+      "kind": "building",
+      "unlockedByDefault": false,
+      "unlock": {
+        "money": 92000,
+        "materials": [
+          {
+            "itemId": "lead-plate",
+            "amount": 160
+          },
+          {
+            "itemId": "titanium-plate",
+            "amount": 80
+          },
+          {
+            "itemId": "silicon",
+            "amount": 40
+          }
+        ]
+      },
+      "isStub": false,
+      "prerequisites": [
+        "battery"
+      ]
+    },
+    {
       "id": "miner-advanced",
       "displayName": "Minatore T2",
       "kind": "building",
@@ -1216,7 +1270,7 @@
       "displayName": "Deposito",
       "kind": "storage",
       "unlockedByDefault": false,
-      "unlock": { "money": 1500000, "materials": [ { "itemId": "titanium-plate", "amount": 80 } ] },
+      "unlock": { "money": 1400000, "materials": [ { "itemId": "titanium-plate", "amount": 80 } ] },
       "isStub": false,
       "prerequisites": [ "container" ],
       "itemCapacity": 1000
@@ -1522,7 +1576,13 @@
         }
       ],
       "refundPercent": 100,
-      "powerOutput": 30
+      "powerOutput": 30,
+      "fuels": [
+        {
+          "itemId": "coal",
+          "seconds": 8
+        }
+      ]
     },
     {
       "id": "power-node",
@@ -1627,6 +1687,56 @@
       "refundPercent": 100,
       "powerOutput": 36,
       "solar": true
+    },
+    {
+      "id": "combustion-generator",
+      "moneyCost": 0,
+      "buildCost": [
+        {
+          "itemId": "iron-plate",
+          "amount": 20
+        },
+        {
+          "itemId": "lead-plate",
+          "amount": 10
+        },
+        {
+          "itemId": "copper-wire",
+          "amount": 6
+        }
+      ],
+      "refundPercent": 100,
+      "powerOutput": 90,
+      "fuels": [
+        {
+          "itemId": "coal",
+          "seconds": 2
+        },
+        {
+          "itemId": "graphite",
+          "seconds": 4
+        }
+      ]
+    },
+    {
+      "id": "battery-large",
+      "moneyCost": 0,
+      "buildCost": [
+        {
+          "itemId": "lead-plate",
+          "amount": 40
+        },
+        {
+          "itemId": "titanium-plate",
+          "amount": 20
+        },
+        {
+          "itemId": "silicon",
+          "amount": 10
+        }
+      ],
+      "refundPercent": 100,
+      "powerCapacity": 20000
     },
     {
       "id": "extractor",

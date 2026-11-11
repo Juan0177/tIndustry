@@ -937,7 +937,13 @@ public sealed class Factory : IGameView
                 X = g.Position.X,
                 Y = g.Position.Y,
                 Direction = g.Direction.ToString(),
+                // Null for the generator: old snapshots keep their bytes.
+                DefinitionId = g.DefinitionId == Generator.BuildingId ? null : g.DefinitionId,
                 FuelBuffer = g.FuelBuffer,
+                // Only when it holds a fuel other than its first: otherwise FuelBuffer pieces of the first fuel say it all.
+                Fuels = g.HoldsOnlyFirstFuel
+                    ? null
+                    : g.FuelCounts().Select(f => new FuelCountSaveDto { ItemId = f.ItemId, Count = f.Count }).ToList(),
                 BurnRemaining = g.BurnRemaining,
                 FuelConsumed = g.FuelConsumed
             }).ToList(),
@@ -966,7 +972,15 @@ public sealed class Factory : IGameView
                 : lamps.OrderBy(l => l.Id).Select(l => new LampSaveDto { Id = l.Id, X = l.Position.X, Y = l.Position.Y }).ToList(),
             Batteries = batteries.Count == 0
                 ? null
-                : batteries.OrderBy(b => b.Id).Select(b => new BatterySaveDto { Id = b.Id, X = b.Position.X, Y = b.Position.Y, Charge = b.Charge }).ToList(),
+                : batteries.OrderBy(b => b.Id).Select(b => new BatterySaveDto
+                {
+                    Id = b.Id,
+                    X = b.Position.X,
+                    Y = b.Position.Y,
+                    // Null for the battery: old snapshots keep their bytes.
+                    DefinitionId = b.DefinitionId == Battery.BuildingId ? null : b.DefinitionId,
+                    Charge = b.Charge
+                }).ToList(),
             SolarPanels = solarPanels.Count == 0
                 ? null
                 : solarPanels.OrderBy(p => p.Id).Select(p => new SolarPanelSaveDto
@@ -1364,8 +1378,24 @@ public sealed class Factory : IGameView
 
         foreach (var g in data.Generators)
         {
-            var gen = new Generator(new GridPosition(g.X, g.Y), ParseDirection(g.Direction), RestoredId(g.Id));
-            gen.RestoreFuel(g.FuelBuffer, g.BurnRemaining, g.FuelConsumed);
+            var definitionId = g.DefinitionId ?? Generator.BuildingId;
+            if (!Generator.IsGeneratorId(definitionId))
+            {
+                throw new InvalidDataException($"Generatore di tipo sconosciuto: '{definitionId}'.");
+            }
+
+            var gen = new Generator(
+                new GridPosition(g.X, g.Y), ParseDirection(g.Direction), RestoredId(g.Id), definitionId,
+                Generator.FuelsOf(content, definitionId));
+            if (g.Fuels is { } fuels)
+            {
+                gen.RestoreFuels(fuels.Select(f => (f.ItemId, f.Count)), g.BurnRemaining, g.FuelConsumed);
+            }
+            else
+            {
+                gen.RestoreFuel(g.FuelBuffer, g.BurnRemaining, g.FuelConsumed);
+            }
+
             factory.generators.Add(gen);
         }
 
@@ -1404,9 +1434,15 @@ public sealed class Factory : IGameView
 
         foreach (var b in data.Batteries ?? [])
         {
-            factory.batteries.Add(new Battery(new GridPosition(b.X, b.Y), RestoredId(b.Id))
+            var definitionId = b.DefinitionId ?? Battery.BuildingId;
+            if (!Battery.IsBatteryId(definitionId))
             {
-                Charge = Math.Clamp(b.Charge, 0, Battery.CapacityOf(content))
+                throw new InvalidDataException($"Batteria di tipo sconosciuto: '{definitionId}'.");
+            }
+
+            factory.batteries.Add(new Battery(new GridPosition(b.X, b.Y), RestoredId(b.Id), definitionId)
+            {
+                Charge = Math.Clamp(b.Charge, 0, Battery.CapacityOf(content, definitionId))
             });
         }
 
@@ -2627,6 +2663,8 @@ public sealed class Factory : IGameView
         "power-node-t2" => "power-node-t2",
         "lamp" => Lamp.BuildingId,
         "battery" => Battery.BuildingId,
+        Generator.CombustionId => Generator.CombustionId,
+        Battery.LargeId => Battery.LargeId,
         SolarPanel.SmallId => SolarPanel.SmallId,
         SolarPanel.LargeId => SolarPanel.LargeId,
         "container" => "container",
@@ -2906,7 +2944,7 @@ public sealed class Factory : IGameView
         && PlaceCrafter(origin, direction, recipe, Crafter.AssemblerBuildingId, charge: true);
 
     public bool TryPlaceGenerator(GridPosition origin, Direction direction = Direction.East) =>
-        RequireUnlocked(Generator.BuildingId) && PlaceGenerator(origin, direction, charge: true);
+        RequireUnlocked(Generator.BuildingId) && PlaceGenerator(origin, direction, Generator.BuildingId, charge: true);
 
     /// <summary>Places an extractor (no direction) with <paramref name="filterItemId"/> (null = none, any item in turn).</summary>
     public bool TryPlaceExtractor(GridPosition origin, string? filterItemId = null) =>
@@ -3223,7 +3261,9 @@ public sealed class Factory : IGameView
                 return PlaceCrafter(origin, dir, recipe, buildingId, charge);
             }
             case BuildingKind.Generator:
-                return PlaceGenerator(origin, dir, charge);
+                return PlaceGenerator(origin, dir, Generator.BuildingId, charge);
+            case BuildingKind.CombustionGenerator:
+                return PlaceGenerator(origin, dir, Generator.CombustionId, charge);
             case BuildingKind.Extractor:
                 return PlaceExtractor(origin, spec.FilterItemId, charge);
             case BuildingKind.PowerNode:
@@ -3233,7 +3273,9 @@ public sealed class Factory : IGameView
             case BuildingKind.Lamp:
                 return PlaceLamp(origin, charge);
             case BuildingKind.Battery:
-                return PlaceBattery(origin, charge);
+                return PlaceBattery(origin, Battery.BuildingId, charge);
+            case BuildingKind.BatteryLarge:
+                return PlaceBattery(origin, Battery.LargeId, charge);
             case BuildingKind.Solar:
                 return PlaceSolarPanel(origin, SolarPanel.SmallId, charge);
             case BuildingKind.SolarLarge:
@@ -3283,7 +3325,8 @@ public sealed class Factory : IGameView
         {
             if (g.Occupies(tile))
             {
-                spec = new BuildSpec(Generator.BuildingId, BuildingKind.Generator, g.Position, g.Direction);
+                var kind = g.DefinitionId == Generator.CombustionId ? BuildingKind.CombustionGenerator : BuildingKind.Generator;
+                spec = new BuildSpec(g.DefinitionId, kind, g.Position, g.Direction);
                 entityId = g.Id;
                 return true;
             }
@@ -3325,7 +3368,8 @@ public sealed class Factory : IGameView
         {
             if (b.Occupies(tile))
             {
-                spec = new BuildSpec(Battery.BuildingId, BuildingKind.Battery, b.Position, Direction.East);
+                var kind = b.DefinitionId == Battery.LargeId ? BuildingKind.BatteryLarge : BuildingKind.Battery;
+                spec = new BuildSpec(b.DefinitionId, kind, b.Position, Direction.East);
                 entityId = b.Id;
                 return true;
             }
@@ -3456,8 +3500,9 @@ public sealed class Factory : IGameView
         BuildingKind.ImpactDrill => Miner.ImpactDrillSize,
         BuildingKind.Smelter or BuildingKind.Assembler or BuildingKind.SmelterAdvanced or BuildingKind.GraphitePress
             or BuildingKind.Separator or BuildingKind.Plasticizer => Crafter.Size,
-        BuildingKind.Generator => Generator.Size,
+        BuildingKind.Generator or BuildingKind.CombustionGenerator => Generator.Size,
         BuildingKind.Extractor => Extractor.Size,
+        BuildingKind.BatteryLarge => Battery.LargeSize,
         BuildingKind.PowerNodeT2 => 2,
         BuildingKind.Solar => SolarPanel.SmallSize,
         BuildingKind.SolarLarge => SolarPanel.LargeSize,
@@ -3751,15 +3796,16 @@ public sealed class Factory : IGameView
         return true;
     }
 
-    private bool PlaceGenerator(GridPosition origin, Direction direction, bool charge)
+    private bool PlaceGenerator(GridPosition origin, Direction direction, string definitionId, bool charge)
     {
-        if (!CanOccupyFootprint(origin, Generator.Size) || (charge && !TryChargeBuilding(Generator.BuildingId)))
+        if (!CanOccupyFootprint(origin, Generator.Size) || (charge && !TryChargeBuilding(definitionId)))
         {
             return false;
         }
 
         buildingsVersion++; // belts blend with generators
-        generators.Add(new Generator(origin, direction, nextEntityId++));
+        generators.Add(new Generator(
+            origin, direction, nextEntityId++, definitionId, Generator.FuelsOf(Content, definitionId)));
         PowerBlocksChanged();
         return true;
     }
@@ -3802,14 +3848,14 @@ public sealed class Factory : IGameView
         return true;
     }
 
-    private bool PlaceBattery(GridPosition origin, bool charge)
+    private bool PlaceBattery(GridPosition origin, string definitionId, bool charge)
     {
-        if (!CanOccupyFootprint(origin, Battery.Size) || (charge && !TryChargeBuilding(Battery.BuildingId)))
+        if (!CanOccupyFootprint(origin, Battery.SizeFor(definitionId)) || (charge && !TryChargeBuilding(definitionId)))
         {
             return false;
         }
 
-        batteries.Add(new Battery(origin, nextEntityId++));
+        batteries.Add(new Battery(origin, nextEntityId++, definitionId));
         PowerBlocksChanged();
         return true;
     }
@@ -4071,7 +4117,7 @@ public sealed class Factory : IGameView
             if (generators[i].Occupies(tile))
             {
                 entityId = generators[i].Id;
-                buildingId = Generator.BuildingId;
+                buildingId = generators[i].DefinitionId;
                 generators.RemoveAt(i);
                 return true;
             }
@@ -4115,7 +4161,7 @@ public sealed class Factory : IGameView
             if (batteries[i].Occupies(tile))
             {
                 entityId = batteries[i].Id;
-                buildingId = Battery.BuildingId;
+                buildingId = batteries[i].DefinitionId;
                 batteries.RemoveAt(i);
                 return true;
             }

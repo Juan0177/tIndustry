@@ -168,6 +168,7 @@ public sealed class FactoryContent
         var terrain = MapTerrain(root.Terrain);
         ValidateLamp(buildings, structures);
         ValidatePowerBlocks(buildings);
+        ValidateFuels(buildings, market, recipes);
         ValidateCrafters(buildings, recipes);
         ValidateRecipeResearch(recipes, structures);
 
@@ -246,9 +247,20 @@ public sealed class FactoryContent
             throw new InvalidDataException("content.json: la Batteria deve avere una capacità (powerCapacity) maggiore di zero.");
         }
 
+        if (buildings.FirstOrDefault(b => b.Id == Battery.LargeId) is { PowerCapacity: <= 0 })
+        {
+            throw new InvalidDataException("content.json: la Batteria grande deve avere una capacità (powerCapacity) maggiore di zero.");
+        }
+
         if (buildings.FirstOrDefault(b => b.Id == Generator.BuildingId) is { PowerOutput: <= 0f })
         {
             throw new InvalidDataException("content.json: il Generatore deve avere una produzione (powerOutput) maggiore di zero.");
+        }
+
+        if (buildings.FirstOrDefault(b => b.Id == Generator.CombustionId) is { PowerOutput: <= 0f })
+        {
+            throw new InvalidDataException(
+                "content.json: il Generatore a combustione deve avere una produzione (powerOutput) maggiore di zero.");
         }
 
         // The panels' size and entity live in code: only their ids may be solar, and each needs an output.
@@ -258,6 +270,40 @@ public sealed class FactoryContent
             {
                 throw new InvalidDataException(
                     $"content.json: il pannello solare '{building.Id}' deve essere solar o solar-large, con \"solar\": true e una produzione (powerOutput) maggiore di zero.");
+            }
+        }
+    }
+
+    // A generator burns only what its fuels list (it needs at least one, each a known item burning a positive time); any
+    // other building has no fuels.
+    private static void ValidateFuels(
+        List<BuildingDefinition> buildings, List<MarketItemDefinition> market, List<RecipeDefinition> recipes)
+    {
+        bool Known(string itemId) =>
+            market.Any(m => m.ItemId == itemId)
+            || recipes.Any(r => r.Inputs.Any(a => a.ItemId == itemId) || r.Outputs.Any(a => a.ItemId == itemId));
+
+        foreach (var building in buildings)
+        {
+            var isGenerator = Generator.IsGeneratorId(building.Id);
+            if (!isGenerator && building.Fuels.Count > 0)
+            {
+                throw new InvalidDataException($"content.json: buildings '{building.Id}': fuels vale solo per i generatori.");
+            }
+
+            if (isGenerator && building.Fuels.Count == 0)
+            {
+                throw new InvalidDataException($"content.json: il generatore '{building.Id}' deve avere almeno un carburante (fuels).");
+            }
+
+            var seen = new HashSet<string>(StringComparer.Ordinal);
+            foreach (var fuel in building.Fuels)
+            {
+                if (!(fuel.Seconds > 0f) || !float.IsFinite(fuel.Seconds) || !Known(fuel.ItemId) || !seen.Add(fuel.ItemId))
+                {
+                    throw new InvalidDataException(
+                        $"content.json: il generatore '{building.Id}': il carburante '{fuel.ItemId}' deve essere un oggetto del gioco, una volta sola, con seconds maggiore di zero.");
+                }
             }
         }
     }
@@ -624,7 +670,10 @@ public sealed class FactoryContent
             isCrafter ? b.Recipes : null,
             powerMode,
             speedPercent,
-            b.Solar);
+            b.Solar)
+        {
+            Fuels = (b.Fuels ?? []).Select(f => new FuelDefinition(f.ItemId, f.Seconds)).ToArray()
+        };
     }
 
     private static MarketItemDefinition MapMarket(MarketDto m) =>
@@ -876,6 +925,15 @@ public sealed class FactoryContent
         public float? CraftSpeed { get; set; }
         /// <summary>Solar panels: <see cref="PowerOutput"/> is the output at full light, scaled by the world's light.</summary>
         public bool Solar { get; set; }
+        /// <summary>Generators: what they burn, the first listed first (<see cref="FuelDto"/>).</summary>
+        public List<FuelDto>? Fuels { get; set; }
+    }
+
+    private sealed class FuelDto
+    {
+        public string ItemId { get; set; } = "";
+        /// <summary>Seconds one piece burns.</summary>
+        public float Seconds { get; set; }
     }
 
     private sealed class MarketDto

@@ -103,6 +103,7 @@ public enum CraftPowerMode
 /// JSON <c>recipes</c>; null = not a craft machine), its <paramref name="PowerMode"/> and its speed
 /// (<paramref name="CraftSpeedPercent"/>, 100 = 1×; JSON <c>craftSpeed</c> as a multiplier). A solar panel
 /// (<paramref name="Solar"/>, <see cref="SolarPanel"/>) produces its <paramref name="PowerOutput"/> × the world's light.
+/// A generator burns its <see cref="Fuels"/> (JSON <c>fuels</c>).
 /// </summary>
 public sealed record BuildingDefinition(
     string Id,
@@ -124,6 +125,11 @@ public sealed record BuildingDefinition(
     /// <summary>True for a craft machine: it has recipes (<see cref="RecipePrefix"/>).</summary>
     public bool IsCrafter => RecipePrefix is not null;
 
+    /// <summary>
+    /// Generators: what they burn, in content order (the first listed burns first); empty for every other building.
+    /// </summary>
+    public IReadOnlyList<FuelDefinition> Fuels { get; init; } = [];
+
     /// <summary>Sixty-thousandths of a unit in one unit: a battery's charge unit (one tick moves a milli-rate of them).</summary>
     public const long ChargePerUnit = 60_000;
 
@@ -140,6 +146,9 @@ public sealed record BuildingDefinition(
     public static long MilliRate(float unitsPerSecond) =>
         unitsPerSecond <= 0f ? 0 : (long)Math.Round(unitsPerSecond * 1000.0, MidpointRounding.AwayFromZero);
 }
+
+/// <summary>A generator's fuel (JSON <c>fuels</c>): one piece of <paramref name="ItemId"/> burns for <paramref name="Seconds"/>.</summary>
+public sealed record FuelDefinition(string ItemId, float Seconds);
 
 /// <summary>
 /// Mobile unit stats (Mindustry's UnitType): build speed, build range in tiles, speed in tiles/s. Hand mining (spec

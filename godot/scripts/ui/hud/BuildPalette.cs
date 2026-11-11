@@ -51,10 +51,12 @@ public partial class BuildPalette : PanelContainer
     private static readonly PaletteEntry[] PowerEntries =
     [
         new(ToolKind.Generator, "generator", "7"),
+        new(ToolKind.CombustionGenerator, Generator.CombustionId, ""),
         new(ToolKind.PowerNode, "power-node", ""),
         new(ToolKind.PowerNodeT2, "power-node-t2", ""),
         new(ToolKind.Lamp, "lamp", ""),
         new(ToolKind.Battery, "battery", ""),
+        new(ToolKind.BatteryLarge, Battery.LargeId, ""),
         new(ToolKind.Solar, SolarPanel.SmallId, ""),
         new(ToolKind.SolarLarge, SolarPanel.LargeId, "")
     ];
@@ -535,7 +537,7 @@ public partial class BuildPalette : PanelContainer
             or ToolKind.ImpactDrill
             => BuildCategory.Production,
         ToolKind.Generator or ToolKind.PowerNode or ToolKind.PowerNodeT2 or ToolKind.Lamp or ToolKind.Battery
-            or ToolKind.Solar or ToolKind.SolarLarge
+            or ToolKind.Solar or ToolKind.SolarLarge or ToolKind.CombustionGenerator or ToolKind.BatteryLarge
             => BuildCategory.Power,
         ToolKind.Container or ToolKind.Vault or ToolKind.CoreFoundation or ToolKind.CoreNucleus or ToolKind.MarketScreen
             => BuildCategory.Storage,
