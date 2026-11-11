@@ -25,6 +25,7 @@ public partial class ResearchPanel : Control
     private PanelContainer? _detailPanel;
     private Label? _detailTitle;
     private Label? _detailUsage;
+    private Label? _detailEffect;
     private Label? _detailState;
     private Label? _detailCost;
     private Label? _detailPrereq;
@@ -69,7 +70,14 @@ public partial class ResearchPanel : Control
             _canvas.Graph = _graph;
             _canvas.SelectedId = _selectedId;
             _canvas.Research = factory.Research;
+            _canvas.InCampaign = InCampaign(factory);
             _canvas.ResetView();
+        }
+
+        if (_legendLabel is not null)
+        {
+            // In the campaign the chapter rewards carry a badge: the legend says what it means.
+            _legendLabel.Text = InCampaign(factory) ? "ricerca.legenda.campagna" : "ricerca.legenda";
         }
 
         Visible = true;
@@ -193,6 +201,9 @@ public partial class ResearchPanel : Control
         lines.AddChild(_detailTitle);
 
         _detailUsage = DetailLine(lines);
+        // What an upgrade changes, before → after its unlock: in the text colour, it is the point of the node.
+        _detailEffect = new Label { Text = "", AutowrapMode = TextServer.AutowrapMode.WordSmart };
+        lines.AddChild(_detailEffect);
         _detailState = new Label { Text = "" };
         lines.AddChild(_detailState);
         _detailCost = DetailLine(lines);
@@ -340,6 +351,7 @@ public partial class ResearchPanel : Control
         {
             _canvas.Graph = _graph;
             _canvas.Research = _view.Research;
+            _canvas.InCampaign = InCampaign(_view);
             _canvas.SelectedId = _selectedId;
             _canvas.QueueRedraw();
         }
@@ -368,7 +380,7 @@ public partial class ResearchPanel : Control
     {
         RefreshDetailChrome();
         if (_view is null || _selectedId is null
-            || _detailTitle is null || _detailUsage is null || _detailState is null
+            || _detailTitle is null || _detailUsage is null || _detailEffect is null || _detailState is null
             || _detailCost is null || _detailPrereq is null
             || _detailManca is null || _unlockButton is null)
         {
@@ -379,6 +391,8 @@ public partial class ResearchPanel : Control
         {
             _detailTitle.Text = "CORE";
             _detailUsage.Text = Testi.T("ricerca.core.descrizione");
+            _detailEffect.Text = "";
+            _detailEffect.Visible = false;
             _detailState.Text = "";
             _detailCost.Text = "";
             _detailPrereq.Text = "";
@@ -396,7 +410,10 @@ public partial class ResearchPanel : Control
 
         var state = _view.Research.GetNodeState(structure);
         _detailTitle.Text = Testi.Struttura(structure.Id, _view.Content);
-        _detailUsage.Text = FormatStructureUsage(structure.Id, _view.Content);
+        _detailUsage.Text = FormatStructureUsage(structure.Id, _view.Content, _view.Research);
+        _detailEffect.Text = FormatUpgradeEffect(structure.Id, _view);
+        // Only upgrades have it: no empty line under the other nodes' usage.
+        _detailEffect.Visible = _detailEffect.Text.Length > 0;
         _detailState.Text = state switch
         {
             ResearchNodeState.Unlocked => Testi.T(structure.IsStub ? "ricerca.stato.segnaposto" : "ricerca.stato.sbloccato"),
@@ -410,8 +427,10 @@ public partial class ResearchPanel : Control
             _ => UiTheme.TestoTenue
         };
 
-        _detailCost.Text = Testi.F("ricerca.costi",
-            FormatUnlock(structure, _view), FormatBuildCost(structure.Id, _view.Content));
+        // Upgrades and recipes have nothing to place: only their unlock.
+        _detailCost.Text = structure.Kind is Upgrades.Kind or FactoryContent.RecipeKind
+            ? Testi.F("ricerca.nodo.sblocco", FormatUnlock(structure, _view))
+            : Testi.F("ricerca.costi", FormatUnlock(structure, _view), FormatBuildCost(structure.Id, _view.Content));
         _detailPrereq.Text = FormatPrereqs(structure, _view);
 
         var manca = FormatMissingUnlockResources(structure, _view);
@@ -518,7 +537,11 @@ public partial class ResearchPanel : Control
         };
     }
 
-    private static string FormatStructureUsage(string structureId, FactoryContent content)
+    /// <summary>
+    /// What the node does: its description and its I/O line, with the rates and capacities of the current
+    /// <paramref name="research"/> (the upgrades already unlocked), as the simulation uses them.
+    /// </summary>
+    private static string FormatStructureUsage(string structureId, FactoryContent content, IResearchView research)
     {
         // Miners name the ores they dig, from the data (terrain.deposits and the miner tiers).
         var key = $"struttura.{structureId}.descrizione";
@@ -530,7 +553,7 @@ public partial class ResearchPanel : Control
         if (recipe is null)
         {
             // Gates, stack conveyor, long bridge, solar panels, generators and batteries: their numbers from the data.
-            return BlockInfoPanel.BlockIoLine(structureId, content) is { Length: > 0 } io
+            return BlockInfoPanel.BlockIoLine(structureId, content, research) is { Length: > 0 } io
                 ? Testi.F("ricerca.uso", hint) + "\n" + io
                 : Testi.F("ricerca.uso", hint);
         }
@@ -539,9 +562,90 @@ public partial class ResearchPanel : Control
             string.Join(" + ", list.Select(a => $"{a.Amount}× {Testi.Oggetto(a.ItemId, content)}"));
 
         var outputs = recipe.RandomOutput ? BlockInfoPanel.RandomOutputs(recipe, content, " / ") : Fmt(recipe.Outputs);
-        var seconds = BlockInfoPanel.RecipeSeconds(recipe, structureId, content);
+        var seconds = BlockInfoPanel.RecipeSeconds(recipe, structureId, content, research);
         return Testi.F("ricerca.uso", hint)
             + $"\nI/O: {Fmt(recipe.Inputs)} → {outputs} ({Testi.Secondi(seconds)})";
+    }
+
+    /// <summary>
+    /// The effect of an upgrade node (<see cref="Upgrades.NodeIds"/>), one line per number it changes: the value without
+    /// the node → the value with it, from the rest of the research as it stands (level 2 replaces level 1, so the
+    /// boosted drone over its level 1 shows the step from level 1). Hold, range and the CORE's maximum are the numbers of
+    /// this game (drone of the Core's tier, linked storage blocks); empty for any other node.
+    /// </summary>
+    private static string FormatUpgradeEffect(string nodeId, IGameView view)
+    {
+        if (!Upgrades.NodeIds.Contains(nodeId))
+        {
+            return "";
+        }
+
+        var withoutNode = new ResearchWith(view.Research, nodeId, unlocked: false);
+        var withNode = new ResearchWith(view.Research, nodeId, unlocked: true);
+        var lines = new List<string> { Testi.T("ricerca.effetto") };
+        void Line(string key, Func<IResearchView, object> value) =>
+            lines.Add(Testi.F(key, value(withoutNode), value(withNode)));
+
+        var unit = view.Content.UnitForTier(view.CoreTier);
+        static string Cells(float cells) =>
+            Testi.Decimale(cells.ToString("0.#", System.Globalization.CultureInfo.InvariantCulture));
+        var drone = nodeId == Upgrades.DroneBoostId;
+        if (drone || nodeId == Upgrades.DroneBuildId)
+        {
+            Line("ricerca.effetto.costruzione", r => Upgrades.DroneBuildPercent(r));
+        }
+
+        if (drone || nodeId == Upgrades.DroneHoldId)
+        {
+            Line("ricerca.effetto.stiva", r => Upgrades.Apply(unit, r).HoldCapacity);
+        }
+
+        if (drone || nodeId == Upgrades.DroneRangeId)
+        {
+            Line("ricerca.effetto.raggio", r => Cells(Upgrades.Apply(unit, r).BuildRange));
+        }
+
+        if (drone || nodeId == Upgrades.DroneMineId)
+        {
+            Line("ricerca.effetto.scavo", r => Upgrades.DroneMinePercent(r));
+        }
+
+        if (nodeId is Upgrades.MinersOneId or Upgrades.MinersTwoId)
+        {
+            Line("ricerca.effetto.minatori", r => Upgrades.MinerPercent(r));
+        }
+
+        if (nodeId is Upgrades.MachinesOneId or Upgrades.MachinesTwoId)
+        {
+            Line("ricerca.effetto.macchine", r => Upgrades.MachinePercent(r));
+        }
+
+        if (nodeId is Upgrades.StorageOneId or Upgrades.StorageTwoId)
+        {
+            // The CORE's maximum as CoreStorage.Capacity makes it: tier plus linked blocks, then the percent.
+            var coreBase = view.Content.CoreTiers[view.CoreTier].ItemCapacity
+                + view.Storages.Where(s => s.IsLinked).Sum(s => s.BaseCapacity);
+            Line("ricerca.effetto.core", r => Upgrades.Scale(coreBase, Upgrades.StoragePercent(r)));
+            Line("ricerca.effetto.depositi", r => Upgrades.StoragePercent(r));
+        }
+
+        return string.Join("\n", lines);
+    }
+
+    /// <summary>The game's research with one node forced unlocked or locked: what an upgrade adds, read by <see cref="Upgrades"/>.</summary>
+    private sealed class ResearchWith(IResearchView inner, string nodeId, bool unlocked) : IResearchView
+    {
+        public IReadOnlyCollection<string> UnlockedIds => inner.UnlockedIds;
+
+        public bool IsUnlocked(string structureId) =>
+            structureId == nodeId ? unlocked : inner.IsUnlocked(structureId);
+
+        public ResearchNodeState GetNodeState(StructureDefinition structure) => inner.GetNodeState(structure);
+
+        public bool CanUnlock(StructureDefinition structure, IWalletView wallet, bool inCampaign = false) =>
+            inner.CanUnlock(structure, wallet, inCampaign);
+
+        public bool MeetsPrerequisites(StructureDefinition structure) => inner.MeetsPrerequisites(structure);
     }
 
     private static string FormatBuildCost(string structureId, FactoryContent content)

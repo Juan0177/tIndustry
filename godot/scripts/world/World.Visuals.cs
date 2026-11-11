@@ -793,7 +793,7 @@ public partial class World
         }
 
         var (stored, capacity) = BatteryUnits(_view);
-        _hud.BindEconomy(_view.Content, _view.Wallet);
+        _hud.BindEconomy(_view.Content, _view.Wallet, _view.Research);
         _hud.UpdateCore(_view.Content.CoreTiers[_view.CoreTier], _coreCapacityOf ??= id => _view?.CoreCapacity(id) ?? 0);
         if (_view.CoreTier != _locksCoreTier)
         {

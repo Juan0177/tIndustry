@@ -153,12 +153,15 @@ public partial class Hud : Control
         _palette.ShowCategory(BuildCategory.Logistics);
     }
 
-    /// <summary>Bind content + wallet so the info panel can show costs / barred mats.</summary>
-    public void BindEconomy(FactoryContent? content, IWalletView? wallet)
+    /// <summary>
+    /// Bind content + wallet so the info panel can show costs / barred mats, and the research for the upgraded rates and
+    /// capacities of its I/O line.
+    /// </summary>
+    public void BindEconomy(FactoryContent? content, IWalletView? wallet, IResearchView? research = null)
     {
         _core.Bind(content, wallet);
         _palette.Content = content;
-        _info.Bind(content, wallet);
+        _info.Bind(content, wallet, research);
         RefreshBlockInfo();
     }
 
