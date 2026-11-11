@@ -37,26 +37,31 @@ class BalanceModelTests(unittest.TestCase):
         cls.model = genera_finanza.balance(cls.content)
 
     def test_everything_unlocks_in_about_six_hours_without_jackpot(self):
+        # The spec's rule is 5.5–6.5 hours; the balancing of the Ricerca allargata (plan 3) aims at 6.0 ± 0.2.
         hours = self.model["hours"][0]
-        self.assertGreaterEqual(hours, 5.5)
-        self.assertLessEqual(hours, 6.5)
+        self.assertGreaterEqual(hours, 5.8)
+        self.assertLessEqual(hours, 6.2)
 
     def test_jackpots_shorten_the_game(self):
         hours = self.model["hours"]
         self.assertLess(hours[1], hours[0])
-        self.assertLessEqual(hours[2], hours[1])
+        self.assertLess(hours[2], hours[1])
 
-    def test_research_money_totals_22_to_27_point_63_million(self):
-        # 25.5 M since the impact drill (Ricerca allargata, plan 1), 26.7 M since the stack conveyor, 26.72 M since
-        # the long bridge and 26.74 M since the solar panels (plan 2), 27.57 M since the upgrades (plan 3, task 1,
-        # provisional minutes), 27.63 M since the campaign rewards at ×3 (task 2); plan 3 rebalances the whole tree.
+    def test_research_money_totals_about_30_point_2_million(self):
+        # 30.19 M since the balancing of the Ricerca allargata (plan 3, plastic and circuits sold in the last two
+        # phases, rewards at ×3): ±5% around the sheet's total.
         total = sum(node["money"] for node in self.model["nodes"])
-        self.assertGreaterEqual(total, 22_000_000)
-        self.assertLessEqual(total, 27_630_000)
+        self.assertGreaterEqual(total, 28_680_000)
+        self.assertLessEqual(total, 31_700_000)
 
     def test_a_ten_thousand_titanium_jackpot_is_about_five_and_a_half_million(self):
         self.assertGreater(self.model["jackpot"], 5_000_000)
         self.assertLess(self.model["jackpot"], 6_000_000)
+
+    def test_plastic_and_circuits_are_sold_in_the_last_two_phases(self):
+        products = [dict(phase["products"]) for phase in genera_finanza.PHASES]
+        self.assertEqual({"titanium-plate": 12, "silicon": 12, "plastic": 6}, products[2])
+        self.assertEqual({"titanium-plate": 36, "silicon": 35, "circuit": 8}, products[3])
 
     def test_defense_row_is_zero_for_now(self):
         self.assertEqual([0, 0, 0, 0], [phase["defense"] for phase in genera_finanza.PHASES])

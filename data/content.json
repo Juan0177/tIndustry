@@ -187,7 +187,7 @@
         }
       ],
       "unlock": {
-        "money": 11000,
+        "money": 18000,
         "materials": [
           {
             "itemId": "lead-plate",
@@ -219,7 +219,7 @@
         }
       ],
       "unlock": {
-        "money": 15000,
+        "money": 22000,
         "materials": [
           {
             "itemId": "lead-plate",
@@ -289,7 +289,7 @@
         }
       ],
       "unlock": {
-        "money": 97000,
+        "money": 140000,
         "materials": [
           {
             "itemId": "titanium-plate",
@@ -331,7 +331,7 @@
         }
       ],
       "unlock": {
-        "money": 1300000,
+        "money": 740000,
         "materials": [
           {
             "itemId": "titanium-ore",
@@ -375,7 +375,7 @@
         }
       ],
       "unlock": {
-        "money": 1300000,
+        "money": 740000,
         "materials": [
           {
             "itemId": "iron-ore",
@@ -420,7 +420,7 @@
         }
       ],
       "unlock": {
-        "money": 1440000,
+        "money": 2010000,
         "materials": [
           {
             "itemId": "plastic",
@@ -821,7 +821,7 @@
       "kind": "conveyor",
       "unlockedByDefault": false,
       "unlock": {
-        "money": 11000,
+        "money": 18000,
         "materials": [
           {
             "itemId": "lead-plate",
@@ -844,7 +844,7 @@
       "kind": "conveyor",
       "unlockedByDefault": false,
       "unlock": {
-        "money": 15000,
+        "money": 22000,
         "materials": [
           {
             "itemId": "lead-plate",
@@ -890,7 +890,7 @@
       "kind": "conveyor",
       "unlockedByDefault": false,
       "unlock": {
-        "money": 97000,
+        "money": 140000,
         "materials": [
           {
             "itemId": "titanium-plate",
@@ -917,7 +917,7 @@
       "kind": "conveyor",
       "unlockedByDefault": false,
       "unlock": {
-        "money": 1300000,
+        "money": 740000,
         "materials": [
           {
             "itemId": "titanium-ore",
@@ -944,7 +944,7 @@
       "kind": "conveyor",
       "unlockedByDefault": false,
       "unlock": {
-        "money": 1300000,
+        "money": 740000,
         "materials": [
           {
             "itemId": "iron-ore",
@@ -976,7 +976,7 @@
       "unlockedByDefault": false,
       "campaignReward": 2,
       "unlock": {
-        "money": 1440000,
+        "money": 2010000,
         "materials": [
           {
             "itemId": "plastic",
@@ -1066,7 +1066,7 @@
       "kind": "building",
       "unlockedByDefault": false,
       "unlock": {
-        "money": 180000,
+        "money": 340000,
         "materials": [
           {
             "itemId": "iron-plate",
@@ -1135,7 +1135,7 @@
       "kind": "building",
       "unlockedByDefault": false,
       "unlock": {
-        "money": 9100,
+        "money": 36000,
         "materials": [
           {
             "itemId": "copper-wire",
@@ -1158,7 +1158,7 @@
       "kind": "building",
       "unlockedByDefault": false,
       "unlock": {
-        "money": 12000,
+        "money": 200000,
         "materials": [
           {
             "itemId": "lead-plate",
@@ -1186,7 +1186,7 @@
       "unlockedByDefault": false,
       "campaignReward": 1,
       "unlock": {
-        "money": 17100,
+        "money": 108000,
         "materials": [
           {
             "itemId": "iron-plate",
@@ -1213,7 +1213,7 @@
       "kind": "building",
       "unlockedByDefault": false,
       "unlock": {
-        "money": 92000,
+        "money": 200000,
         "materials": [
           {
             "itemId": "lead-plate",
@@ -1272,7 +1272,7 @@
       "displayName": "Deposito",
       "kind": "storage",
       "unlockedByDefault": false,
-      "unlock": { "money": 1400000, "materials": [ { "itemId": "titanium-plate", "amount": 80 } ] },
+      "unlock": { "money": 880000, "materials": [ { "itemId": "titanium-plate", "amount": 80 } ] },
       "isStub": false,
       "prerequisites": [ "container" ],
       "itemCapacity": 1000
@@ -1291,7 +1291,7 @@
       "displayName": "Modulo previsione",
       "kind": "module",
       "unlockedByDefault": false,
-      "unlock": { "money": 2000000, "materials": [ { "itemId": "lead-plate", "amount": 240 }, { "itemId": "copper-wire", "amount": 120 } ] },
+      "unlock": { "money": 1400000, "materials": [ { "itemId": "lead-plate", "amount": 240 }, { "itemId": "copper-wire", "amount": 120 } ] },
       "isStub": false,
       "prerequisites": [ "market-screen" ]
     },
@@ -1300,7 +1300,7 @@
       "displayName": "Modulo percentuale",
       "kind": "module",
       "unlockedByDefault": false,
-      "unlock": { "money": 2400000, "materials": [ { "itemId": "titanium-plate", "amount": 320 } ] },
+      "unlock": { "money": 1700000, "materials": [ { "itemId": "titanium-plate", "amount": 320 } ] },
       "isStub": false,
       "prerequisites": [ "finance-forecast" ]
     },
@@ -1327,7 +1327,7 @@
       "displayName": "Fonderia avanzata",
       "kind": "building",
       "unlockedByDefault": false,
-      "unlock": { "money": 360000, "materials": [ { "itemId": "titanium-plate", "amount": 160 }, { "itemId": "copper-wire", "amount": 80 } ] },
+      "unlock": { "money": 470000, "materials": [ { "itemId": "titanium-plate", "amount": 160 }, { "itemId": "copper-wire", "amount": 80 } ] },
       "isStub": false,
       "prerequisites": [ "smelter" ]
     },
@@ -1336,7 +1336,7 @@
       "displayName": "Separatore",
       "kind": "building",
       "unlockedByDefault": false,
-      "unlock": { "money": 390000, "materials": [ { "itemId": "titanium-plate", "amount": 160 }, { "itemId": "graphite", "amount": 80 } ] },
+      "unlock": { "money": 540000, "materials": [ { "itemId": "titanium-plate", "amount": 160 }, { "itemId": "graphite", "amount": 80 } ] },
       "isStub": false,
       "prerequisites": [ "smelter-advanced" ]
     },
@@ -1345,7 +1345,7 @@
       "displayName": "Plastificatore",
       "kind": "building",
       "unlockedByDefault": false,
-      "unlock": { "money": 240000, "materials": [ { "itemId": "silicon", "amount": 120 }, { "itemId": "graphite", "amount": 120 } ] },
+      "unlock": { "money": 410000, "materials": [ { "itemId": "silicon", "amount": 120 }, { "itemId": "graphite", "amount": 120 } ] },
       "isStub": false,
       "prerequisites": [ "graphite-press" ]
     },
@@ -1355,7 +1355,7 @@
       "kind": "recipe",
       "unlockedByDefault": false,
       "campaignReward": 3,
-      "unlock": { "money": 300000, "materials": [ { "itemId": "silicon", "amount": 480 }, { "itemId": "lead-plate", "amount": 480 } ] },
+      "unlock": { "money": 1020000, "materials": [ { "itemId": "silicon", "amount": 480 }, { "itemId": "lead-plate", "amount": 480 } ] },
       "isStub": false,
       "prerequisites": [ "assembler" ]
     },
@@ -1364,7 +1364,7 @@
       "displayName": "Trapano a impatto",
       "kind": "building",
       "unlockedByDefault": false,
-      "unlock": { "money": 180000, "materials": [ { "itemId": "titanium-plate", "amount": 360 }, { "itemId": "silicon", "amount": 240 } ] },
+      "unlock": { "money": 670000, "materials": [ { "itemId": "titanium-plate", "amount": 360 }, { "itemId": "silicon", "amount": 240 } ] },
       "isStub": false,
       "prerequisites": [ "miner-advanced" ]
     },
@@ -1373,7 +1373,7 @@
       "displayName": "Drone: costruzione",
       "kind": "upgrade",
       "unlockedByDefault": false,
-      "unlock": { "money": 1800, "materials": [ { "itemId": "iron-plate", "amount": 30 }, { "itemId": "copper-wire", "amount": 15 } ] },
+      "unlock": { "money": 36000, "materials": [ { "itemId": "iron-plate", "amount": 30 }, { "itemId": "copper-wire", "amount": 15 } ] },
       "isStub": false,
       "prerequisites": []
     },
@@ -1382,7 +1382,7 @@
       "displayName": "Drone: stiva",
       "kind": "upgrade",
       "unlockedByDefault": false,
-      "unlock": { "money": 1800, "materials": [ { "itemId": "iron-plate", "amount": 30 }, { "itemId": "copper-wire", "amount": 15 } ] },
+      "unlock": { "money": 36000, "materials": [ { "itemId": "iron-plate", "amount": 30 }, { "itemId": "copper-wire", "amount": 15 } ] },
       "isStub": false,
       "prerequisites": []
     },
@@ -1391,7 +1391,7 @@
       "displayName": "Drone: raggio",
       "kind": "upgrade",
       "unlockedByDefault": false,
-      "unlock": { "money": 1800, "materials": [ { "itemId": "iron-plate", "amount": 30 }, { "itemId": "copper-wire", "amount": 15 } ] },
+      "unlock": { "money": 36000, "materials": [ { "itemId": "iron-plate", "amount": 30 }, { "itemId": "copper-wire", "amount": 15 } ] },
       "isStub": false,
       "prerequisites": []
     },
@@ -1400,7 +1400,7 @@
       "displayName": "Drone: scavo",
       "kind": "upgrade",
       "unlockedByDefault": false,
-      "unlock": { "money": 1800, "materials": [ { "itemId": "iron-plate", "amount": 30 }, { "itemId": "copper-wire", "amount": 15 } ] },
+      "unlock": { "money": 36000, "materials": [ { "itemId": "iron-plate", "amount": 30 }, { "itemId": "copper-wire", "amount": 15 } ] },
       "isStub": false,
       "prerequisites": []
     },
@@ -1410,7 +1410,7 @@
       "kind": "upgrade",
       "unlockedByDefault": false,
       "campaignReward": 4,
-      "unlock": { "money": 10800, "materials": [ { "itemId": "titanium-plate", "amount": 720 }, { "itemId": "silicon", "amount": 720 } ] },
+      "unlock": { "money": 1680000, "materials": [ { "itemId": "titanium-plate", "amount": 720 }, { "itemId": "silicon", "amount": 720 } ] },
       "isStub": false,
       "prerequisites": [ "upgrade-drone-build", "upgrade-drone-hold", "upgrade-drone-range", "upgrade-drone-mine" ]
     },
@@ -1419,7 +1419,7 @@
       "displayName": "Minatori I",
       "kind": "upgrade",
       "unlockedByDefault": false,
-      "unlock": { "money": 160000, "materials": [ { "itemId": "iron-plate", "amount": 120 }, { "itemId": "copper-wire", "amount": 30 } ] },
+      "unlock": { "money": 180000, "materials": [ { "itemId": "iron-plate", "amount": 120 }, { "itemId": "copper-wire", "amount": 30 } ] },
       "isStub": false,
       "prerequisites": [ "miner-advanced" ]
     },
@@ -1428,7 +1428,7 @@
       "displayName": "Minatori II",
       "kind": "upgrade",
       "unlockedByDefault": false,
-      "unlock": { "money": 170000, "materials": [ { "itemId": "titanium-plate", "amount": 120 }, { "itemId": "copper-wire", "amount": 80 } ] },
+      "unlock": { "money": 340000, "materials": [ { "itemId": "titanium-plate", "amount": 120 }, { "itemId": "copper-wire", "amount": 80 } ] },
       "isStub": false,
       "prerequisites": [ "upgrade-miners-1" ]
     },
@@ -1437,7 +1437,7 @@
       "displayName": "Macchine I",
       "kind": "upgrade",
       "unlockedByDefault": false,
-      "unlock": { "money": 60000, "materials": [ { "itemId": "lead-plate", "amount": 120 }, { "itemId": "copper-wire", "amount": 80 } ] },
+      "unlock": { "money": 270000, "materials": [ { "itemId": "lead-plate", "amount": 120 }, { "itemId": "copper-wire", "amount": 80 } ] },
       "isStub": false,
       "prerequisites": [ "assembler" ]
     },
@@ -1446,7 +1446,7 @@
       "displayName": "Macchine II",
       "kind": "upgrade",
       "unlockedByDefault": false,
-      "unlock": { "money": 380000, "materials": [ { "itemId": "titanium-plate", "amount": 360 }, { "itemId": "silicon", "amount": 180 } ] },
+      "unlock": { "money": 890000, "materials": [ { "itemId": "titanium-plate", "amount": 360 }, { "itemId": "silicon", "amount": 180 } ] },
       "isStub": false,
       "prerequisites": [ "upgrade-machines-1", "smelter-advanced" ]
     },
@@ -1455,7 +1455,7 @@
       "displayName": "Magazzino I",
       "kind": "upgrade",
       "unlockedByDefault": false,
-      "unlock": { "money": 120000, "materials": [ { "itemId": "lead-plate", "amount": 120 }, { "itemId": "titanium-plate", "amount": 40 } ] },
+      "unlock": { "money": 270000, "materials": [ { "itemId": "lead-plate", "amount": 120 }, { "itemId": "titanium-plate", "amount": 40 } ] },
       "isStub": false,
       "prerequisites": [ "container" ]
     },
@@ -1464,7 +1464,7 @@
       "displayName": "Magazzino II",
       "kind": "upgrade",
       "unlockedByDefault": false,
-      "unlock": { "money": 1500000, "materials": [ { "itemId": "titanium-plate", "amount": 360 }, { "itemId": "graphite", "amount": 180 } ] },
+      "unlock": { "money": 1300000, "materials": [ { "itemId": "titanium-plate", "amount": 360 }, { "itemId": "graphite", "amount": 180 } ] },
       "isStub": false,
       "prerequisites": [ "upgrade-storage-1", "vault" ]
     },

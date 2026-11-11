@@ -167,7 +167,7 @@ public sealed class ContentValidationTests
         Assert.Equal("storage", vault.Kind);
         Assert.Equal(1000, vault.ItemCapacity);
         Assert.Equal(["container"], vault.Prerequisites);
-        Assert.Equal(1_400_000, vault.Unlock!.Money); // 23 minutes since the large battery (Ricerca allargata, plan 2)
+        Assert.Equal(880_000, vault.Unlock!.Money); // 13 minutes since the balancing of the Ricerca allargata (plan 3)
         Assert.Equal([new ResourceAmount("titanium-plate", 80)], vault.Unlock.Materials);
 
         var foundation = Content.RequireStructure("core-foundation");

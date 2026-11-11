@@ -26,13 +26,17 @@ PHASES = [
     {"id": "meta", "name": "Metà", "start": 30, "end": 120,
      "products": [("copper-wire", 10), ("lead-plate", 8), ("graphite", 6)], "materials_factor": 3, "defense": 0},
     {"id": "avanzata", "name": "Avanzata", "start": 120, "end": 240,
-     "products": [("titanium-plate", 12), ("silicon", 12)], "materials_factor": 4, "defense": 0},
+     "products": [("titanium-plate", 12), ("silicon", 12), ("plastic", 6)], "materials_factor": 4, "defense": 0},
     {"id": "fine", "name": "Fine", "start": 240, "end": 360,
-     "products": [("titanium-plate", 36), ("silicon", 35)], "materials_factor": 6, "defense": 0},
+     "products": [("titanium-plate", 36), ("silicon", 35), ("circuit", 8)], "materials_factor": 6, "defense": 0},
 ]
 
 # Research nodes in the order the player buys them (prerequisites first): id, phase index, minutes of work at the
 # phase income, materials before the balancing (the list of the first tree; the factor of the phase multiplies them).
+# The minutes say what a node is worth in its phase (Ricerca allargata, plan 3): the CORE upgrades and the finance
+# modules are the big ones, the logistics gates small, the new machines and the upgrades meaningful but not dominant;
+# a campaign reward gets ordinary minutes (REWARDS makes it dear in free play). Along every prerequisite chain the cost
+# grows; the whole tree unlocks in about 6 hours without jackpot.
 NODES = [
     ("smelter", 0, 0.55, [("iron-plate", 15)]),
     ("extractor", 0, 1, [("iron-plate", 6)]),
@@ -46,50 +50,44 @@ NODES = [
     ("conveyor-fast", 1, 4, [("iron-ore", 8), ("lead-ore", 8), ("titanium-ore", 8)]),
     ("sorter", 1, 4, [("iron-ore", 10), ("lead-ore", 10)]),
     ("sorter-inverted", 1, 4, [("iron-ore", 10), ("lead-ore", 10)]),
-    ("overflow-gate", 1, 0.6, [("lead-plate", 4), ("copper-wire", 2)]),
-    ("underflow-gate", 1, 0.8, [("lead-plate", 4), ("copper-wire", 2)]),
+    ("overflow-gate", 1, 1, [("lead-plate", 4), ("copper-wire", 2)]),
+    ("underflow-gate", 1, 1.2, [("lead-plate", 4), ("copper-wire", 2)]),
     ("conveyor-bridge", 1, 5, [("iron-ore", 21), ("lead-ore", 21)]),
     ("battery", 1, 5, [("lead-plate", 10), ("copper-wire", 5)]),
-    ("solar", 1, 0.5, [("copper-wire", 6), ("silicon", 4)]),
-    ("combustion-generator", 1, 0.31, [("iron-plate", 20), ("lead-plate", 10), ("copper-wire", 6)]),
-    # Upgrades (Ricerca allargata, plan 3): provisional small minutes, just above the parent along each chain; plan 3
-    # task 3 sets the real ones.
-    ("upgrade-drone-build", 1, 0.1, [("iron-plate", 10), ("copper-wire", 5)]),
-    ("upgrade-drone-hold", 1, 0.1, [("iron-plate", 10), ("copper-wire", 5)]),
-    ("upgrade-drone-range", 1, 0.1, [("iron-plate", 10), ("copper-wire", 5)]),
-    ("upgrade-drone-mine", 1, 0.1, [("iron-plate", 10), ("copper-wire", 5)]),
+    ("solar", 1, 2, [("copper-wire", 6), ("silicon", 4)]),
+    ("combustion-generator", 1, 2, [("iron-plate", 20), ("lead-plate", 10), ("copper-wire", 6)]),
+    ("upgrade-drone-build", 1, 2, [("iron-plate", 10), ("copper-wire", 5)]),
+    ("upgrade-drone-hold", 1, 2, [("iron-plate", 10), ("copper-wire", 5)]),
+    ("upgrade-drone-range", 1, 2, [("iron-plate", 10), ("copper-wire", 5)]),
+    ("upgrade-drone-mine", 1, 2, [("iron-plate", 10), ("copper-wire", 5)]),
     ("container", 1, 6, [("iron-plate", 20), ("lead-plate", 10)]),
     ("miner-advanced", 1, 8, [("iron-plate", 40), ("copper-wire", 8)]),
-    ("upgrade-miners-1", 1, 8.5, [("iron-plate", 40), ("copper-wire", 10)]),
+    ("upgrade-miners-1", 1, 10, [("iron-plate", 40), ("copper-wire", 10)]),
     ("market-screen", 1, 8, [("iron-plate", 80), ("copper-wire", 40)]),
-    ("bridge-long", 2, 1.6, [("titanium-plate", 6), ("lead-plate", 6), ("silicon", 2)]),
-    ("solar-large", 2, 0.2, [("lead-plate", 30), ("silicon", 25), ("titanium-plate", 10)]),
-    ("battery-large", 2, 1.52, [("lead-plate", 40), ("titanium-plate", 20), ("silicon", 10)]),
-    ("upgrade-machines-1", 2, 1, [("lead-plate", 30), ("copper-wire", 20)]),
-    ("upgrade-storage-1", 2, 2, [("lead-plate", 30), ("titanium-plate", 10)]),
-    ("upgrade-miners-2", 2, 2.8, [("titanium-plate", 30), ("copper-wire", 20)]),
-    # Until the upgrades (plan 3, task 1) the T2 power node, the plasticizer, the circuit and the impact drill had 15, 6,
-    # 8 and 4 minutes: shortened so that the whole tree still unlocks within 6.5 hours (provisional, like the upgrades').
-    # The campaign rewards (REWARDS) cost REWARD_FACTOR times their minutes: the circuit (5 minutes after task 1) and the
-    # stack conveyor (8) went to about a third, so the written price stays close (provisional too, plan 3 task 3).
-    ("power-node-t2", 2, 3, [("iron-plate", 12), ("copper-wire", 6)]),
-    ("smelter-advanced", 2, 6, [("titanium-plate", 40), ("copper-wire", 20)]),
-    ("separator", 2, 6.5, [("titanium-plate", 40), ("graphite", 20)]),
-    ("plasticizer", 2, 4, [("silicon", 30), ("graphite", 30)]),
-    ("circuit", 2, 1.7, [("silicon", 40), ("lead-plate", 40)]),
-    ("conveyor-armored", 2, 22, [("iron-ore", 8), ("lead-ore", 8), ("titanium-ore", 10), ("graphite", 8)]),
-    ("conveyor-express", 2, 22, [("titanium-ore", 8), ("silicon", 8), ("graphite", 8)]),
-    ("vault", 2, 23, [("titanium-plate", 20)]),
-    ("core-foundation", 2, 25, [("iron-plate", 200), ("copper-wire", 100)]),
-    ("finance-forecast", 2, 33, [("lead-plate", 60), ("copper-wire", 30)]),
-    ("finance-percent", 2, 40, [("titanium-plate", 80)]),
-    ("impact-drill", 3, 1, [("titanium-plate", 60), ("silicon", 40)]),
-    ("conveyor-stack", 3, 2.7, [("plastic", 8), ("silicon", 8), ("graphite", 8)]),
-    ("drone-boost", 3, 0.02, [("titanium-plate", 40), ("silicon", 40)]),
-    ("upgrade-machines-2", 3, 2.1, [("titanium-plate", 60), ("silicon", 30)]),
-    ("upgrade-storage-2", 3, 8.1, [("titanium-plate", 60), ("graphite", 30)]),
-    ("finance-odds", 3, 22.5, [("silicon", 120), ("graphite", 80)]),
-    ("core-nucleus", 3, 39, [("titanium-plate", 400), ("silicon", 300)]),
+    ("bridge-long", 2, 2, [("titanium-plate", 6), ("lead-plate", 6), ("silicon", 2)]),
+    ("solar-large", 2, 3, [("lead-plate", 30), ("silicon", 25), ("titanium-plate", 10)]),
+    ("battery-large", 2, 3, [("lead-plate", 40), ("titanium-plate", 20), ("silicon", 10)]),
+    ("upgrade-machines-1", 2, 4, [("lead-plate", 30), ("copper-wire", 20)]),
+    ("upgrade-storage-1", 2, 4, [("lead-plate", 30), ("titanium-plate", 10)]),
+    ("upgrade-miners-2", 2, 5, [("titanium-plate", 30), ("copper-wire", 20)]),
+    ("power-node-t2", 2, 5, [("iron-plate", 12), ("copper-wire", 6)]),
+    ("smelter-advanced", 2, 7, [("titanium-plate", 40), ("copper-wire", 20)]),
+    ("separator", 2, 8, [("titanium-plate", 40), ("graphite", 20)]),
+    ("plasticizer", 2, 6, [("silicon", 30), ("graphite", 30)]),
+    ("circuit", 2, 5, [("silicon", 40), ("lead-plate", 40)]),
+    ("conveyor-armored", 2, 11, [("iron-ore", 8), ("lead-ore", 8), ("titanium-ore", 10), ("graphite", 8)]),
+    ("conveyor-express", 2, 11, [("titanium-ore", 8), ("silicon", 8), ("graphite", 8)]),
+    ("vault", 2, 13, [("titanium-plate", 20)]),
+    ("core-foundation", 2, 22, [("iron-plate", 200), ("copper-wire", 100)]),
+    ("finance-forecast", 2, 20, [("lead-plate", 60), ("copper-wire", 30)]),
+    ("finance-percent", 2, 25, [("titanium-plate", 80)]),
+    ("impact-drill", 3, 3, [("titanium-plate", 60), ("silicon", 40)]),
+    ("conveyor-stack", 3, 3, [("plastic", 8), ("silicon", 8), ("graphite", 8)]),
+    ("drone-boost", 3, 2.5, [("titanium-plate", 40), ("silicon", 40)]),
+    ("upgrade-machines-2", 3, 4, [("titanium-plate", 60), ("silicon", 30)]),
+    ("upgrade-storage-2", 3, 6, [("titanium-plate", 60), ("graphite", 30)]),
+    ("finance-odds", 3, 18, [("silicon", 120), ("graphite", 80)]),
+    ("core-nucleus", 3, 31.5, [("titanium-plate", 400), ("silicon", 300)]),
 ]
 
 # Campaign rewards (Ricerca allargata, plan 3): node id -> the chapter whose end gives it for free (content.json
@@ -1072,7 +1070,7 @@ def build_workbook(REPO, OUT):
     cell(Z, f"A{r}", "Totale delle fasi (6 ore)", BOLD)
     cell(Z, f"C{r}", f"=C{last_phase}/60", fmt='0" h"')
     cell(Z, f"F{r}", f"=SUM(F{first_phase}:F{last_phase})", BOLD, "$#,##0",
-         comment="Incasso in 6 ore con le fasi all'orario della specifica (atteso 30–35 milioni).")
+         comment="Incasso in 6 ore con le fasi all'orario della specifica (circa 36,6 milioni).")
     total_phase_row = r
 
     r += 2
@@ -1121,7 +1119,7 @@ def build_workbook(REPO, OUT):
     last_node = r - 1
     cell(Z, f"A{r}", "Ricerca intera", BOLD)
     cell(Z, f"D{r}", f"=SUM(D{first_node}:D{last_node})", BOLD, "0", comment="Minuti di lavoro in tutto.")
-    cell(Z, f"G{r}", f"=SUM(G{first_node}:G{last_node})", BOLD, "$#,##0", comment="Atteso fra 22 e 25,5 milioni.")
+    cell(Z, f"G{r}", f"=SUM(G{first_node}:G{last_node})", BOLD, "$#,##0", comment="Circa 30,2 milioni (i test accettano ±5%).")
     cell(Z, f"H{r}", f"=SUM(H{first_node}:H{last_node})", BOLD, "$#,##0")
     total_node_row = r
     for ph_row in range(first_phase, last_phase + 1):
@@ -1137,14 +1135,14 @@ def build_workbook(REPO, OUT):
     r += 1
     jb = f"VLOOKUP(\"{JACKPOT_ITEM}\",{b_range},2,FALSE)"
     results = [
-        ("Ricerca intera ($)", f"=H{total_node_row}", "$#,##0", "Fra 22 e 25,5 milioni."),
-        ("Incasso in 6 ore con le fasi all'orario ($)", f"=F{total_phase_row}", "$#,##0", "Atteso 30–35 milioni."),
+        ("Ricerca intera ($)", f"=H{total_node_row}", "$#,##0", "Circa 30,2 milioni (i test accettano ±5%)."),
+        ("Incasso in 6 ore con le fasi all'orario ($)", f"=F{total_phase_row}", "$#,##0", "Circa 36,6 milioni."),
         ("Jackpot del 50/50 ($)",
          f"={JACKPOT_PIECES}*({jb}+ROUNDDOWN({jb}*{p('jp_bonus')},0)+(ROUND({jb}*{p('spike_in')},0)-{jb}))", "$#,##0",
          f"{JACKPOT_PIECES:,} lastre di titanio alla soglia del picco: B + 777% di B (per difetto) + (prezzo − B). "
          "Vale quasi un CORE Nucleo.".replace(",", ".")),
         ("Ore per sbloccare tutto senza jackpot", round(model["hours"][0], 2), "0.00",
-         "Calcolato dallo script (unlock_time, secondi interi): si compra ogni nodo appena bastano i soldi. Atteso 5,5–6,5."),
+         "Calcolato dallo script (unlock_time, secondi interi): si compra ogni nodo appena bastano i soldi. Atteso 6,0 ± 0,2 (regola 5,5–6,5)."),
         ("Ore con 1 jackpot", round(model["hours"][1], 2), "0.00",
          "Il jackpot arriva all'inizio della fase Fine e vale il di più sulle stesse lastre vendute a B."),
         ("Ore con 2 jackpot", round(model["hours"][2], 2), "0.00",
