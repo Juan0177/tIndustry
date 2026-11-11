@@ -477,7 +477,7 @@ public partial class World
     /// <summary>Footprint edge of the block the current tool places.</summary>
     private int GhostSize() => _tool switch
     {
-        BuildTool.Miner or BuildTool.MinerAdvanced => Miner.Size,
+        BuildTool.Miner or BuildTool.MinerAdvanced => Miner.T1Size,
         BuildTool.Smelter => Crafter.Size,
         BuildTool.Assembler => Crafter.Size,
         BuildTool.Generator => Generator.Size,

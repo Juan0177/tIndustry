@@ -160,7 +160,7 @@ public partial class World
         }
 
         PlaytestFlyDrone(origin); // within its range: the drone does not fly to its plans on its own
-        cam.Position = FootprintCenter(origin, Miner.Size);
+        cam.Position = FootprintCenter(origin, Miner.T1Size);
         cam.Zoom = new Vector2(1.6f, 1.6f);
         var finished = ConstructFinishedCount;
         SubmitCommand(new PlaceBuilding(LocalPlayer, BuildingKind.Miner, origin, Direction.East));
@@ -211,7 +211,7 @@ public partial class World
 
         if (_view.Miners.FirstOrDefault(m => m.Efficiency > 0f) is { } miner)
         {
-            await Frame(FootprintCenter(miner.Position, Miner.Size), "minatore");
+            await Frame(FootprintCenter(miner.Position, miner.Size), "minatore");
         }
 
         if (_view.Generators.FirstOrDefault(g => g.IsGenerating) is { } gen)

@@ -80,6 +80,7 @@ public sealed record BuildSpec(
         BuildingKind.GraphitePress => Crafter.GraphitePressId,
         BuildingKind.Separator => Crafter.SeparatorId,
         BuildingKind.Plasticizer => Crafter.PlasticizerId,
+        BuildingKind.ImpactDrill => Miner.ImpactDrillId,
         _ => null
     };
 
@@ -88,6 +89,10 @@ public sealed record BuildSpec(
     /// </summary>
     public static bool IsCrafter(BuildingKind? kind) => kind is BuildingKind.Smelter or BuildingKind.Assembler
         or BuildingKind.SmelterAdvanced or BuildingKind.GraphitePress or BuildingKind.Separator or BuildingKind.Plasticizer;
+
+    /// <summary>True for the miners (<see cref="Miner"/>): Miner T1, Miner T2 and the impact drill.</summary>
+    public static bool IsMiner(BuildingKind? kind) =>
+        kind is BuildingKind.Miner or BuildingKind.MinerAdvanced or BuildingKind.ImpactDrill;
 
     /// <summary>Core tier a Core block builds (1 foundation, 2 nucleus); -1 for every other kind.</summary>
     public static int CoreTierOf(BuildingKind? kind) => kind switch

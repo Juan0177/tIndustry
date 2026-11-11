@@ -360,7 +360,7 @@ public sealed class FactoryContent
     // Every miner says which ores it digs: tier >= the ore's hardness (terrain.deposits).
     private static void CheckMinerTiers(IEnumerable<BuildingDto> buildings)
     {
-        foreach (var id in new[] { Miner.BasicId, Miner.AdvancedId })
+        foreach (var id in new[] { Miner.BasicId, Miner.AdvancedId, Miner.ImpactDrillId })
         {
             var miner = buildings.FirstOrDefault(b => b.Id == id);
             if (miner is null)
@@ -370,7 +370,7 @@ public sealed class FactoryContent
 
             if (miner.Tier is not { } tier)
             {
-                throw new InvalidDataException($"content.json: buildings '{id}': manca tier (1 = Minatore T1, 2 = T2).");
+                throw new InvalidDataException($"content.json: buildings '{id}': manca tier (1 = Minatore T1, 2 = T2, 3 = trapano a impatto).");
             }
 
             if (tier < 1)

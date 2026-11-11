@@ -21,7 +21,8 @@ public sealed class PowerGridTests
                  {
                      Generator.BuildingId, PowerNode.Tier1Id, PowerNode.Tier2Id, Lamp.BuildingId, Battery.BuildingId,
                      Crafter.SmelterBuildingId, Crafter.AssemblerBuildingId, Miner.AdvancedId,
-                     Crafter.SmelterAdvancedId, Crafter.GraphitePressId, Crafter.SeparatorId, Crafter.PlasticizerId
+                     Crafter.SmelterAdvancedId, Crafter.GraphitePressId, Crafter.SeparatorId, Crafter.PlasticizerId,
+                     Miner.ImpactDrillId
                  })
         {
             factory.Research.ForceUnlock(id);
@@ -731,7 +732,7 @@ public sealed class PowerGridTests
     [Fact]
     public void AdvancedMinerAtHalfPowerIsTenPercentFaster()
     {
-        Miner Make() => new(new GridPosition(0, 0), Direction.East, Miner.FootprintArea, "iron-ore", Miner.AdvancedId);
+        Miner Make() => new(new GridPosition(0, 0), Direction.East, Miner.T1Size * Miner.T1Size, "iron-ore", Miner.AdvancedId);
         var half = Make();
         var none = Make();
         long next = 1;

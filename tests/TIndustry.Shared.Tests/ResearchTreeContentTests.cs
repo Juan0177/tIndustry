@@ -36,6 +36,7 @@ public sealed class ResearchTreeContentTests
         { "separator", "smelter-advanced" },
         { "plasticizer", "graphite-press" },
         { "circuit", "assembler" },
+        { "impact-drill", "miner-advanced" },
         // Finanza: modules researched in a row after the screen, nothing to place.
         { "finance-forecast", "market-screen" },
         { "finance-percent", "finance-forecast" },

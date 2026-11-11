@@ -287,7 +287,7 @@ public sealed class PowerGrid
 
     /// <summary>
     /// The power blocks of <paramref name="s"/> in id order: generators, nodes, batteries and the blocks with a power
-    /// use (craft machines but the graphite press, Miner T2, lamp). Belts, Miner T1, extractor, graphite press, storage
+    /// use (craft machines but the graphite press, Miner T2, impact drill, lamp). Belts, Miner T1, extractor, graphite press, storage
     /// and the Core are not.
     /// </summary>
     public static List<PowerBlock> Blocks(GameState s)
@@ -320,9 +320,9 @@ public sealed class PowerGrid
 
         foreach (var m in s.Miners)
         {
-            if (m.DefinitionId == Miner.AdvancedId)
+            if (m.CanReceivePower)
             {
-                blocks.Add(new PowerBlock(m.Id, m.Position, Miner.Size, PowerBlockKind.Consumer));
+                blocks.Add(new PowerBlock(m.Id, m.Position, m.Size, PowerBlockKind.Consumer));
             }
         }
 

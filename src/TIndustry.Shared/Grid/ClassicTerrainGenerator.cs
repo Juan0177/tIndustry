@@ -94,34 +94,34 @@ public static class ClassicTerrainGenerator
             map.Set(position.X, position.Y, new TerrainTile(FloorKind.Stone, WallKind.None, DepositKind.None));
         }
 
-        PlaceDepositPatch(map, starterDepositOrigin, Miner.Size, DepositKind.Iron);
+        PlaceDepositPatch(map, starterDepositOrigin, Miner.T1Size, DepositKind.Iron);
 
         var copperStarter = new GridPosition(
-            starterDepositOrigin.X, starterDepositOrigin.Y + Miner.Size + 1);
-        if (copperStarter.Y + Miner.Size <= height)
+            starterDepositOrigin.X, starterDepositOrigin.Y + Miner.T1Size + 1);
+        if (copperStarter.Y + Miner.T1Size <= height)
         {
-            PlaceDepositPatch(map, copperStarter, Miner.Size, DepositKind.Copper);
+            PlaceDepositPatch(map, copperStarter, Miner.T1Size, DepositKind.Copper);
         }
 
         var coalStarter = new GridPosition(
-            starterDepositOrigin.X + Miner.Size + 1, starterDepositOrigin.Y);
-        if (coalStarter.X + Miner.Size <= width && !coreTiles.Contains(coalStarter))
+            starterDepositOrigin.X + Miner.T1Size + 1, starterDepositOrigin.Y);
+        if (coalStarter.X + Miner.T1Size <= width && !coreTiles.Contains(coalStarter))
         {
-            PlaceDepositPatch(map, coalStarter, Miner.Size, DepositKind.Coal);
+            PlaceDepositPatch(map, coalStarter, Miner.T1Size, DepositKind.Coal);
         }
 
         var leadStarter = new GridPosition(
-            starterDepositOrigin.X - Miner.Size - 1, starterDepositOrigin.Y);
+            starterDepositOrigin.X - Miner.T1Size - 1, starterDepositOrigin.Y);
         if (leadStarter.X >= 0 && !coreTiles.Contains(leadStarter))
         {
-            PlaceDepositPatch(map, leadStarter, Miner.Size, DepositKind.Lead);
+            PlaceDepositPatch(map, leadStarter, Miner.T1Size, DepositKind.Lead);
         }
 
         var legacyOrigin = new GridPosition(2, 2);
         if (!coreTiles.Contains(legacyOrigin)
             && !coreTiles.Contains(new GridPosition(3, 3)))
         {
-            PlaceDepositPatch(map, legacyOrigin, Miner.Size, DepositKind.Iron);
+            PlaceDepositPatch(map, legacyOrigin, Miner.T1Size, DepositKind.Iron);
         }
 
         // Raylib scout patches on large maps — visible veins near the starter cluster.

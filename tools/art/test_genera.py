@@ -35,6 +35,7 @@ CELLE = {
     "miner": 2, "miner-advanced": 2, "smelter": 2, "assembler": 2, "generator": 2,
     "power-node-t2": 2,
     "smelter-advanced": 2, "graphite-press": 2, "separator": 2, "plasticizer": 2,
+    "impact-drill": 3,
     "extractor": 1, "power-node": 1, "lamp": 1, "battery": 1, "conveyor-basic": 1, "conveyor-fast": 1,
     "conveyor-express": 1, "conveyor-armored": 1, "junction": 1, "router": 1, "sorter": 1, "sorter-inverted": 1, "conveyor-bridge": 1,
     "core-1": 2, "core-2": 3, "core-3": 4, "core-4": 5,
@@ -625,7 +626,8 @@ class TestGenera(unittest.TestCase):
     def test_basamento_sotto_i_blocchi(self):
         # Blocks that feed or take from belts stand on a rectangular plate: their footprint is opaque
         # everywhere (no ground in the cut corners), with the dark outline on the edge.
-        for nome in ("miner", "miner-base", "miner-advanced", "miner-advanced-base", "assembler",
+        for nome in ("miner", "miner-base", "miner-advanced", "miner-advanced-base", "impact-drill",
+                     "impact-drill-base", "assembler",
                      "assembler-base", "smelter", "extractor", "generator", "generator-base",
                      *(n + parte for n in ("smelter-advanced", "graphite-press", "separator", "plasticizer")
                        for parte in ("", "-base")),
@@ -685,6 +687,7 @@ class TestGenera(unittest.TestCase):
         # Layered blocks: base, animated part (frame count), composed icon = base + frame 1.
         strati = {
             "miner": ("miner-drill-anim", 8), "miner-advanced": ("miner-advanced-drill-anim", 8),
+            "impact-drill": ("impact-drill-drill-anim", 8),
             "smelter": ("smelter-glow-anim", 4), "generator": ("generator-rotor-anim", 4),
         }
         for blocco, (anim, n) in strati.items():
@@ -709,9 +712,10 @@ class TestGenera(unittest.TestCase):
         batteria = forme.componi(SPRITE["battery-base"](), tacche[-1])
         self.assertEqual(batteria.tobytes(), SPRITE["battery"]().tobytes())
         # The drill bit is clearly smaller than its frame (not a fan filling the block).
-        for anim in ("miner-drill-anim", "miner-advanced-drill-anim"):
+        for anim, massimo in (("miner-drill-anim", T), ("miner-advanced-drill-anim", T),
+                              ("impact-drill-drill-anim", 3 * T // 2)):
             x0, y0, x1, y1 = fotogrammi_di(SPRITE[anim]())[0].getbbox()
-            self.assertLessEqual(max(x1 - x0, y1 - y0), T, anim)
+            self.assertLessEqual(max(x1 - x0, y1 - y0), massimo, anim)
 
     def test_schermo_di_borsa(self):
         # Stock-exchange screen: an opaque 2x2 plate; the lit strip covers exactly the yellow bands of the base and

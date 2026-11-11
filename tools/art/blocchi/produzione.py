@@ -1,15 +1,16 @@
-"""Production sprites: miner (basic and advanced), smelter, assembler, extractor and the machines of the
-«Ricerca allargata» (advanced smelter, graphite press, separator, plasticizer).
+"""Production sprites: miner (basic and advanced), impact drill, smelter, assembler, extractor and the machines of
+the «Ricerca allargata» (advanced smelter, graphite press, separator, plasticizer).
 
 Every block is a still base plus its moving parts, each part a full-size layer so the client
 stacks them centred on the block:
 - miner: `-base`, `-drill-anim` (8 frames of the drill bit turning), advanced `-lamp` (lit with power);
+- impact drill (3x3, 96 px): `-base` and `-drill-anim`, like the miner, with a bigger bit;
 - smelter: `-base`, `-glow-anim` (4 frames of the glowing mouth);
 - assembler: `-base`, `-arm` (left arm, mirrored by the client for the right one, moved by code);
 - advanced smelter, graphite press, separator, plasticizer: `-base` and the icon (still, for now).
 `<id>.png` is the composed icon (palette, research, plans, construction sites).
 The bases differ on purpose: chamfered grey plate (miner), red-trimmed plate with a lamp
-(advanced miner), sooty brick-red furnace with round rivets (smelter), blue steel bed on rails
+(advanced miner), graphite deck with four titanium hammers around a wide pit (impact drill), sooty brick-red furnace with round rivets (smelter), blue steel bed on rails
 (assembler), lead-coloured octagon (extractor), titanium furnace with two glowing mouths (advanced
 smelter), graphite ram between two steel pillars (graphite press), sand drum with four ore chutes
 (separator), magenta vat with a coal hopper (plasticizer).
@@ -71,34 +72,37 @@ TRIVELLA_FOTOGRAMMI = 8
 TRIVELLA_PASSO = (2 * math.pi / SOLCHI) / TRIVELLA_FOTOGRAMMI
 
 
-def trivella(angolo, cono, denti, collare):
+def trivella(angolo, cono, denti, collare, lato=L, scala=1):
     """Conical drill bit seen from above, turned by `angolo`: a cone with helical flutes that
-    wind into the tip, a ring of square cutting teeth and a collar at the base of the cone."""
-    im = forme.nuova(L, L)
+    wind into the tip, a ring of square cutting teeth and a collar at the base of the cone.
+    `lato` is the frame side and `scala` the size of the bit (1 in a 2x2 miner)."""
+    im = forme.nuova(lato, lato)
+    centro = lato / 2
+    punta_r = PUNTA_R * scala
     pieni = {}
-    r_denti = PUNTA_R + 3
-    for y in range(L):
-        for x in range(L):
-            dx, dy = x + 0.5 - C, y + 0.5 - C
+    r_denti = punta_r + 3 * scala
+    for y in range(lato):
+        for x in range(lato):
+            dx, dy = x + 0.5 - centro, y + 0.5 - centro
             d = math.hypot(dx, dy)
             a = math.atan2(dy, dx) - angolo
-            if d <= PUNTA_R:
-                if d < 1.5:
+            if d <= punta_r:
+                if d < 1.5 * scala:
                     pieni[(x, y)] = cono[-1]  # the tip
                     continue
                 # Flute: an Archimedean spiral; the edge after it catches the light.
-                fase = ((a + d * 0.32) % (2 * math.pi / SOLCHI)) / (2 * math.pi / SOLCHI)
+                fase = ((a + d / scala * 0.32) % (2 * math.pi / SOLCHI)) / (2 * math.pi / SOLCHI)
                 lit = forme._luce(dx, dy)
                 k = 2 + (1 if lit > 0.3 else -1 if lit < -0.3 else 0)
-                if d < 4:
+                if d < 4 * scala:
                     k += 1  # the tip is lighter
                 if fase < 0.24:
-                    c = OUT if d > 3 else cono[0]
+                    c = OUT if d > 3 * scala else cono[0]
                 elif fase < 0.38:
                     c = cono[min(len(cono) - 1, k + 1)]
                 else:
                     c = cono[max(0, min(len(cono) - 1, k))]
-                if PUNTA_R - 1.4 < d:
+                if punta_r - 1.4 * scala < d:
                     c = collare[2] if lit > 0 else collare[1]  # collar ring at the base
                 pieni[(x, y)] = c
             elif d <= r_denti:
@@ -176,6 +180,53 @@ for _bid in _MINATORI:
     _registra_minatore(_bid)
 
 sprite("miner-advanced-lamp")(_lampada)
+
+
+# ---------------------------------------------------------------- impact drill
+
+L3 = 3 * T  # side of a 3x3 block
+C3 = L3 / 2
+TRAPANO_SCALA = 1.5  # the bit of the 3x3 drill, 1.5 times the miner's (about 40 px across)
+
+
+def _base_trapano():
+    """Graphite deck, chamfered, with a titanium-collared pit in the middle and four hammer housings
+    (titanium heads on graphite arms) pointing at the pit from the diagonals: the "impact" part."""
+    im = forme.nuova(L3, L3)
+    forme.sagoma(im, forme.smussato(0, 0, L3 - 1, L3 - 1, 13), GRAFITE)
+    forme.sagoma(im, forme.smussato(8, 8, L3 - 9, L3 - 9, 12), GRAFITE)
+    # Side vents, two per edge.
+    for a in (30, 54):
+        forme.griglia(im, 2, a, 6, a + 11, GRAFITE, 3)
+        forme.griglia(im, L3 - 7, a, L3 - 3, a + 11, GRAFITE, 3)
+        forme.griglia(im, a, 2, a + 11, 6, GRAFITE, 3)
+        forme.griglia(im, a, L3 - 7, a + 11, L3 - 3, GRAFITE, 3)
+    # Hammer housings on the diagonals: a graphite arm and a titanium head facing the pit.
+    for sx, sy in ((1, 1), (-1, 1), (1, -1), (-1, -1)):
+        ax = C3 + sx * 26
+        ay = C3 + sy * 26
+        forme.pannello(im, int(ax - 7), int(ay - 7), int(ax + 6), int(ay + 6), METALLO)
+        forme.pannello(im, int(ax - 4), int(ay - 4), int(ax + 3), int(ay + 3), TITANIO)
+        forme.bullone(im, int(ax - sx * 1), int(ay - sy * 1), TITANIO)
+    # Wide pit with a titanium collar (where the bit turns).
+    _anello(im, C3, C3, 22.5, 28.5, TITANIO)
+    _pozzo(im, C3, C3, 22.5, NASTRO)
+    # Ore chips at the bottom of the pit.
+    for x, y in ((36, 56), (58, 37), (60, 57), (35, 39), (48, 64), (47, 31)):
+        forme.pixel(im, x, y, NASTRO[3])
+    # Hazard marks on the chamfers.
+    for bx, by in ((6, 6), (L3 - 8, 6), (6, L3 - 8), (L3 - 8, L3 - 8)):
+        forme.rett(im, bx, by, bx + 1, by + 1, ACCENTO[2])
+    return forme.basamento(im, GRAFITE)
+
+
+def _trivella_trapano(k):
+    return trivella(k * TRIVELLA_PASSO, TITANIO, METALLO, ACCENTO, lato=L3, scala=TRAPANO_SCALA)
+
+
+sprite("impact-drill-base")(_base_trapano)
+sprite("impact-drill-drill-anim")(lambda: forme.striscia([_trivella_trapano(k) for k in range(TRIVELLA_FOTOGRAMMI)]))
+sprite("impact-drill")(lambda: forme.componi(_base_trapano(), _trivella_trapano(0)))
 
 
 # ---------------------------------------------------------------- smelter

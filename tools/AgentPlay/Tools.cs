@@ -209,7 +209,7 @@ public sealed class Tools(Sessions sessions, GameData data)
     public string PotenziaCore([Description(Sessione)] string sessione) => Game(sessione, "potenzia_core");
 
     [McpServerTool(Name = "collega")]
-    [Description("Collega o scollega col laser un nodo di energia e un blocco di corrente (generatore, nodo, batteria, forno, assemblatore, fonderia avanzata, separatore, plastificatore, minatore avanzato, lampada; la pressa grande non usa corrente), come il clic sul nodo e poi sul blocco: se il laser c'è lo toglie, altrimenti lo aggiunge (TogglePowerLink). Rifiuti: PowerLinkOutOfRange (fuori raggio), PowerLinkNoFreeSlots (collegamenti finiti), PowerLinkNotPowerBlock, PowerLinkSameBlock, InvalidCommand se 'nodo' non è un nodo. Risponde {collegato, collegamenti, massimo}.")]
+    [Description("Collega o scollega col laser un nodo di energia e un blocco di corrente (generatore, nodo, batteria, forno, assemblatore, fonderia avanzata, separatore, plastificatore, minatore avanzato, trapano a impatto, lampada; la pressa grande non usa corrente), come il clic sul nodo e poi sul blocco: se il laser c'è lo toglie, altrimenti lo aggiunge (TogglePowerLink). Rifiuti: PowerLinkOutOfRange (fuori raggio), PowerLinkNoFreeSlots (collegamenti finiti), PowerLinkNotPowerBlock, PowerLinkSameBlock, InvalidCommand se 'nodo' non è un nodo. Risponde {collegato, collegamenti, massimo}.")]
     public string Collega(
         [Description(Sessione)] string sessione,
         [Description("Una cella del nodo di energia (T1 o T2).")] Cella nodo,

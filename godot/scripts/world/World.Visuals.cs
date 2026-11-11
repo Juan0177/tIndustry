@@ -277,7 +277,7 @@ public partial class World
         foreach (var miner in _view.Miners)
         {
             var node = MinerVisual.Create(miner, TileSize);
-            node.Position = FootprintCenter(miner.Position, Miner.Size);
+            node.Position = FootprintCenter(miner.Position, miner.Size);
             _buildingsLayer.AddChild(node);
         }
 

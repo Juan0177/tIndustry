@@ -27,6 +27,7 @@ struttura.graphite-press.nome,Pressa grande,Graphite press
 struttura.smelter-advanced.nome,Fonderia avanzata,Advanced smelter
 struttura.separator.nome,Separatore,Separator
 struttura.plasticizer.nome,Plastificatore,Plasticizer
+struttura.impact-drill.nome,Trapano a impatto,Impact drill
 struttura.circuit.nome,Ricetta dei circuiti,Circuit recipe
 struttura.core-foundation.nome,CORE Fondazione,CORE Foundation
 struttura.core-nucleus.nome,CORE Nucleo,CORE Nucleus
@@ -145,6 +146,7 @@ struttura.graphite-press.suggerimento,Pressa grande · 2 grafite da 3 carbone ·
 struttura.smelter-advanced.suggerimento,Fonderia avanzata · le ricette del forno a velocità doppia · solo con corrente (20) · niente carbone · 2×2 · sblocca in Ricerca,Advanced smelter · the smelter's recipes at double speed · power only (20) · no coal · 2×2 · unlock in Research
 struttura.separator.suggerimento,Separatore · un minerale a caso da 2 sabbia · corrente 8 · 2×2 · sblocca in Ricerca,Separator · a random ore from 2 sand · power 8 · 2×2 · unlock in Research
 struttura.plasticizer.suggerimento,Plastificatore · plastica da 2 carbone · corrente 6 · 2×2 · sblocca in Ricerca,Plasticizer · plastic from 2 coal · power 6 · 2×2 · unlock in Research
+struttura.impact-drill.suggerimento,Trapano a impatto · {0} · 4× il Minatore T2 · scava anche il titanio · corrente 30 · 3×3 · sblocca in Ricerca,Impact drill · {0} · 4× the Miner T2 · digs titanium too · power 30 · 3×3 · unlock in Research
 struttura.circuit.suggerimento,Ricetta dei circuiti · nell'assemblatore · filo di rame + silicio + lastra di piombo · sblocca in Ricerca,Circuit recipe · in the assembler · copper wire + silicon + lead plate · unlock in Research
 struttura.core-foundation.suggerimento,CORE Fondazione · 4×4 · 4000 per oggetto · sblocca in Ricerca,CORE Foundation · 4×4 · 4000 per item · unlock in Research
 struttura.core-nucleus.suggerimento,CORE Nucleo · 5×5 · 12000 per oggetto · sblocca in Ricerca,CORE Nucleus · 5×5 · 12000 per item · unlock in Research
@@ -476,6 +478,7 @@ struttura.graphite-press.descrizione,"Pressa grande · pressa 3 carbone in 2 gra
 struttura.smelter-advanced.descrizione,"Fonderia avanzata · fonde come il forno (2 ferro grezzo, 2 piombo grezzo o 3 titanio grezzo in una lastra, 2 sabbia in vetro) al doppio della velocità · consuma 20 di corrente · senza corrente si ferma · non brucia carbone · 2×2","Advanced smelter · smelts like the smelter (2 iron ore, 2 lead ore or 3 titanium ore into a plate, 2 sand into glass) at double speed · uses 20 power · stops without power · burns no coal · 2×2"
 struttura.separator.descrizione,"Separatore · separa 2 sabbia in un minerale a caso: ferro, rame o piombo grezzo (30% ciascuno) o titanio grezzo (10%) · consuma 8 di corrente · senza corrente si ferma · 2×2","Separator · separates 2 sand into a random ore: iron, copper or lead ore (30% each) or titanium ore (10%) · uses 8 power · stops without power · 2×2"
 struttura.plasticizer.descrizione,Plastificatore · fa 1 plastica da 2 carbone in 2 s · consuma 6 di corrente · senza corrente si ferma · 2×2,Plasticizer · makes 1 plastic from 2 coal in 2 s · uses 6 power · stops without power · 2×2
+struttura.impact-drill.descrizione,T3 · {0} · 4× la velocità del Minatore T2 · scava ogni giacimento · consuma 30 di corrente · senza corrente si ferma · 3×3 · uscita sui 12 lati,T3 · {0} · 4× the speed of the Miner T2 · digs every deposit · uses 30 power · stops without power · 3×3 · output on all 12 sides
 struttura.circuit.descrizione,"Ricetta dei circuiti · niente da piazzare · l'assemblatore fa un circuito da filo di rame, silicio e lastra di piombo in 3 s","Circuit recipe · nothing to place · the assembler makes a circuit from copper wire, silicon and lead plate in 3 s"
 struttura.core-foundation.descrizione,CORE Fondazione · 4×4 · 4000 per oggetto · vende 25 pezzi al secondo · drone beta,CORE Foundation · 4×4 · 4000 per item · sells 25 pieces per second · beta drone
 struttura.core-nucleus.descrizione,CORE Nucleo · 5×5 · 12000 per oggetto · vende 60 pezzi al secondo · drone gamma,CORE Nucleus · 5×5 · 12000 per item · sells 60 pieces per second · gamma drone

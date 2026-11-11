@@ -525,7 +525,7 @@ public sealed class BuilderTests
         var minerTiles = view.PlanTiles(minerPlan);
         var breakTiles = view.PlanTiles(breakPlan);
 
-        Assert.Equal(Miner.Size * Miner.Size, minerTiles.Count);
+        Assert.Equal(Miner.T1Size * Miner.T1Size, minerTiles.Count);
         Assert.Contains(NearMiner, minerTiles);
         Assert.Equal(Crafter.Size * Crafter.Size, breakTiles.Count); // the whole smelter, not the clicked cell
         Assert.Contains(smelterOrigin, breakTiles);

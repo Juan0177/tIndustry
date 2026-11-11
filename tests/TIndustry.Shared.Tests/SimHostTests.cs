@@ -286,13 +286,13 @@ public sealed class SimHostTests
         var factory = NewSandbox(LoadContent());
         var terrain = factory.Terrain!;
         GridPosition? ore = null;
-        for (var y = 1; y < terrain.Height - Miner.Size && ore is null; y++)
+        for (var y = 1; y < terrain.Height - Miner.T1Size && ore is null; y++)
         {
-            for (var x = 1; x < terrain.Width - Miner.Size; x++)
+            for (var x = 1; x < terrain.Width - Miner.T1Size; x++)
             {
                 var p = new GridPosition(x, y);
-                if (terrain.MajorityDeposit(p, Miner.Size) != DepositKind.None
-                    && factory.CanOccupyFootprint(p, Miner.Size))
+                if (terrain.MajorityDeposit(p, Miner.T1Size) != DepositKind.None
+                    && factory.CanOccupyFootprint(p, Miner.T1Size))
                 {
                     ore = p;
                     break;

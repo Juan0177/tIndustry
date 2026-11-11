@@ -464,7 +464,7 @@ public sealed class Factory : IGameView
         ejectorTiles.Clear();
         foreach (var miner in miners)
         {
-            AddEjector(miner.Position, Miner.Size, null);
+            AddEjector(miner.Position, miner.Size, null);
         }
 
         foreach (var crafter in smelters)
@@ -1583,7 +1583,7 @@ public sealed class Factory : IGameView
         // A T1 site on titanium only (saved before the ore-hardness rule) could never finish: dropped the same way.
         var tooWeak = tiles is not null
             && !d.Deconstructing
-            && spec.Kind is BuildingKind.Miner or BuildingKind.MinerAdvanced
+            && BuildSpec.IsMiner(spec.Kind)
             && MinerTooWeak(spec.Origin, spec.StructureId);
         // A replacement site must be able to put its belt back (content may have dropped or changed that conveyor).
         var replaced = d.Replaced is { } r
@@ -2432,13 +2432,13 @@ public sealed class Factory : IGameView
         GridPosition coreOrigin, int coreSize, int mapWidth, int mapHeight)
     {
         // Prefer west of core (Raylib-style), clamped into map.
-        var x = Math.Clamp(coreOrigin.X - Miner.Size - 2, 1, Math.Max(1, mapWidth - Miner.Size - 1));
-        var y = Math.Clamp(coreOrigin.Y, 1, Math.Max(1, mapHeight - Miner.Size - 1));
+        var x = Math.Clamp(coreOrigin.X - Miner.T1Size - 2, 1, Math.Max(1, mapWidth - Miner.T1Size - 1));
+        var y = Math.Clamp(coreOrigin.Y, 1, Math.Max(1, mapHeight - Miner.T1Size - 1));
         // Avoid overlapping the core footprint.
-        if (x + Miner.Size > coreOrigin.X && x < coreOrigin.X + coreSize
-            && y + Miner.Size > coreOrigin.Y && y < coreOrigin.Y + coreSize)
+        if (x + Miner.T1Size > coreOrigin.X && x < coreOrigin.X + coreSize
+            && y + Miner.T1Size > coreOrigin.Y && y < coreOrigin.Y + coreSize)
         {
-            x = Math.Max(1, coreOrigin.X - Miner.Size - 1);
+            x = Math.Max(1, coreOrigin.X - Miner.T1Size - 1);
         }
 
         return new GridPosition(x, y);
@@ -2916,7 +2916,7 @@ public sealed class Factory : IGameView
                 && FindBridgeExit(spec.Origin, spec.Direction) is not null,
             _ => CanOccupyFootprint(spec.Origin, FootprintSize(spec))
         };
-        if (ok && spec.Kind is BuildingKind.Miner or BuildingKind.MinerAdvanced
+        if (ok && BuildSpec.IsMiner(spec.Kind)
             && MinerTooWeak(spec.Origin, spec.StructureId))
         {
             reason = RefusalCode.NeedsAdvancedMiner;
@@ -2975,8 +2975,8 @@ public sealed class Factory : IGameView
 
         var reason = RefusalReason(Footprint(spec));
         if (reason == RefusalCode.Occupied
-            && spec.Kind is BuildingKind.Miner or BuildingKind.MinerAdvanced
-            && CanOccupyFootprint(spec.Origin, Miner.Size)
+            && BuildSpec.IsMiner(spec.Kind)
+            && CanOccupyFootprint(spec.Origin, FootprintSize(spec))
             && MinerTooWeak(spec.Origin, spec.StructureId))
         {
             return RefusalCode.NeedsAdvancedMiner;
@@ -3041,6 +3041,8 @@ public sealed class Factory : IGameView
                 return PlaceMiner(origin, dir, Miner.DefaultOutputItemId, Miner.BasicId, charge);
             case BuildingKind.MinerAdvanced:
                 return PlaceMiner(origin, dir, Miner.DefaultOutputItemId, Miner.AdvancedId, charge);
+            case BuildingKind.ImpactDrill:
+                return PlaceMiner(origin, dir, Miner.DefaultOutputItemId, Miner.ImpactDrillId, charge);
             case BuildingKind.Smelter:
             case BuildingKind.Assembler:
             case BuildingKind.SmelterAdvanced:
@@ -3089,7 +3091,7 @@ public sealed class Factory : IGameView
         {
             if (m.OccupiedTiles().Contains(tile))
             {
-                var kind = m.DefinitionId == Miner.AdvancedId ? BuildingKind.MinerAdvanced : BuildingKind.Miner;
+                var kind = BuildSpec.KindFor(m.DefinitionId) ?? BuildingKind.Miner;
                 spec = new BuildSpec(m.DefinitionId, kind, m.Position, m.Direction);
                 entityId = m.Id;
                 return true;
@@ -3259,7 +3261,8 @@ public sealed class Factory : IGameView
 
     private int FootprintSize(BuildSpec spec) => spec.Kind switch
     {
-        BuildingKind.Miner or BuildingKind.MinerAdvanced => Miner.Size,
+        BuildingKind.Miner or BuildingKind.MinerAdvanced => Miner.T1Size,
+        BuildingKind.ImpactDrill => Miner.ImpactDrillSize,
         BuildingKind.Smelter or BuildingKind.Assembler or BuildingKind.SmelterAdvanced or BuildingKind.GraphitePress
             or BuildingKind.Separator or BuildingKind.Plasticizer => Crafter.Size,
         BuildingKind.Generator => Generator.Size,
@@ -3391,7 +3394,7 @@ public sealed class Factory : IGameView
         string definitionId,
         bool charge)
     {
-        var size = Miner.Size;
+        var size = Miner.SizeFor(definitionId);
         var covered = size * size;
         var itemId = outputItemId;
         if (Terrain is { } terrain)
@@ -3420,14 +3423,14 @@ public sealed class Factory : IGameView
             }
         }
 
-        if (!CanOccupyFootprint(origin, Miner.Size) || (charge && !TryChargeBuilding(definitionId)))
+        if (!CanOccupyFootprint(origin, size) || (charge && !TryChargeBuilding(definitionId)))
         {
             return false;
         }
 
         buildingsVersion++;
         miners.Add(new Miner(origin, direction, covered, itemId, definitionId, nextEntityId++));
-        if (definitionId == Miner.AdvancedId)
+        if (definitionId is Miner.AdvancedId or Miner.ImpactDrillId)
         {
             PowerBlocksChanged();
         }
@@ -3446,7 +3449,7 @@ public sealed class Factory : IGameView
             return false;
         }
 
-        const int size = Miner.Size;
+        var size = Miner.SizeFor(minerId);
         var anyOre = false;
         for (var y = 0; y < size; y++)
         {

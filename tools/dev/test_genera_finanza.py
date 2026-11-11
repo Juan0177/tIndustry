@@ -46,10 +46,11 @@ class BalanceModelTests(unittest.TestCase):
         self.assertLess(hours[1], hours[0])
         self.assertLessEqual(hours[2], hours[1])
 
-    def test_research_money_totals_22_to_25_million(self):
+    def test_research_money_totals_22_to_25_and_a_half_million(self):
+        # 25.5 M since the impact drill (Ricerca allargata, plan 1); plan 3 rebalances the whole tree.
         total = sum(node["money"] for node in self.model["nodes"])
         self.assertGreaterEqual(total, 22_000_000)
-        self.assertLessEqual(total, 25_000_000)
+        self.assertLessEqual(total, 25_500_000)
 
     def test_a_ten_thousand_titanium_jackpot_is_about_five_and_a_half_million(self):
         self.assertGreater(self.model["jackpot"], 5_000_000)

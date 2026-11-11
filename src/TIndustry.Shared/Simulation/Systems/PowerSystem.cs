@@ -54,9 +54,9 @@ public sealed class PowerSystem : ISimulationSystem
             }
         }
 
-        var minerRate = RateOf(state.Content, Miner.AdvancedId);
         foreach (var miner in state.Miners)
         {
+            var minerRate = RateOf(state.Content, miner.DefinitionId);
             miner.PowerRequested = Ask(grid, miner.Id, miner.PowerRequested, minerRate, requested, out _);
         }
 

@@ -40,7 +40,8 @@ public enum BuildingKind
     SmelterAdvanced,
     GraphitePress,
     Separator,
-    Plasticizer
+    Plasticizer,
+    ImpactDrill
 }
 
 /// <summary>

@@ -62,6 +62,7 @@ public sealed class AgentGame : IDisposable
         ('E', "estrattore"), ('P', "nodo di energia"), ('Q', "nodo di energia T2"), ('L', "lampada"),
         ('B', "batteria"), ('K', "contenitore"), ('V', "deposito"), ('$', "schermo di borsa"),
         ('W', "fonderia avanzata"), ('H', "pressa grande"), ('X', "separatore"), ('Y', "plastificatore"),
+        ('T', "trapano a impatto"),
         ('!', "struttura senza simbolo"),
         ('#', "parete"), ('~', "acqua profonda"), (',', "acqua bassa"),
         ('i', "giacimento di ferro"), ('r', "giacimento di rame"), ('k', "giacimento di carbone"),
@@ -1019,6 +1020,7 @@ public sealed class AgentGame : IDisposable
         BuildingKind.GraphitePress => 'H',
         BuildingKind.Separator => 'X',
         BuildingKind.Plasticizer => 'Y',
+        BuildingKind.ImpactDrill => 'T',
         _ => '!'
     };
 
@@ -1091,8 +1093,7 @@ public sealed class AgentGame : IDisposable
     {
         foreach (var m in View.Miners)
         {
-            yield return (m.DefinitionId, m.DefinitionId == Miner.AdvancedId ? BuildingKind.MinerAdvanced : BuildingKind.Miner,
-                m.Position, m.Direction);
+            yield return (m.DefinitionId, BuildSpec.KindFor(m.DefinitionId) ?? BuildingKind.Miner, m.Position, m.Direction);
         }
 
         foreach (var c in View.Smelters.Concat(View.Assemblers).Concat(View.Machines))

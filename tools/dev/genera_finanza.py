@@ -62,6 +62,7 @@ NODES = [
     ("core-foundation", 2, 25, [("iron-plate", 200), ("copper-wire", 100)]),
     ("finance-forecast", 2, 33, [("lead-plate", 60), ("copper-wire", 30)]),
     ("finance-percent", 2, 40, [("titanium-plate", 80)]),
+    ("impact-drill", 3, 4, [("titanium-plate", 60), ("silicon", 40)]),
     ("finance-odds", 3, 22.5, [("silicon", 120), ("graphite", 80)]),
     ("core-nucleus", 3, 39, [("titanium-plate", 400), ("silicon", 300)]),
 ]
@@ -1078,7 +1079,7 @@ def build_workbook(REPO, OUT):
     last_node = r - 1
     cell(Z, f"A{r}", "Ricerca intera", BOLD)
     cell(Z, f"D{r}", f"=SUM(D{first_node}:D{last_node})", BOLD, "0", comment="Minuti di lavoro in tutto.")
-    cell(Z, f"G{r}", f"=SUM(G{first_node}:G{last_node})", BOLD, "$#,##0", comment="Atteso fra 22 e 25 milioni.")
+    cell(Z, f"G{r}", f"=SUM(G{first_node}:G{last_node})", BOLD, "$#,##0", comment="Atteso fra 22 e 25,5 milioni.")
     cell(Z, f"H{r}", f"=SUM(H{first_node}:H{last_node})", BOLD, "$#,##0")
     total_node_row = r
     for ph_row in range(first_phase, last_phase + 1):
@@ -1094,7 +1095,7 @@ def build_workbook(REPO, OUT):
     r += 1
     jb = f"VLOOKUP(\"{JACKPOT_ITEM}\",{b_range},2,FALSE)"
     results = [
-        ("Ricerca intera ($)", f"=H{total_node_row}", "$#,##0", "Fra 22 e 25 milioni."),
+        ("Ricerca intera ($)", f"=H{total_node_row}", "$#,##0", "Fra 22 e 25,5 milioni."),
         ("Incasso in 6 ore con le fasi all'orario ($)", f"=F{total_phase_row}", "$#,##0", "Atteso 30–35 milioni."),
         ("Jackpot del 50/50 ($)",
          f"={JACKPOT_PIECES}*({jb}+ROUNDDOWN({jb}*{p('jp_bonus')},0)+(ROUND({jb}*{p('spike_in')},0)-{jb}))", "$#,##0",

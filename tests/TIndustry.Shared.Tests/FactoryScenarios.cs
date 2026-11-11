@@ -540,7 +540,7 @@ internal static class FactoryScenarios
         Assert(factory.TryPlaceSmelter(new GridPosition(4, 4), Direction.East, recipe), "forno");
         SeedSmelterFuel(factory);
         Assert(BuildingIo.FootprintsAdjacent(
-            factory.Miners[0].Position, Miner.Size,
+            factory.Miners[0].Position, Miner.T1Size,
             factory.Smelters[0].Position, Crafter.Size), "touch");
 
         var gotOre = false;
@@ -603,7 +603,7 @@ internal static class FactoryScenarios
         Assert(hot.TryPlaceMiner(new GridPosition(4, 4), Direction.East, definitionId: Miner.AdvancedId),
             "T2 miner");
         Assert(hot.TryPlaceGenerator(new GridPosition(4, 2), Direction.East), "gen north of miner");
-        Assert(hot.Generators[0].IsAdjacentTo(hot.Miners[0].Position, Miner.Size), "adjacent");
+        Assert(hot.Generators[0].IsAdjacentTo(hot.Miners[0].Position, Miner.T1Size), "adjacent");
         Assert(hot.Generators[0].TryAcceptFuel("coal") && hot.Generators[0].TryAcceptFuel("coal"), "fuel");
 
         var t2 = hot.Miners[0];

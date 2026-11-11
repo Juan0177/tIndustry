@@ -212,7 +212,7 @@ public sealed class ConstructionSaveTests
         Assert.Equal(Construction.FullRefundBasisPoints, site.RefundBasisPoints);
         Assert.Equal([4], site.Spent);
         Assert.Equal([0], site.Refunded);
-        Assert.Equal(Miner.Size * Miner.Size, site.Tiles.Count);
+        Assert.Equal(Miner.T1Size * Miner.T1Size, site.Tiles.Count);
         Assert.Contains(new GridPosition(25, 21), site.Tiles);
 
         dto.Progress = -3f;

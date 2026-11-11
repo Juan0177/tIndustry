@@ -1005,6 +1005,15 @@
       "prerequisites": [ "assembler" ]
     },
     {
+      "id": "impact-drill",
+      "displayName": "Trapano a impatto",
+      "kind": "building",
+      "unlockedByDefault": false,
+      "unlock": { "money": 720000, "materials": [ { "itemId": "titanium-plate", "amount": 360 }, { "itemId": "silicon", "amount": 240 } ] },
+      "isStub": false,
+      "prerequisites": [ "miner-advanced" ]
+    },
+    {
       "id": "core-foundation",
       "displayName": "CORE Fondazione",
       "kind": "core-upgrade",
@@ -1352,6 +1361,15 @@
       "powerUse": 6,
       "recipes": "plasticize-",
       "powerMode": "required"
+    },
+    {
+      "id": "impact-drill",
+      "tier": 3,
+      "moneyCost": 0,
+      "buildCost": [ { "itemId": "titanium-plate", "amount": 40 }, { "itemId": "silicon", "amount": 20 }, { "itemId": "graphite", "amount": 20 } ],
+      "refundPercent": 100,
+      "footprint": 3,
+      "powerUse": 30
     }
   ],
   "economy": {
