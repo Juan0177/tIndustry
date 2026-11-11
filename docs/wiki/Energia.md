@@ -4,7 +4,7 @@ Come si produce e si porta la corrente: generatore, reti di nodi T1 e T2, Batter
 
 ## A cosa serve
 
-La corrente non è obbligatoria: il Forno può andare a carbone e l'Assemblatore lavora anche senza. Con la corrente però:
+La corrente non è obbligatoria per i blocchi di base: il Forno può andare a carbone e l'Assemblatore lavora anche senza. Con la corrente però:
 
 | Blocco | Con la corrente | Consumo |
 |---|---|---|
@@ -13,11 +13,20 @@ La corrente non è obbligatoria: il Forno può andare a carbone e l'Assemblatore
 | Minatore T2 | Estrae fino al **20% più veloce** | 0,5 unità al secondo mentre scava |
 | Lampada | Si accende e illumina la notte | 1 unità al secondo, solo di notte |
 
-Il Minatore T1 e l'Estrattore non usano corrente. Un blocco che non ha niente da fare (un forno senza minerale) non chiede corrente.
+Alcuni blocchi della Ricerca invece **senza corrente sono fermi** e lavorano alla loro velocità per la soddisfazione della rete:
+
+| Blocco | Consumo |
+|---|---|
+| Fonderia avanzata | 20 unità al secondo quando ha qualcosa da fondere; non brucia carbone |
+| Separatore | 8 unità al secondo quando lavora |
+| Plastificatore | 6 unità al secondo quando lavora |
+| Trapano a impatto | 30 unità al secondo mentre scava (un generatore intero) |
+
+Il Minatore T1, la Pressa grande e l'Estrattore non usano corrente. Un blocco che non ha niente da fare (un forno senza minerale) non chiede corrente.
 
 ## Blocchi di corrente
 
-Fanno parte della rete il Generatore, i Nodi T1 e T2, la Batteria e ogni blocco che consuma corrente (Forno, Assemblatore, Minatore T2, Lampada). Nastri, Minatore T1, Estrattore, magazzini e **CORE** non ne fanno parte: il CORE non produce né conserva corrente.
+Fanno parte della rete il Generatore, i Nodi T1 e T2, la Batteria e ogni blocco che consuma corrente (Forno, Assemblatore, Minatore T2, Lampada, Fonderia avanzata, Separatore, Plastificatore, Trapano a impatto). Nastri, Minatore T1, Pressa grande, Estrattore, magazzini e **CORE** non ne fanno parte: il CORE non produce né conserva corrente.
 
 ## Generatore
 
@@ -78,6 +87,7 @@ Con una soddisfazione `s` (da 0% a 100%):
 - **Assemblatore**: lavora sempre; velocità `1 + 0,2 × s`.
 - **Minatore T2**: velocità `1 + 0,2 × s`, oltre al suo doppio.
 - **Lampada**: luce proporzionale a `s`, spenta a 0.
+- **Fonderia avanzata, Separatore, Plastificatore, Trapano a impatto**: velocità della macchina × `s`, ferme a 0.
 - **Forno**: con la corrente va a `1,2 × s`. Se ha carbone e `1,2 × s` è sotto 1, brucia il carbone e va a velocità 1, senza chiedere corrente in quel momento. Senza carbone e senza corrente è fermo.
 
 ## Batteria

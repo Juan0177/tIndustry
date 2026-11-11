@@ -48,7 +48,7 @@ La mappa ha quattro biomi (rocce e basalto, sabbia e deserto, neve e ghiaccio, p
 
 Sopra una parete o l'acqua profonda il fantasma del blocco diventa rosso e un suggerimento in basso dice il motivo ("C'è una parete", "Acqua profonda").
 
-Giacimenti: ferro, rame, carbone, piombo e titanio. Il **titanio** si scava solo col **Minatore T2** (da sbloccare in Ricerca): come in Mindustry serve una trivella di tier più alto. Un Minatore T1 dove sotto c'è solo titanio viene rifiutato ("Serve il Minatore T2 per il titanio"); su celle miste scava gli altri minerali e ignora il titanio. Il Minatore T2 scava tutto.
+Giacimenti: ferro, rame, carbone, piombo e titanio. Il **titanio** si scava solo col **Minatore T2** (da sbloccare in Ricerca): come in Mindustry serve una trivella di tier più alto. Un Minatore T1 dove sotto c'è solo titanio viene rifiutato ("Serve il Minatore T2 per il titanio"); su celle miste scava gli altri minerali e ignora il titanio. Il Minatore T2 scava tutto, come il **Trapano a impatto**. Un minatore senza un giacimento che sa scavare, ma su pavimento di sabbia o sabbia scura, scava **Sabbia** (ritmo in proporzione alle celle di sabbia); un giacimento vince sempre sulla sabbia.
 
 I livelli della **Campagna** hanno mappe prestabilite, più piccole all'inizio (200×200 nel primo livello) e più grandi verso la fine (1000×1000 nel decimo).
 
@@ -59,6 +59,10 @@ Il mondo ha un ciclo di **giorno (10 minuti) e notte (4 minuti)**, con alba e tr
 ### Rete di corrente
 
 Generatori, nodi, Batterie e le macchine che consumano corrente formano una **rete**: i blocchi che si toccano lato contro lato sono collegati, gli altri si collegano con i **laser dei nodi** (Nodo T1: raggio 6, 6 collegamenti; Nodo T2: raggio 10, 10 collegamenti; il raggio si misura fra i bordi dei blocchi). Un nodo nuovo si collega da solo ai nodi e ai blocchi vicini. Per cambiare: **clic sul nodo** (si vedono il raggio e i collegamenti usati, per esempio 3/6), poi **clic su un blocco di corrente** nel raggio per collegarlo o scollegarlo; **Esc** deseleziona. Un collegamento rifiutato dice il motivo (fuori raggio, nodo senza collegamenti liberi, stesso blocco). Il suggerimento su un blocco di corrente riassume la rete: blocchi, produzione, consumo, soddisfazione e batterie. La **Batteria** (1×1, capacità 1.000, in Ricerca) mostra la carica con una barra. Se la corrente non basta, tutte le macchine della rete rallentano della stessa percentuale. Regole e numeri: Wiki, pagina Energia.
+
+### Macchine della Ricerca allargata
+
+Cinque blocchi della categoria **Produzione**, tutti da sbloccare in Ricerca e senza direzione: **Fonderia avanzata** (2×2: le ricette del forno, vetro compreso, a velocità doppia; solo con corrente, 20; niente carbone), **Pressa grande** (2×2: 3 carbone → 2 grafite in 1,5 s, senza corrente), **Separatore** (2×2: 2 sabbia → un minerale a caso, ferro, rame o piombo grezzo al 30% e titanio grezzo al 10%; corrente 8), **Plastificatore** (2×2: 2 carbone → 1 plastica in 2 s; corrente 6) e **Trapano a impatto** (3×3: scava ogni giacimento, fino a 4 pezzi al secondo con 9 celle su 9 e la rete piena; corrente 30, fermo senza; esce sui 12 lati). Le macchine con la corrente obbligatoria vanno alla loro velocità per la soddisfazione della rete. Il nodo **Ricetta dei circuiti** (niente da piazzare) insegna all'Assemblatore il Circuito: filo di rame + silicio + lastra di piombo in 3 s. Il pannello del blocco mostra le ricette coi tempi (la fonderia avanzata coi tempi dimezzati) e, per il separatore, la probabilità di ogni minerale. Oggetti nuovi nel Mercato: Sabbia ($2), Vetro ($9), Plastica ($20), Circuito ($90). Dettagli nella Wiki, pagina Produzione.
 
 ## Controlli build
 
@@ -119,7 +123,7 @@ Ponte: estremi 1×1, campata larga circa il 70% della cella, distanza 2–4, cel
 
 ## Grafica
 
-Edifici, nastri, Core, drone e oggetti sono pixel-art nostra generata da `python tools/art/genera.py` (32 px per cella, mostrati ×2 senza filtro; vedi `tools/art/README.md` e l'ADR 0004). Gli edifici hanno parti animate: la trivella del minatore gira mentre estrae, il forno si accende, i bracci dell'assemblatore premono, il rotore del generatore gira finché c'è combustibile; il nucleo del Core pulsa piano. I nastri scorrono alla velocità del loro tier e gli oggetti sopra hanno il loro sprite a colori, senza tinta. Anche le icone dell'interfaccia (16 e 32 px), il logo, le caselle di spunta e il carattere pixel in `assets/ui/` sono generati da `tools/art`: nel gioco non ci sono asset di terzi (`assets/ATTRIBUTION.md`).
+Edifici, nastri, Core, drone e oggetti sono pixel-art nostra generata da `python tools/art/genera.py` (32 px per cella, mostrati ×2 senza filtro; vedi `tools/art/README.md` e l'ADR 0004). Gli edifici hanno parti animate: la trivella del minatore gira mentre estrae, il forno si accende, i bracci dell'assemblatore premono, il rotore del generatore gira finché c'è combustibile; la fonderia avanzata ha le fiamme nelle due bocche (con fumo e luce di notte), il pistone della pressa scende, il tamburo del separatore gira, nel plastificatore salgono bolle e la punta del trapano a impatto gira, solo mentre lavorano; il nucleo del Core pulsa piano. I nastri scorrono alla velocità del loro tier e gli oggetti sopra hanno il loro sprite a colori, senza tinta. Anche le icone dell'interfaccia (16 e 32 px), il logo, le caselle di spunta e il carattere pixel in `assets/ui/` sono generati da `tools/art`: nel gioco non ci sono asset di terzi (`assets/ATTRIBUTION.md`).
 
 ### Impostazioni grafiche
 
@@ -170,7 +174,7 @@ Lanciando Godot a mano, `TINDUSTRY_PLAYTEST` richiede `TINDUSTRY_DATA_DIR`; `TIN
 | Salva slot | chip **F6** | F6 | `slot-1.json` |
 | Carica slot | chip **F7** | F7 | `slot-1.json` |
 
-Path: `%LocalAppData%/tIndustry/godot-saves/` (Linux: `~/.local/share/tIndustry/godot-saves/`), oppure `godot-saves/` dentro `TINDUSTRY_DATA_DIR` se impostata. Formato alla versione 20 (metadati + istantanea, con lo schermo di borsa (oggetto seguito e ultimo esito), il drone (ingresso, scavo e stiva), il generatore della mappa, il livello del CORE, container e vault e la vendita automatica): i salvataggi delle versioni precedenti non si aprono più. **Gestione salvataggi** mostra per ogni slot il tipo di mappa ("Biomi · 1500 · seme N", "Mappa <livello> · W×H" o "Classico · W×H · seme N").  
+Path: `%LocalAppData%/tIndustry/godot-saves/` (Linux: `~/.local/share/tIndustry/godot-saves/`), oppure `godot-saves/` dentro `TINDUSTRY_DATA_DIR` se impostata. Formato alla versione 21 (metadati + istantanea, con le macchine della Ricerca allargata e le celle coperte dei minatori, lo schermo di borsa (oggetto seguito e ultimo esito), il drone (ingresso, scavo e stiva), il generatore della mappa, il livello del CORE, container e vault e la vendita automatica): i salvataggi delle versioni precedenti non si aprono più. **Gestione salvataggi** mostra per ogni slot il tipo di mappa ("Biomi · 1500 · seme N", "Mappa <livello> · W×H" o "Classico · W×H · seme N").  
 Salva nastri (con oggetti, partner del ponte, filtro del selezionatore), edifici, denaro, `nextItemId`, Core, regole di partita, drone con la coda dei piani e cantieri a metà.
 
 ## Progetti
@@ -185,7 +189,7 @@ Mappa completa: [`docs/ARCHITETTURA.md`](../docs/ARCHITETTURA.md).
 
 ## Ricerca
 
-**T** apre la Ricerca, un albero stile Mindustry: **CORE in cima**, ogni blocco sotto il suo prerequisito (linee a gomito; prerequisiti aggiuntivi tratteggiati). Bordo dorato = puoi sbloccarlo ora, lucchetto = prima sblocca il precedente; passa col mouse per costo e mancanze, click per il pannello di sblocco. Trascina per muoverti, rotella zoom, H vista intera. Sblocca strutture spendendo denaro/materiali; i blocchi non ancora sbloccati non si piazzano. Il salvataggio (versione 20) include `unlockedStructures` e lo stato del Mercato.
+**T** apre la Ricerca, un albero stile Mindustry: **CORE in cima**, ogni blocco sotto il suo prerequisito (linee a gomito; prerequisiti aggiuntivi tratteggiati). Bordo dorato = puoi sbloccarlo ora, lucchetto = prima sblocca il precedente; passa col mouse per costo e mancanze, click per il pannello di sblocco. Trascina per muoverti, rotella zoom, H vista intera. Sblocca strutture spendendo denaro/materiali; i blocchi non ancora sbloccati non si piazzano. Il salvataggio (versione 21) include `unlockedStructures` e lo stato del Mercato.
 
 ## Mercato
 
@@ -205,8 +209,8 @@ Con lo schermo attivo e i moduli della Finanza sbloccati, ogni riga ha una terza
 
 **Schermo di borsa** (2×2, categoria Magazzino, si sblocca in Ricerca dopo l'Assemblatore; costa 60 lastre di ferro, 25 fili di rame e 10 lastre di piombo): uno solo, senza direzione né corrente, piazzabile solo a contatto lato contro lato col CORE (fantasma rosso e motivo se no). Finito e a contatto è **attivo**: accende il jackpot del «Vendi tutto» e mostra sul vetro l'oggetto seguito (icona, prezzo con ▲▼, grafico di 2 minuti, «Crollo») e le righe brevi dei moduli; senza oggetto «Scegli un oggetto»; «Staccato dal CORE» (jackpot spento) è solo uno stato di sicurezza, perché lo schermo blocca il potenziamento del CORE. Dopo un «Vendi tutto», per 6 secondi: oggetto, incasso «+$N» e i LED della cornice, **blu** (calo fino al 10% di B), **viola** (calo più forte o crollo), **gialli** (10.000 pezzi o più, il 50/50); col jackpot «JACKPOT» e le luci negli angoli che lampeggiano. **Sequenza del tentativo di jackpot** (12 s, solo per un «Vendi tutto» che può vincere, con lo schermo attivo): la visuale si avvicina allo schermo senza HUD, il bot esce, vola al CORE con la valigetta, torna e la lancia, lo schermo calcola, i LED lampeggiano e l'incasso gira su rulli; col jackpot coriandoli e «JACKPOT». **Clic sinistro** o **Esc** saltano al risultato (un altro chiude); non nei primi 0,2 s e mai col jackpot vinto. **Spazio** mette in pausa, come la perdita del fuoco della finestra. Home, caricamento, partita nuova, un pannello che si apre o lo schermo smontato la chiudono subito; l'esito resta 6 secondi sul vetro dopo la fine. Il suggerimento al passaggio del mouse dice tutto per esteso, anche il significato dei LED; i colori seguono la variante Colori. Sulle celle dove il CORE cresce lo schermo blocca il potenziamento come ogni edificio: va spostato prima. Moduli (Ricerca, niente da piazzare): **previsione** («picco fra circa N min» · «aspetta», «vendi ora» nel picco, fine del crollo, attesa del «Vendi tutto»), **percentuale** («+N% su B»), **probabilità** del jackpot di un «Vendi tutto» adesso.
 
-Il salvataggio (versione 20) include lo stato di tutti i mercati e lo schermo (oggetto seguito e ultimo esito).
+Il salvataggio (versione 21) include lo stato di tutti i mercati e lo schermo (oggetto seguito e ultimo esito).
 
 ## Campagna
 
-**G** apre la selezione livelli. Obiettivi in alto a sinistra (`OBIETTIVO`). Completando un livello si sblocca il successivo. Continua salva `activeCampaignLevelId` nel salvataggio (versione 20).
+**G** apre la selezione livelli. Obiettivi in alto a sinistra (`OBIETTIVO`). Completando un livello si sblocca il successivo. Continua salva `activeCampaignLevelId` nel salvataggio (versione 21).

@@ -15,7 +15,7 @@ Un salvataggio è un file JSON (`SaveFileData` / `FactorySaveStore`, in `src/TIn
 - i metadati mostrati nell'elenco (fondi, seme, mappa, livello);
 - l'**istantanea canonica** della simulazione, in base64 (la stessa usata per il checksum, vedi [Architettura](Architettura)).
 
-Contiene solo lo stato applicato: comandi in coda e orologio non sono salvati. Porta anche le regole della partita, i droni con la loro coda di piani, i cantieri a metà, il livello del CORE, i magazzini e lo schermo di borsa.
+Contiene solo lo stato applicato: comandi in coda e orologio non sono salvati. Porta anche le regole della partita, i droni con la loro coda di piani, i cantieri a metà, il livello del CORE, i magazzini, lo schermo di borsa e le macchine della Ricerca allargata.
 
 La scrittura è atomica: prima `<slot>.json.tmp`, poi la rinomina sullo slot.
 
@@ -23,7 +23,8 @@ La scrittura è atomica: prima `<slot>.json.tmp`, poi la rinomina sullo slot.
 
 | Versione | Stato |
 |---|---|
-| **20** | Corrente e unica che si legge (`FactorySaveData.CurrentVersion` e `MinReadableVersion`): aggiunge lo schermo di borsa (`MarketScreen`: id e cella, oggetto seguito `WatchedItemId`, ultimo esito del «Vendi tutto» `LastResult` con oggetto, incasso, LED `Blue`/`Purple`/`Yellow`, jackpot e tick). Un LED o un oggetto che il Mercato non conosce rendono il file illeggibile |
+| **21** | Corrente e unica che si legge (`FactorySaveData.CurrentVersion` e `MinReadableVersion`): aggiunge le macchine della Ricerca allargata (`Machines`: fonderia avanzata, pressa grande, separatore, plastificatore, ognuna con `DefinitionId`, ricetta, avanzamento e pezzi fatti `ItemsCrafted`, da cui dipende la sequenza del separatore), il trapano a impatto fra i `Miners` (per `DefinitionId`) e le celle coperte di ogni minatore (`CoveredDepositTiles`, limitate all'impronta; senza il campo, l'impronta intera). Una macchina con una definizione che non è una di queste quattro rende il file illeggibile; `Machines` manca quando non ce ne sono |
+| 20 | Rifiutata con il codice `OlderVersion` (aggiungeva lo schermo di borsa (`MarketScreen`: id e cella, oggetto seguito `WatchedItemId`, ultimo esito del «Vendi tutto» `LastResult` con oggetto, incasso, LED `Blue`/`Purple`/`Yellow`, jackpot e tick; un LED o un oggetto che il Mercato non conosce rendevano il file illeggibile) |
 | 19 | Rifiutata con il codice `OlderVersion` (aggiungeva il drone guidato dal giocatore: ingresso tenuto (`InputX`, `InputY`), cella e avanzamento dello scavo a mano (`MiningTile`, `MiningProgress`) e stiva (`HoldItemId`, `HoldCount`)) |
 | 18 | Rifiutata con il codice `OlderVersion` (aggiungeva la logistica come Mindustry: code dell'incrocio, oggetto e turno del router, turni e filtro opzionale dei selezionatori e dell'estrattore) |
 | 17 | Rifiutata con il codice `OlderVersion` (aggiungeva i laser della rete di corrente (`PowerLinks`, coppie di id) e la carica di ogni batteria (`Batteries`); toglie la riserva unica di corrente (`PowerBuffer`, `PowerCapacity`)) |
