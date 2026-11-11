@@ -95,4 +95,6 @@ Ultimo stato riportato dai task: build Release 0 errori e 0 avvisi (progetto God
 
 ## Revisione finale
 
-In corso.
+Esito: pronto per il merge, nessun problema Critical né Important. Quattro rilievi Minor corretti in questa ondata (commit b3147b0): livello 1 dei potenziamenti rifiutato (`UpgradeSuperseded`) o segnato «Superato» nel pannello quando il livello 2 è già sbloccato; premi della campagna non più «Disponibili» (stato, spigolo oro, selezione iniziale); suggerimenti dei nodi premio veri in campagna e nella partita libera; `Upgrades.Scale(long, int)` tolto, test rinominato, commento su `REWARDS`. Dopo la correzione: build 0 errori e 0 avvisi, `TIndustry.Shared.Tests` 1451 superati e 2 saltati, `TIndustry.AgentPlay.Tests` 29 superati e 10 saltati, `test_genera_finanza.py` 19 OK, test del sito 71 OK.
+
+Rinviati: `CampaignChapters=4` fisso; `CanUnlock` con `inCampaign` di default `false`; testi di capienza statici; nessun test del client per `FormatUpgradeEffect` e `BlockIoLine`; `GrantCampaignReward` senza chiamanti fino alla campagna rifatta; velocità in `float` come da piano.
