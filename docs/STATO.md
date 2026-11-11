@@ -162,6 +162,8 @@ Dato dall'utente il 2026-10-22: alla fine di ogni blocco ci si ferma e si chiede
 
 ## Cosa manca, in piccolo
 
+- **Clic sui blocchi rotto dal piano del drone, corretto il 2026-11-11**: al rilascio del clic `StopHandMining` cancellava il clic prima che `EndWorldClick` lo leggesse, quindi nessun clic arrivava a `OnBlockClick` (schermo di borsa, filtro di selezionatori ed estrattori, laser dei nodi). Da riprovare sul PC di casa; i playtest non lo vedevano perché aprono i pannelli senza passare dal clic vero.
+
 - **Descrizioni di forno e assemblatore** (2026-11-11): ora dicono quali lastre e prodotti fanno e con che ingredienti (testi `struttura.smelter.*`, `struttura.assembler.*`, `tutorial.passo.7`); da guardare a schermo che i suggerimenti non vadano a capo male.
 
 - **Ricerca rotta sul PC di casa** ([#292](https://github.com/Juan0177/tIndustry/issues/292)): `MissingMethodException` su `DrawString` in `TechTreeCanvas`, il client è compilato contro un GodotSharp più nuovo del 4.4.1. Correzione difensiva fatta (`NuGet.config` con la sola fonte nuget.org, controllo della versione di GodotSharp in `play.ps1` e `dev.sh`, `clean.ps1 -Nuget`); da verificare sul PC di casa con `.\clean.ps1 -Nuget` poi `.\play.ps1`.
