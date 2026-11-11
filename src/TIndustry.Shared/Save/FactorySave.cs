@@ -5,7 +5,8 @@ namespace TIndustry.Shared;
 
 /// <summary>
 /// Full game state as stored in the canonical snapshot (see <see cref="Snapshot"/>). Version 22: the stack conveyor's
-/// packs (<see cref="ItemSaveDto.Count"/>) and the wait of the pack being formed (<see cref="BeltSaveDto.StackWaitTicks"/>);
+/// packs (<see cref="ItemSaveDto.Count"/>), the wait of the pack being formed (<see cref="BeltSaveDto.StackWaitTicks"/>),
+/// the long bridge's power (<see cref="BeltSaveDto.PowerId"/>) and the solar panels (<see cref="SolarPanels"/>);
 /// since 21 the machines of the
 /// wider research (<see cref="Machines"/>: advanced smelter, graphite press, separator, plasticizer, each with its
 /// <see cref="CraftSaveDto.DefinitionId"/>), the impact drill among the <see cref="Miners"/> (by its
@@ -108,6 +109,11 @@ public sealed class FactorySaveData
     /// <summary>Batteries: null when there are none.</summary>
     public List<BatterySaveDto>? Batteries { get; set; }
     /// <summary>
+    /// Solar panels (small and large, by <see cref="SolarPanelSaveDto.DefinitionId"/>), in id order: null when there are
+    /// none. Another definition makes the save unreadable.
+    /// </summary>
+    public List<SolarPanelSaveDto>? SolarPanels { get; set; }
+    /// <summary>
     /// Lasers of the power network as entity id pairs (<c>A &lt; B</c>, ordered by A then B, like
     /// <see cref="PowerGrid.Links"/>): null when there are none. Each must join two power blocks of this save, at least
     /// one of them a node, once; otherwise the save is unreadable.
@@ -172,6 +178,16 @@ public sealed class BatterySaveDto
     public int Y { get; set; }
     /// <summary>Stored energy, sixty-thousandths of a unit (<see cref="Battery.Charge"/>).</summary>
     public long Charge { get; set; }
+}
+
+/// <summary>A solar panel: id, top-left cell and definition (what it produces is recomputed every tick).</summary>
+public sealed class SolarPanelSaveDto
+{
+    public long Id { get; set; }
+    public int X { get; set; }
+    public int Y { get; set; }
+    /// <summary><see cref="SolarPanel.SmallId"/> or <see cref="SolarPanel.LargeId"/>.</summary>
+    public string DefinitionId { get; set; } = SolarPanel.SmallId;
 }
 
 /// <summary>One laser of the power network: the entity ids of its two ends, <c>A &lt; B</c>.</summary>

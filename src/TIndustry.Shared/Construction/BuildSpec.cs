@@ -84,6 +84,8 @@ public sealed record BuildSpec(
         BuildingKind.OverflowGate => Factory.OverflowGateId,
         BuildingKind.UnderflowGate => Factory.UnderflowGateId,
         BuildingKind.BridgeLong => Factory.BridgeLongId,
+        BuildingKind.Solar => SolarPanel.SmallId,
+        BuildingKind.SolarLarge => SolarPanel.LargeId,
         _ => null
     };
 

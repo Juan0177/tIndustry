@@ -216,8 +216,8 @@ public partial class World
     }
 
     private readonly HashSet<GridPosition> _buildingTiles = [];
-    private readonly long[] _buildingTilesKey = new long[20];
-    private readonly long[] _structureKey = new long[20];
+    private readonly long[] _buildingTilesKey = new long[22];
+    private readonly long[] _structureKey = new long[22];
     private IGameView? _buildingTilesView;
 
     /// <summary>
@@ -275,6 +275,11 @@ public partial class World
         foreach (var battery in view.Batteries)
         {
             _buildingTiles.Add(battery.Position);
+        }
+
+        foreach (var panel in view.SolarPanels)
+        {
+            _buildingTiles.UnionWith(panel.OccupiedTiles());
         }
 
         return _buildingTiles;
@@ -359,6 +364,13 @@ public partial class World
         }
 
         Add(view.Batteries.Count, max);
+        max = 0;
+        foreach (var p in view.SolarPanels)
+        {
+            max = Math.Max(max, p.Id);
+        }
+
+        Add(view.SolarPanels.Count, max);
     }
 
     /// <summary>Cell size on screen from which deposits show their ore icon instead of plain colour.</summary>
@@ -486,6 +498,8 @@ public partial class World
         BuildTool.OverflowGate => BuildingKind.OverflowGate,
         BuildTool.UnderflowGate => BuildingKind.UnderflowGate,
         BuildTool.BridgeLong => BuildingKind.BridgeLong,
+        BuildTool.Solar => BuildingKind.Solar,
+        BuildTool.SolarLarge => BuildingKind.SolarLarge,
         _ => null
     };
 
@@ -503,6 +517,8 @@ public partial class World
         BuildTool.Extractor => Extractor.Size,
         BuildTool.Container or BuildTool.Vault => StorageBlock.SizeOf(KindOf(_tool)),
         BuildTool.MarketScreen => MarketScreen.Size,
+        BuildTool.Solar => SolarPanel.SmallSize,
+        BuildTool.SolarLarge => SolarPanel.LargeSize,
         BuildTool.CoreFoundation or BuildTool.CoreNucleus when _view is not null
             => _view.Content.CoreTiers[BuildSpec.CoreTierOf(KindOf(_tool))].Size,
         _ => 1

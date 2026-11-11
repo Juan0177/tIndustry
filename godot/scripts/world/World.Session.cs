@@ -571,7 +571,9 @@ public partial class World
             Hud.ToolKind.ImpactDrill,
             Hud.ToolKind.OverflowGate,
             Hud.ToolKind.UnderflowGate,
-            Hud.ToolKind.BridgeLong
+            Hud.ToolKind.BridgeLong,
+            Hud.ToolKind.Solar,
+            Hud.ToolKind.SolarLarge
         };
         // A Core block shows only while it is the next tier: the one built and the one after next stay out.
         _locksCoreTier = _view.CoreTier;

@@ -47,7 +47,9 @@ public partial class Hud : Control
         OverflowGate,
         UnderflowGate,
         BeltStack,
-        BridgeLong
+        BridgeLong,
+        Solar,
+        SolarLarge
     }
 
     internal enum BuildCategory
@@ -453,6 +455,8 @@ public partial class Hud : Control
         ToolKind.OverflowGate => Factory.OverflowGateId,
         ToolKind.UnderflowGate => Factory.UnderflowGateId,
         ToolKind.BridgeLong => Factory.BridgeLongId,
+        ToolKind.Solar => SolarPanel.SmallId,
+        ToolKind.SolarLarge => SolarPanel.LargeId,
         _ => "conveyor-basic"
     };
 

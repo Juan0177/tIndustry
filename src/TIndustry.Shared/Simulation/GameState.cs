@@ -332,6 +332,9 @@ public sealed class GameState
     public List<Lamp> Lamps { get; } = [];
     public List<Battery> Batteries { get; } = [];
 
+    /// <summary>Solar panels (small and large), in ascending id order.</summary>
+    public List<SolarPanel> SolarPanels { get; } = [];
+
     /// <summary>The power entities of the powered bridges (the long bridge's entry), in ascending id order.</summary>
     public List<BridgePower> BridgePowers { get; } = [];
 

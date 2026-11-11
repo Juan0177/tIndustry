@@ -7,14 +7,15 @@ reads apart from the production blocks; the rotor strip (4 frames) turns in its 
 copper windings and a yellow cap. The lamp is a plate with a glass dome: `lamp-base` has it dark, `lamp-glow`
 is the lit dome the client shows over it while powered (`lamp` = both, the icon). The battery is a lead cell with
 a window: `battery-base` has it empty, `battery-charge-anim` holds 0 to 3 lit bars (the client shows its charge),
-`battery` = full, the icon. `luce` is not a block: a soft
+`battery` = full, the icon. The solar panels (`solar` 1x1, `solar-large` 3x3) are static: a steel frame holding
+deep blue photovoltaic cells in a grid, with a glint on the top-left cells. `luce` is not a block: a soft
 128x128 white disc fading to transparent, the texture of every PointLight2D at night (the client tints it).
 """
 import math
 
 import forme
 from blocchi import sprite
-from palette import ENERGIA, FERRO, FULIGGINE, METALLO, NASTRO, OUT, PIOMBO, RAME
+from palette import ENERGIA, FERRO, FULIGGINE, METALLO, NASTRO, OUT, PIOMBO, RAME, SOLARE
 
 T = 32
 L = 2 * T
@@ -226,6 +227,58 @@ sprite("battery-charge-anim")(lambda: forme.striscia([tacche(k) for k in range(B
 @sprite("battery")
 def battery():
     return forme.componi(battery_base(), tacche(BATTERIA_TACCHE))
+
+
+# ---------------------------------------------------------------- solar panels
+
+SOLARE_CELLA = 6  # side of one photovoltaic cell, grid line included
+
+
+def _pannello_solare(celle):
+    """A solar panel `celle` x `celle` blocks: steel frame, cell grid and a glint."""
+    lato = T * celle
+    im = forme.nuova(lato, lato)
+    forme.sagoma(im, forme.arrotondato(0, 0, lato - 1, lato - 1, 3 + celle), METALLO)
+    bordo = 3
+    x0, y0, x1, y1 = bordo, bordo, lato - 1 - bordo, lato - 1 - bordo
+    forme.rett(im, x0, y0, x1, y1, OUT)
+    n = (x1 - x0 - 1) // SOLARE_CELLA
+    pad = (x1 - x0 - 1 - n * SOLARE_CELLA) // 2
+    for j in range(n):
+        for i in range(n):
+            cx0 = x0 + 1 + pad + i * SOLARE_CELLA
+            cy0 = y0 + 1 + pad + j * SOLARE_CELLA
+            # Light from the top-left: the cells nearer that corner catch the sky.
+            lume = 3 if i + j < n // 3 else 2 if i + j < n else 1
+            forme.rett(im, cx0, cy0, cx0 + SOLARE_CELLA - 2, cy0 + SOLARE_CELLA - 2, SOLARE[lume])
+            forme.pixel(im, cx0, cy0, SOLARE[lume + 1])
+            forme.rett(im, cx0 + 1, cy0 + SOLARE_CELLA // 2 - 1, cx0 + SOLARE_CELLA - 3, cy0 + SOLARE_CELLA // 2 - 1,
+                       SOLARE[max(0, lume - 1)])
+    # A diagonal glint across the top-left cells.
+    for k in range(lato // 4):
+        forme.pixel(im, x0 + 2 + k, y0 + lato // 4 - k, SOLARE[4])
+    for k in range(1, celle):
+        # The large panel is three by three modules: steel bars between them.
+        m = T * k
+        forme.rett(im, m - 2, y0, m + 1, y1, OUT)
+        forme.rett(im, x0, m - 2, x1, m + 1, OUT)
+        forme.rett(im, m - 1, y0 + 1, m, y1 - 1, METALLO[3])
+        forme.rett(im, x0 + 1, m - 1, x1 - 1, m, METALLO[3])
+    if celle > 1:
+        # The large panel's junction box in the middle of its bottom edge.
+        forme.pannello(im, lato // 2 - 7, lato - 9, lato // 2 + 6, lato - 2, METALLO)
+        forme.rett(im, lato // 2 - 3, lato - 6, lato // 2 + 2, lato - 5, ENERGIA[2])
+    return im
+
+
+@sprite("solar")
+def solar():
+    return _pannello_solare(1)
+
+
+@sprite("solar-large")
+def solar_large():
+    return _pannello_solare(3)
 
 
 LUCE = 128

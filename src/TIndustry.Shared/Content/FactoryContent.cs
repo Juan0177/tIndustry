@@ -250,6 +250,16 @@ public sealed class FactoryContent
         {
             throw new InvalidDataException("content.json: il Generatore deve avere una produzione (powerOutput) maggiore di zero.");
         }
+
+        // The panels' size and entity live in code: only their ids may be solar, and each needs an output.
+        foreach (var building in buildings.Where(b => b.Solar || SolarPanel.IsSolarId(b.Id)))
+        {
+            if (!building.Solar || !SolarPanel.IsSolarId(building.Id) || building.PowerOutput <= 0f)
+            {
+                throw new InvalidDataException(
+                    $"content.json: il pannello solare '{building.Id}' deve essere solar o solar-large, con \"solar\": true e una produzione (powerOutput) maggiore di zero.");
+            }
+        }
     }
 
     private static IReadOnlyDictionary<string, float> MapBuildWeights(Dictionary<string, float>? weights)
@@ -613,7 +623,8 @@ public sealed class FactoryContent
             Math.Max(0, b.PowerCapacity),
             isCrafter ? b.Recipes : null,
             powerMode,
-            speedPercent);
+            speedPercent,
+            b.Solar);
     }
 
     private static MarketItemDefinition MapMarket(MarketDto m) =>
@@ -863,6 +874,8 @@ public sealed class FactoryContent
         public string? PowerMode { get; set; }
         /// <summary>Craft machines: speed multiplier (1 = the recipe's duration).</summary>
         public float? CraftSpeed { get; set; }
+        /// <summary>Solar panels: <see cref="PowerOutput"/> is the output at full light, scaled by the world's light.</summary>
+        public bool Solar { get; set; }
     }
 
     private sealed class MarketDto

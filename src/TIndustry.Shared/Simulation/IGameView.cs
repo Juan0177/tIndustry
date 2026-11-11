@@ -120,6 +120,9 @@ public interface IGameView
     /// <summary>Batteries, in id order.</summary>
     IReadOnlyList<Battery> Batteries { get; }
 
+    /// <summary>Solar panels (small and large), in id order: what each produced in the last balance.</summary>
+    IReadOnlyList<SolarPanel> SolarPanels { get; }
+
     /// <summary>
     /// Power entities of the powered bridges (the long bridge's entry), in id order: satisfaction of the last balance;
     /// items cross only while it is above 0.

@@ -21,6 +21,8 @@ struttura.power-node.nome,Nodo T1,Power node T1
 struttura.power-node-t2.nome,Nodo T2,Power node T2
 struttura.lamp.nome,Lampada,Lamp
 struttura.battery.nome,Batteria,Battery
+struttura.solar.nome,Pannello solare,Solar panel
+struttura.solar-large.nome,Pannello solare grande,Large solar panel
 struttura.container.nome,Contenitore,Container
 struttura.vault.nome,Deposito,Vault
 struttura.market-screen.nome,Schermo di borsa,Market screen
@@ -144,6 +146,8 @@ struttura.power-node.suggerimento,Nodo T1 · raggio 6 · 6 collegamenti · selez
 struttura.power-node-t2.suggerimento,Nodo T2 · 2×2 · raggio 10 · 10 collegamenti · sblocca in Ricerca,Power node T2 · 2×2 · range 10 · 10 links · unlock in Research
 struttura.lamp.suggerimento,Lampada · illumina di notte · consuma 1 di energia · 1×1,Lamp · lights up the night · uses 1 power · 1×1
 struttura.battery.suggerimento,Batteria · accumula la corrente della sua rete · capacità 1000 · 1×1,Battery · stores the power of its network · capacity 1000 · 1×1
+struttura.solar.suggerimento,Pannello solare · 3 di energia al secondo con la luce del giorno · 1×1,Solar panel · 3 power per second in daylight · 1×1
+struttura.solar-large.suggerimento,Pannello solare grande · 36 di energia al secondo con la luce del giorno · 3×3,Large solar panel · 36 power per second in daylight · 3×3
 struttura.container.suggerimento,Contenitore · 2×2 · 300 per oggetto · sblocca in Ricerca,Container · 2×2 · 300 per item · unlock in Research
 struttura.vault.suggerimento,Deposito · 3×3 · 1000 per oggetto · sblocca in Ricerca,Vault · 3×3 · 1000 per item · unlock in Research
 struttura.market-screen.suggerimento,Schermo di borsa · 2×2 · attaccato al CORE accende il jackpot · sblocca in Ricerca,Market screen · 2×2 · next to the CORE it turns the jackpot on · unlock in Research
@@ -481,6 +485,8 @@ struttura.power-node.descrizione,Nodo T1 · 1×1 · raggio 6 · 6 collegamenti �
 struttura.power-node-t2.descrizione,Nodo T2 · 2×2 · raggio 10 · 10 collegamenti · si collega da solo ai blocchi vicini,Power node T2 · 2×2 · range 10 · 10 links · links to the nearby blocks by itself
 struttura.lamp.descrizione,Lampada · illumina di notte se alimentata · consumo 1 · 1×1,Lamp · lights up the night when powered · uses 1 · 1×1
 struttura.battery.descrizione,Batteria · tiene la corrente avanzata e la rende quando i generatori non bastano · capacità 1000 · 1×1,Battery · keeps the spare power and gives it back when the generators fall short · capacity 1000 · 1×1
+struttura.solar.descrizione,Pannello solare · produce 3 al secondo per la luce del mondo: tutto di giorno · niente di notte · a metà al tramonto · senza carburante · 1×1,Solar panel · makes 3 per second times the world's light: all of it by day · nothing at night · half at mid-dusk · no fuel · 1×1
+struttura.solar-large.descrizione,Pannello solare grande · produce 36 al secondo per la luce del mondo: tutto di giorno · niente di notte · senza carburante · 3×3,Large solar panel · makes 36 per second times the world's light: all of it by day · nothing at night · no fuel · 3×3
 struttura.container.descrizione,Contenitore · 2×2 · tiene 300 pezzi per oggetto,Container · 2×2 · holds 300 pieces per item
 struttura.vault.descrizione,Deposito · 3×3 · tiene 1000 pezzi per oggetto,Vault · 3×3 · holds 1000 pieces per item
 struttura.market-screen.descrizione,Schermo di borsa · 2×2 · uno solo · a contatto col CORE · mostra il mercato di un oggetto e rende possibile il jackpot del «Vendi tutto»,Market screen · 2×2 · only one · touching the CORE · shows the market of one item and makes the «Sell all» jackpot possible

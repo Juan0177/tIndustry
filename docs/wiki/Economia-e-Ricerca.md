@@ -145,6 +145,8 @@ Sbloccare costa **soldi e materiali**, presi dal CORE; poi il blocco compare nel
 | Nodo T1 (`power-node`) | Energia | Generatore | $8.300, 8 Lastre di ferro, 4 Fili di rame |
 | Lampada (`lamp`) | Energia | Nodo T1 | $11.000, 8 Lastre di ferro, 4 Fili di rame |
 | Batteria (`battery`) | Energia | Nodo T1 | $91.000, 30 Lastre di piombo, 15 Fili di rame |
+| Pannello solare (`solar`) | Energia | Nodo T1 | $9.100, 18 Fili di rame, 12 Silicio |
+| Pannello solare grande (`solar-large`) | Energia | Pannello solare | $12.000, 120 Lastre di piombo, 100 Silicio, 40 Lastre di titanio |
 | Nodo T2 (`power-node-t2`) | Energia | Nodo T1 | $910.000, 48 Lastre di ferro, 24 Fili di rame |
 | Schermo di borsa (`market-screen`) | Finanza | Assemblatore | $150.000, 240 Lastre di ferro, 120 Fili di rame |
 | Modulo previsione (`finance-forecast`) | Finanza | Schermo di borsa | $2.000.000, 240 Lastre di piombo, 120 Fili di rame |

@@ -339,6 +339,15 @@ public partial class World
             _buildingsLayer.AddChild(node);
         }
 
+        // Solar panels: static pads for now (their own visual comes with the power blocks' client work).
+        foreach (var panel in _view.SolarPanels)
+        {
+            var node = BuildingPad.Create(panel.DefinitionId, panel.Size, TileSize);
+            node.Name = $"SolarPanel_{panel.Position.X}_{panel.Position.Y}";
+            node.Position = FootprintCenter(panel.Position, panel.Size);
+            _buildingsLayer.AddChild(node);
+        }
+
         if (_view.MarketScreen is { } screen)
         {
             var node = MarketScreenVisual.Create(screen, TileSize);

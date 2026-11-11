@@ -101,7 +101,8 @@ public enum CraftPowerMode
 /// the two blocks) and <paramref name="MaxPowerLinks"/> belong to the power nodes, <paramref name="PowerCapacity"/>
 /// (units) to the battery; 0 = none. A craft machine names its recipes by id prefix (<paramref name="RecipePrefix"/>,
 /// JSON <c>recipes</c>; null = not a craft machine), its <paramref name="PowerMode"/> and its speed
-/// (<paramref name="CraftSpeedPercent"/>, 100 = 1×; JSON <c>craftSpeed</c> as a multiplier).
+/// (<paramref name="CraftSpeedPercent"/>, 100 = 1×; JSON <c>craftSpeed</c> as a multiplier). A solar panel
+/// (<paramref name="Solar"/>, <see cref="SolarPanel"/>) produces its <paramref name="PowerOutput"/> × the world's light.
 /// </summary>
 public sealed record BuildingDefinition(
     string Id,
@@ -117,7 +118,8 @@ public sealed record BuildingDefinition(
     int PowerCapacity = 0,
     string? RecipePrefix = null,
     CraftPowerMode PowerMode = CraftPowerMode.CoalOrPower,
-    int CraftSpeedPercent = 100)
+    int CraftSpeedPercent = 100,
+    bool Solar = false)
 {
     /// <summary>True for a craft machine: it has recipes (<see cref="RecipePrefix"/>).</summary>
     public bool IsCrafter => RecipePrefix is not null;

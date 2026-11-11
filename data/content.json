@@ -1129,6 +1129,56 @@
       ]
     },
     {
+      "id": "solar",
+      "displayName": "Pannello solare",
+      "kind": "building",
+      "unlockedByDefault": false,
+      "unlock": {
+        "money": 9100,
+        "materials": [
+          {
+            "itemId": "copper-wire",
+            "amount": 18
+          },
+          {
+            "itemId": "silicon",
+            "amount": 12
+          }
+        ]
+      },
+      "isStub": false,
+      "prerequisites": [
+        "power-node"
+      ]
+    },
+    {
+      "id": "solar-large",
+      "displayName": "Pannello solare grande",
+      "kind": "building",
+      "unlockedByDefault": false,
+      "unlock": {
+        "money": 12000,
+        "materials": [
+          {
+            "itemId": "lead-plate",
+            "amount": 120
+          },
+          {
+            "itemId": "silicon",
+            "amount": 100
+          },
+          {
+            "itemId": "titanium-plate",
+            "amount": 40
+          }
+        ]
+      },
+      "isStub": false,
+      "prerequisites": [
+        "solar"
+      ]
+    },
+    {
       "id": "miner-advanced",
       "displayName": "Minatore T2",
       "kind": "building",
@@ -1539,6 +1589,44 @@
       "refundPercent": 100,
       "footprint": 1,
       "powerCapacity": 1000
+    },
+    {
+      "id": "solar",
+      "moneyCost": 0,
+      "buildCost": [
+        {
+          "itemId": "copper-wire",
+          "amount": 6
+        },
+        {
+          "itemId": "silicon",
+          "amount": 4
+        }
+      ],
+      "refundPercent": 100,
+      "powerOutput": 3,
+      "solar": true
+    },
+    {
+      "id": "solar-large",
+      "moneyCost": 0,
+      "buildCost": [
+        {
+          "itemId": "lead-plate",
+          "amount": 30
+        },
+        {
+          "itemId": "silicon",
+          "amount": 25
+        },
+        {
+          "itemId": "titanium-plate",
+          "amount": 10
+        }
+      ],
+      "refundPercent": 100,
+      "powerOutput": 36,
+      "solar": true
     },
     {
       "id": "extractor",

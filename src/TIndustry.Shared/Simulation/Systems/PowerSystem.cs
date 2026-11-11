@@ -4,7 +4,8 @@ namespace TIndustry.Shared;
 /// Second half of the power tick: the generators burn their coal, then every network makes its balance in integers
 /// (spec «Rete di corrente», «La rete»):
 /// <list type="bullet">
-/// <item>produced = the output of its burning generators; requested = the power use of the consumers that asked
+/// <item>produced = the output of its burning generators and of its solar panels (output × the world's light / 1000,
+/// floored); requested = the power use of the consumers that asked
 /// (<see cref="PowerDemandSystem"/>); both in thousandths of a unit per second, and one tick of a rate is exactly that
 /// many sixty-thousandths of a unit of battery charge;</item>
 /// <item>produced ≥ requested: satisfaction 10 000 and the surplus goes to the batteries up to their capacity;</item>
@@ -36,6 +37,21 @@ public sealed class PowerSystem : ISimulationSystem
             if (gen.Tick(ctx.Dt, state.Belts) && grid.NetworkOf(gen.Id) is { } network)
             {
                 produced[network.Index] += outputRate;
+            }
+        }
+
+        // Solar panels: their output at full light × this tick's light, floored to the thousandth (0 by night).
+        // A panel gone from the content produces nothing.
+        var light = DayNightClock.LightAt(state.Rules.DayNight, state.FirstBuildTick, state.CurrentTick);
+        var smallRate = SolarPanel.RateAt(OutputRateOf(state.Content, SolarPanel.SmallId), light);
+        var largeRate = SolarPanel.RateAt(OutputRateOf(state.Content, SolarPanel.LargeId), light);
+        foreach (var panel in state.SolarPanels)
+        {
+            var rate = panel.DefinitionId == SolarPanel.LargeId ? largeRate : smallRate;
+            panel.CurrentRate = rate;
+            if (grid.NetworkOf(panel.Id) is { } network)
+            {
+                produced[network.Index] += rate;
             }
         }
 
@@ -134,6 +150,10 @@ public sealed class PowerSystem : ISimulationSystem
         var served = produced + stored;
         return ((int)Math.Min((long)FullBp, (long)((Int128)served * FullBp / requested)), 0);
     }
+
+    /// <summary>The power output of <paramref name="buildingId"/> in thousandths of a unit per second (0 when it has none).</summary>
+    public static long OutputRateOf(FactoryContent content, string buildingId) =>
+        content.FindBuilding(buildingId)?.PowerOutputRate ?? 0;
 
     /// <summary>The power use of <paramref name="buildingId"/> in thousandths of a unit per second (0 when it has none).</summary>
     public static long RateOf(FactoryContent content, string buildingId) =>

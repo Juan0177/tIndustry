@@ -286,7 +286,7 @@ public sealed class PowerGrid
     }
 
     /// <summary>
-    /// The power blocks of <paramref name="s"/> in id order: generators, nodes, batteries and the blocks with a power
+    /// The power blocks of <paramref name="s"/> in id order: generators (the solar panels too), nodes, batteries and the blocks with a power
     /// use (craft machines but the graphite press, Miner T2, impact drill, lamp, the long bridge's entry). Belts, Miner T1, extractor, graphite press, storage
     /// and the Core are not.
     /// </summary>
@@ -307,6 +307,11 @@ public sealed class PowerGrid
         foreach (var b in s.Batteries)
         {
             blocks.Add(new PowerBlock(b.Id, b.Position, Battery.Size, PowerBlockKind.Battery));
+        }
+
+        foreach (var p in s.SolarPanels)
+        {
+            blocks.Add(new PowerBlock(p.Id, p.Position, p.Size, PowerBlockKind.Generator));
         }
 
         foreach (var c in s.CraftMachines())

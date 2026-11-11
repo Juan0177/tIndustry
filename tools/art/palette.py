@@ -26,6 +26,7 @@ UNITA_SOTTO = [(46, 47, 56), (68, 70, 82), (82, 84, 96), (96, 98, 110), (116, 11
 UNITA_SOPRA = [(96, 98, 110), (132, 134, 146), (164, 166, 178), (190, 192, 202), (214, 216, 226)]  # top plates
 CELLA = [(150, 84, 40), (214, 132, 60), (240, 166, 84), (255, 190, 100), (255, 240, 200)]  # team cell
 ENERGIA = [(84, 70, 20), (150, 128, 34), (220, 196, 60), (250, 230, 110), (255, 248, 200)]
+SOLARE = [(14, 24, 52), (24, 44, 92), (38, 70, 136), (78, 118, 184), (168, 198, 236)]  # photovoltaic cells (deep blue)
 LUCCIOLA = [(70, 96, 20), (128, 170, 40), (188, 226, 70), (226, 250, 120), (250, 255, 200)]  # fireflies at night (G3)
 # LEDs of the stock-exchange screen (jackpot sequence: confetti): the middle tone of each ramp is the UiColors
 # value of the Normale variant (LedBlu, LedViola, LedGiallo; test_coriandoli_come_ui_colors), plus white paper.

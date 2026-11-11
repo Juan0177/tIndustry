@@ -27,7 +27,7 @@ Il Minatore T1, la Pressa grande e l'Estrattore non usano corrente. Un blocco ch
 
 ## Blocchi di corrente
 
-Fanno parte della rete il Generatore, i Nodi T1 e T2, la Batteria e ogni blocco che consuma corrente (Forno, Assemblatore, Minatore T2, Lampada, Fonderia avanzata, Separatore, Plastificatore, Trapano a impatto, l'entrata del Ponte lungo). Gli altri nastri, Minatore T1, Pressa grande, Estrattore, magazzini e **CORE** non ne fanno parte: il CORE non produce né conserva corrente.
+Fanno parte della rete il Generatore, i Pannelli solari, i Nodi T1 e T2, la Batteria e ogni blocco che consuma corrente (Forno, Assemblatore, Minatore T2, Lampada, Fonderia avanzata, Separatore, Plastificatore, Trapano a impatto, l'entrata del Ponte lungo). Gli altri nastri, Minatore T1, Pressa grande, Estrattore, magazzini e **CORE** non ne fanno parte: il CORE non produce né conserva corrente.
 
 ## Generatore
 
@@ -41,6 +41,17 @@ Fanno parte della rete il Generatore, i Nodi T1 e T2, la Batteria e ogni blocco 
 | Produzione | **30 unità al secondo** mentre brucia |
 
 Un generatore è **acceso** finché ha carbone da bruciare: il rotore gira e, di notte, fa luce. Accetta solo carbone.
+
+## Pannelli solari
+
+| | Pannello solare (`solar`) | Pannello solare grande (`solar-large`) |
+|---|---|---|
+| Misura | 1×1 | 3×3 |
+| Costo | 6 Fili di rame, 4 Silicio | 30 Lastre di piombo, 25 Silicio, 10 Lastre di titanio |
+| Sblocco | $9.100, 18 Fili di rame, 12 Silicio (dopo il Nodo T1) | $12.000, 120 Lastre di piombo, 100 Silicio, 40 Lastre di titanio (dopo il Pannello solare) |
+| Produzione | **3 unità al secondo** in pieno giorno | **36 unità al secondo** in pieno giorno |
+
+I pannelli non bruciano niente: producono la loro corrente per la **luce del mondo** (da 0 a 1000: il ciclo del tempo è in [Campagna e mappe](Campagna-e-mappe#partita-libera)), in millesimi interi arrotondati per difetto: `produzione × luce / 1000`. Di giorno tutta, di notte niente, al tramonto e all'alba in proporzione (a metà tramonto 1,5 il pannello piccolo, 18 il grande). Prima del primo blocco è giorno; con «Solo giorno (Pacifica)» producono sempre tutto, con «Solo notte» mai. Si collegano come il generatore, per contatto o col laser di un nodo, e caricano le batterie della loro rete.
 
 ## La rete
 

@@ -105,6 +105,8 @@ public partial class World
         BuildTool.OverflowGate => Hud.ToolKind.OverflowGate,
         BuildTool.UnderflowGate => Hud.ToolKind.UnderflowGate,
         BuildTool.BridgeLong => Hud.ToolKind.BridgeLong,
+        BuildTool.Solar => Hud.ToolKind.Solar,
+        BuildTool.SolarLarge => Hud.ToolKind.SolarLarge,
         _ => Hud.ToolKind.None
     };
 
@@ -144,6 +146,8 @@ public partial class World
         Hud.ToolKind.OverflowGate => BuildTool.OverflowGate,
         Hud.ToolKind.UnderflowGate => BuildTool.UnderflowGate,
         Hud.ToolKind.BridgeLong => BuildTool.BridgeLong,
+        Hud.ToolKind.Solar => BuildTool.Solar,
+        Hud.ToolKind.SolarLarge => BuildTool.SolarLarge,
         _ => BuildTool.None
     };
 

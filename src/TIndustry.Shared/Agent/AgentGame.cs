@@ -64,7 +64,8 @@ public sealed class AgentGame : IDisposable
         ('W', "fonderia avanzata"), ('H', "pressa grande"), ('X', "separatore"), ('Y', "plastificatore"),
         ('T', "trapano a impatto"), ('O', "overflow gate"), ('U', "underflow gate"),
         ('8', "nastro a pacchi verso nord"), ('6', "nastro a pacchi verso est"), ('2', "nastro a pacchi verso sud"),
-        ('4', "nastro a pacchi verso ovest"), ('Z', "ponte lungo"),
+        ('4', "nastro a pacchi verso ovest"), ('Z', "ponte lungo"), ('D', "pannello solare"),
+        ('J', "pannello solare grande"),
         ('!', "struttura senza simbolo"),
         ('#', "parete"), ('~', "acqua profonda"), (',', "acqua bassa"), ('s', "pavimento di sabbia"),
         ('i', "giacimento di ferro"), ('r', "giacimento di rame"), ('k', "giacimento di carbone"),
@@ -674,6 +675,7 @@ public sealed class AgentGame : IDisposable
                 ["estrattori"] = View.Extractors.Count,
                 ["nodi"] = View.PowerNodes.Count,
                 ["lampade"] = View.Lamps.Count,
+                ["pannelliSolari"] = View.SolarPanels.Count,
                 ["nastri"] = logistics.GetValueOrDefault(LogisticsKind.Belt),
                 ["incroci"] = logistics.GetValueOrDefault(LogisticsKind.Junction),
                 ["router"] = logistics.GetValueOrDefault(LogisticsKind.Router),
@@ -1043,6 +1045,8 @@ public sealed class AgentGame : IDisposable
         BuildingKind.OverflowGate => 'O',
         BuildingKind.UnderflowGate => 'U',
         BuildingKind.BridgeLong => 'Z',
+        BuildingKind.Solar => 'D',
+        BuildingKind.SolarLarge => 'J',
         _ => '!'
     };
 
@@ -1147,6 +1151,12 @@ public sealed class AgentGame : IDisposable
         foreach (var b in View.Batteries)
         {
             yield return (Battery.BuildingId, BuildingKind.Battery, b.Position, Direction.East);
+        }
+
+        foreach (var p in View.SolarPanels)
+        {
+            var kind = p.DefinitionId == SolarPanel.LargeId ? BuildingKind.SolarLarge : BuildingKind.Solar;
+            yield return (p.DefinitionId, kind, p.Position, Direction.East);
         }
 
         foreach (var s in View.Storages)

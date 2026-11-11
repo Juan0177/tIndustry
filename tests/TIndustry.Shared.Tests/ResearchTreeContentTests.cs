@@ -52,6 +52,8 @@ public sealed class ResearchTreeContentTests
         { "power-node-t2", "power-node" },
         { "lamp", "power-node" },
         { "battery", "power-node" },
+        { "solar", "power-node" },
+        { "solar-large", "solar" },
         // CORE e magazzini
         { "container", "junction" },
         { "vault", "container" },

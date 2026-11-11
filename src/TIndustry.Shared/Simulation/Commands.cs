@@ -44,7 +44,9 @@ public enum BuildingKind
     ImpactDrill,
     OverflowGate,
     UnderflowGate,
-    BridgeLong
+    BridgeLong,
+    Solar,
+    SolarLarge
 }
 
 /// <summary>

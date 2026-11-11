@@ -54,7 +54,9 @@ public partial class BuildPalette : PanelContainer
         new(ToolKind.PowerNode, "power-node", ""),
         new(ToolKind.PowerNodeT2, "power-node-t2", ""),
         new(ToolKind.Lamp, "lamp", ""),
-        new(ToolKind.Battery, "battery", "")
+        new(ToolKind.Battery, "battery", ""),
+        new(ToolKind.Solar, SolarPanel.SmallId, ""),
+        new(ToolKind.SolarLarge, SolarPanel.LargeId, "")
     ];
 
     // Mindustry's cores, containers and vaults: a Core block shows only while it is the next tier (see World.SyncResearchLocks).
@@ -533,6 +535,7 @@ public partial class BuildPalette : PanelContainer
             or ToolKind.ImpactDrill
             => BuildCategory.Production,
         ToolKind.Generator or ToolKind.PowerNode or ToolKind.PowerNodeT2 or ToolKind.Lamp or ToolKind.Battery
+            or ToolKind.Solar or ToolKind.SolarLarge
             => BuildCategory.Power,
         ToolKind.Container or ToolKind.Vault or ToolKind.CoreFoundation or ToolKind.CoreNucleus or ToolKind.MarketScreen
             => BuildCategory.Storage,

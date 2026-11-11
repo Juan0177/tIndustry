@@ -31,6 +31,7 @@ public sealed class Factory : IGameView
     private List<PowerNode> powerNodes => State.PowerNodes;
     private List<Lamp> lamps => State.Lamps;
     private List<Battery> batteries => State.Batteries;
+    private List<SolarPanel> solarPanels => State.SolarPanels;
     private List<StorageBlock> storages => State.Storages;
 
     public Factory(
@@ -169,6 +170,7 @@ public sealed class Factory : IGameView
     public IReadOnlyList<Lamp> Lamps => lamps;
     public IReadOnlyList<BridgePower> BridgePowers => State.BridgePowers;
     public IReadOnlyList<Battery> Batteries => batteries;
+    public IReadOnlyList<SolarPanel> SolarPanels => solarPanels;
 
     /// <summary>The finished stock-exchange screen (one per game), or null; active when it touches the Core.</summary>
     public MarketScreen? MarketScreen => State.MarketScreen;
@@ -965,6 +967,15 @@ public sealed class Factory : IGameView
             Batteries = batteries.Count == 0
                 ? null
                 : batteries.OrderBy(b => b.Id).Select(b => new BatterySaveDto { Id = b.Id, X = b.Position.X, Y = b.Position.Y, Charge = b.Charge }).ToList(),
+            SolarPanels = solarPanels.Count == 0
+                ? null
+                : solarPanels.OrderBy(p => p.Id).Select(p => new SolarPanelSaveDto
+                {
+                    Id = p.Id,
+                    X = p.Position.X,
+                    Y = p.Position.Y,
+                    DefinitionId = p.DefinitionId
+                }).ToList(),
             PowerLinks = State.PowerGrid.Links.Count == 0
                 ? null
                 : State.PowerGrid.Links.Select(l => new PowerLinkSaveDto { A = l.A, B = l.B }).ToList(),
@@ -1306,6 +1317,7 @@ public sealed class Factory : IGameView
             .Concat((data.Lamps ?? []).Select(d => d.Id))
             .Concat(data.Belts.Select(d => d.PowerId ?? 0))
             .Concat((data.Batteries ?? []).Select(d => d.Id))
+            .Concat((data.SolarPanels ?? []).Select(d => d.Id))
             .Concat((data.Storages ?? []).Select(d => d.Id))
             .Concat(data.Builders.Select(d => d.Id))
             .Concat(data.Sites.Select(d => d.Id))
@@ -1398,6 +1410,16 @@ public sealed class Factory : IGameView
             });
         }
 
+        foreach (var p in data.SolarPanels ?? [])
+        {
+            if (!SolarPanel.IsSolarId(p.DefinitionId))
+            {
+                throw new InvalidDataException($"Pannello solare di tipo sconosciuto: '{p.DefinitionId}'.");
+            }
+
+            factory.solarPanels.Add(new SolarPanel(new GridPosition(p.X, p.Y), p.DefinitionId, RestoredId(p.Id)));
+        }
+
         foreach (var s in data.Storages ?? [])
         {
             if (!Enum.TryParse<BuildingKind>(s.Kind, out var kind) || !BuildSpec.IsStorage(kind))
@@ -1477,6 +1499,7 @@ public sealed class Factory : IGameView
         SortById(factory.powerNodes, n => n.Id);
         SortById(factory.lamps, l => l.Id);
         SortById(factory.batteries, b => b.Id);
+        SortById(factory.solarPanels, p => p.Id);
         SortById(factory.State.BridgePowers, b => b.Id);
         SortById(factory.storages, s => s.Id);
         // The recipes gated by research follow the restored research.
@@ -2283,6 +2306,14 @@ public sealed class Factory : IGameView
             }
         }
 
+        foreach (var panel in solarPanels)
+        {
+            if (panel.Occupies(tile))
+            {
+                return true;
+            }
+        }
+
         foreach (var storage in storages)
         {
             if (storage.Occupies(tile))
@@ -2596,6 +2627,8 @@ public sealed class Factory : IGameView
         "power-node-t2" => "power-node-t2",
         "lamp" => Lamp.BuildingId,
         "battery" => Battery.BuildingId,
+        SolarPanel.SmallId => SolarPanel.SmallId,
+        SolarPanel.LargeId => SolarPanel.LargeId,
         "container" => "container",
         "vault" => "vault",
         "market-screen" => MarketScreen.BuildingId,
@@ -3201,6 +3234,10 @@ public sealed class Factory : IGameView
                 return PlaceLamp(origin, charge);
             case BuildingKind.Battery:
                 return PlaceBattery(origin, charge);
+            case BuildingKind.Solar:
+                return PlaceSolarPanel(origin, SolarPanel.SmallId, charge);
+            case BuildingKind.SolarLarge:
+                return PlaceSolarPanel(origin, SolarPanel.LargeId, charge);
             case BuildingKind.CoreFoundation:
             case BuildingKind.CoreNucleus:
                 return PlaceCoreUpgrade(spec, charge);
@@ -3290,6 +3327,17 @@ public sealed class Factory : IGameView
             {
                 spec = new BuildSpec(Battery.BuildingId, BuildingKind.Battery, b.Position, Direction.East);
                 entityId = b.Id;
+                return true;
+            }
+        }
+
+        foreach (var p in solarPanels)
+        {
+            if (p.Occupies(tile))
+            {
+                var kind = p.DefinitionId == SolarPanel.LargeId ? BuildingKind.SolarLarge : BuildingKind.Solar;
+                spec = new BuildSpec(p.DefinitionId, kind, p.Position, Direction.East);
+                entityId = p.Id;
                 return true;
             }
         }
@@ -3411,6 +3459,8 @@ public sealed class Factory : IGameView
         BuildingKind.Generator => Generator.Size,
         BuildingKind.Extractor => Extractor.Size,
         BuildingKind.PowerNodeT2 => 2,
+        BuildingKind.Solar => SolarPanel.SmallSize,
+        BuildingKind.SolarLarge => SolarPanel.LargeSize,
         BuildingKind.CoreFoundation or BuildingKind.CoreNucleus => Content.CoreTiers[BuildSpec.CoreTierOf(spec.Kind)].Size,
         BuildingKind.Container or BuildingKind.Vault => StorageBlock.SizeOf(spec.Kind),
         BuildingKind.MarketScreen => MarketScreen.Size,
@@ -3764,6 +3814,18 @@ public sealed class Factory : IGameView
         return true;
     }
 
+    private bool PlaceSolarPanel(GridPosition origin, string definitionId, bool charge)
+    {
+        if (!CanOccupyFootprint(origin, SolarPanel.SizeFor(definitionId)) || (charge && !TryChargeBuilding(definitionId)))
+        {
+            return false;
+        }
+
+        solarPanels.Add(new SolarPanel(origin, definitionId, nextEntityId++));
+        PowerBlocksChanged();
+        return true;
+    }
+
     /// <summary>
     /// Places the market screen (one per game) and recomputes whether it is active. Contact with the Core is checked
     /// on placing (<see cref="MarketScreenRefusal"/>), not here: a site finished after the Core changed still stands.
@@ -4055,6 +4117,17 @@ public sealed class Factory : IGameView
                 entityId = batteries[i].Id;
                 buildingId = Battery.BuildingId;
                 batteries.RemoveAt(i);
+                return true;
+            }
+        }
+
+        for (var i = solarPanels.Count - 1; i >= 0; i--)
+        {
+            if (solarPanels[i].Occupies(tile))
+            {
+                entityId = solarPanels[i].Id;
+                buildingId = solarPanels[i].DefinitionId;
+                solarPanels.RemoveAt(i);
                 return true;
             }
         }

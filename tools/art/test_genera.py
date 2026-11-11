@@ -38,7 +38,7 @@ CELLE = {
     "impact-drill": 3,
     "extractor": 1, "power-node": 1, "lamp": 1, "battery": 1, "conveyor-basic": 1, "conveyor-fast": 1,
     "conveyor-express": 1, "conveyor-armored": 1, "junction": 1, "router": 1, "sorter": 1, "sorter-inverted": 1, "conveyor-bridge": 1,
-    "overflow-gate": 1, "underflow-gate": 1, "bridge-long": 1, "conveyor-stack": 1,
+    "overflow-gate": 1, "underflow-gate": 1, "bridge-long": 1, "conveyor-stack": 1, "solar": 1, "solar-large": 3,
     "core-1": 2, "core-2": 3, "core-3": 4, "core-4": 5,
     "container": 2, "vault": 3, "core-shard": 3, "core-foundation": 4, "core-nucleus": 5, "market-screen": 2,
     # Finance modules: research nodes only, their sprite is the one-cell Research icon.
